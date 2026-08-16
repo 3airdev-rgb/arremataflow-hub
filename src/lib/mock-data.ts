@@ -199,7 +199,13 @@ export const kpis = {
   projetosAtivos: 18,
   regularizacoes: 11,
   pendencias: 7,
-  posseP:endente: 4,
+  possePendente: 4,
+  reformas: 3,
+  aVenda: 5,
+  capitalInvestido: 6449500,
+  honorarios: 601700,
+  resultadoProjetado: 1946000,
+  resultadoRealizado: 612000,
 };
 
 export type Tarefa = {
