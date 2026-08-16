@@ -11,6 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as InvestidorRouteImport } from './routes/investidor'
+import { Route as AdminConfiguracoesRouteImport } from './routes/admin.configuracoes'
+import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as ProjetosIndexRouteImport } from './routes/projetos.index'
 import { Route as ProjetosNovoRouteImport } from './routes/projetos.novo'
 import { Route as ProjetosIdIndexRouteImport } from './routes/projetos.$id.index'
@@ -26,6 +29,21 @@ const IndexRoute = IndexRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvestidorRoute = InvestidorRouteImport.update({
+  id: '/investidor',
+  path: '/investidor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminConfiguracoesRoute = AdminConfiguracoesRouteImport.update({
+  id: '/admin/configuracoes',
+  path: '/admin/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminUsuariosRoute = AdminUsuariosRouteImport.update({
+  id: '/admin/usuarios',
+  path: '/admin/usuarios',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjetosIndexRoute = ProjetosIndexRouteImport.update({
@@ -62,6 +80,9 @@ const ProjetosIdTarefasRoute = ProjetosIdTarefasRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/investidor': typeof InvestidorRoute
+  '/admin/configuracoes': typeof AdminConfiguracoesRoute
+  '/admin/usuarios': typeof AdminUsuariosRoute
   '/projetos/novo': typeof ProjetosNovoRoute
   '/projetos/': typeof ProjetosIndexRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
@@ -72,6 +93,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/investidor': typeof InvestidorRoute
+  '/admin/configuracoes': typeof AdminConfiguracoesRoute
+  '/admin/usuarios': typeof AdminUsuariosRoute
   '/projetos/novo': typeof ProjetosNovoRoute
   '/projetos': typeof ProjetosIndexRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
@@ -83,6 +107,9 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/investidor': typeof InvestidorRoute
+  '/admin/configuracoes': typeof AdminConfiguracoesRoute
+  '/admin/usuarios': typeof AdminUsuariosRoute
   '/projetos/novo': typeof ProjetosNovoRoute
   '/projetos/': typeof ProjetosIndexRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
@@ -95,6 +122,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/investidor'
+    | '/admin/configuracoes'
+    | '/admin/usuarios'
     | '/projetos/novo'
     | '/projetos/'
     | '/projetos/$id/documentos'
@@ -105,6 +135,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/investidor'
+    | '/admin/configuracoes'
+    | '/admin/usuarios'
     | '/projetos/novo'
     | '/projetos'
     | '/projetos/$id/documentos'
@@ -115,6 +148,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/investidor'
+    | '/admin/configuracoes'
+    | '/admin/usuarios'
     | '/projetos/novo'
     | '/projetos/'
     | '/projetos/$id/documentos'
@@ -126,6 +162,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
+  InvestidorRoute: typeof InvestidorRoute
+  AdminConfiguracoesRoute: typeof AdminConfiguracoesRoute
+  AdminUsuariosRoute: typeof AdminUsuariosRoute
   ProjetosNovoRoute: typeof ProjetosNovoRoute
   ProjetosIndexRoute: typeof ProjetosIndexRoute
   ProjetosIdDocumentosRoute: typeof ProjetosIdDocumentosRoute
@@ -148,6 +187,27 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/investidor': {
+      id: '/investidor'
+      path: '/investidor'
+      fullPath: '/investidor'
+      preLoaderRoute: typeof InvestidorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/configuracoes': {
+      id: '/admin/configuracoes'
+      path: '/admin/configuracoes'
+      fullPath: '/admin/configuracoes'
+      preLoaderRoute: typeof AdminConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/usuarios': {
+      id: '/admin/usuarios'
+      path: '/admin/usuarios'
+      fullPath: '/admin/usuarios'
+      preLoaderRoute: typeof AdminUsuariosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projetos/': {
@@ -198,6 +258,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
+  InvestidorRoute: InvestidorRoute,
+  AdminConfiguracoesRoute: AdminConfiguracoesRoute,
+  AdminUsuariosRoute: AdminUsuariosRoute,
   ProjetosNovoRoute: ProjetosNovoRoute,
   ProjetosIndexRoute: ProjetosIndexRoute,
   ProjetosIdDocumentosRoute: ProjetosIdDocumentosRoute,
