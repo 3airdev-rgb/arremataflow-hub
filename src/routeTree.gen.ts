@@ -10,8 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AssessoresRouteImport } from './routes/assessores'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as DocumentosRouteImport } from './routes/documentos'
+import { Route as FinanceiroRouteImport } from './routes/financeiro'
+import { Route as ImoveisRouteImport } from './routes/imoveis'
 import { Route as InvestidorRouteImport } from './routes/investidor'
+import { Route as ObrasRouteImport } from './routes/obras'
+import { Route as PerfilRouteImport } from './routes/perfil'
+import { Route as PosseRouteImport } from './routes/posse'
+import { Route as RegularizacaoRouteImport } from './routes/regularizacao'
+import { Route as ResultadosRouteImport } from './routes/resultados'
+import { Route as TarefasRouteImport } from './routes/tarefas'
 import { Route as AdminConfiguracoesRouteImport } from './routes/admin.configuracoes'
 import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as ProjetosIndexRouteImport } from './routes/projetos.index'
@@ -26,14 +36,64 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AssessoresRoute = AssessoresRouteImport.update({
+  id: '/assessores',
+  path: '/assessores',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DocumentosRoute = DocumentosRouteImport.update({
+  id: '/documentos',
+  path: '/documentos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinanceiroRoute = FinanceiroRouteImport.update({
+  id: '/financeiro',
+  path: '/financeiro',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImoveisRoute = ImoveisRouteImport.update({
+  id: '/imoveis',
+  path: '/imoveis',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InvestidorRoute = InvestidorRouteImport.update({
   id: '/investidor',
   path: '/investidor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ObrasRoute = ObrasRouteImport.update({
+  id: '/obras',
+  path: '/obras',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PerfilRoute = PerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PosseRoute = PosseRouteImport.update({
+  id: '/posse',
+  path: '/posse',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegularizacaoRoute = RegularizacaoRouteImport.update({
+  id: '/regularizacao',
+  path: '/regularizacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResultadosRoute = ResultadosRouteImport.update({
+  id: '/resultados',
+  path: '/resultados',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TarefasRoute = TarefasRouteImport.update({
+  id: '/tarefas',
+  path: '/tarefas',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminConfiguracoesRoute = AdminConfiguracoesRouteImport.update({
@@ -79,8 +139,18 @@ const ProjetosIdTarefasRoute = ProjetosIdTarefasRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/assessores': typeof AssessoresRoute
   '/dashboard': typeof DashboardRoute
+  '/documentos': typeof DocumentosRoute
+  '/financeiro': typeof FinanceiroRoute
+  '/imoveis': typeof ImoveisRoute
   '/investidor': typeof InvestidorRoute
+  '/obras': typeof ObrasRoute
+  '/perfil': typeof PerfilRoute
+  '/posse': typeof PosseRoute
+  '/regularizacao': typeof RegularizacaoRoute
+  '/resultados': typeof ResultadosRoute
+  '/tarefas': typeof TarefasRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/projetos/novo': typeof ProjetosNovoRoute
@@ -92,8 +162,18 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/assessores': typeof AssessoresRoute
   '/dashboard': typeof DashboardRoute
+  '/documentos': typeof DocumentosRoute
+  '/financeiro': typeof FinanceiroRoute
+  '/imoveis': typeof ImoveisRoute
   '/investidor': typeof InvestidorRoute
+  '/obras': typeof ObrasRoute
+  '/perfil': typeof PerfilRoute
+  '/posse': typeof PosseRoute
+  '/regularizacao': typeof RegularizacaoRoute
+  '/resultados': typeof ResultadosRoute
+  '/tarefas': typeof TarefasRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/projetos/novo': typeof ProjetosNovoRoute
@@ -106,8 +186,18 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/assessores': typeof AssessoresRoute
   '/dashboard': typeof DashboardRoute
+  '/documentos': typeof DocumentosRoute
+  '/financeiro': typeof FinanceiroRoute
+  '/imoveis': typeof ImoveisRoute
   '/investidor': typeof InvestidorRoute
+  '/obras': typeof ObrasRoute
+  '/perfil': typeof PerfilRoute
+  '/posse': typeof PosseRoute
+  '/regularizacao': typeof RegularizacaoRoute
+  '/resultados': typeof ResultadosRoute
+  '/tarefas': typeof TarefasRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/projetos/novo': typeof ProjetosNovoRoute
@@ -121,8 +211,18 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/assessores'
     | '/dashboard'
+    | '/documentos'
+    | '/financeiro'
+    | '/imoveis'
     | '/investidor'
+    | '/obras'
+    | '/perfil'
+    | '/posse'
+    | '/regularizacao'
+    | '/resultados'
+    | '/tarefas'
     | '/admin/configuracoes'
     | '/admin/usuarios'
     | '/projetos/novo'
@@ -134,8 +234,18 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/assessores'
     | '/dashboard'
+    | '/documentos'
+    | '/financeiro'
+    | '/imoveis'
     | '/investidor'
+    | '/obras'
+    | '/perfil'
+    | '/posse'
+    | '/regularizacao'
+    | '/resultados'
+    | '/tarefas'
     | '/admin/configuracoes'
     | '/admin/usuarios'
     | '/projetos/novo'
@@ -147,8 +257,18 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/assessores'
     | '/dashboard'
+    | '/documentos'
+    | '/financeiro'
+    | '/imoveis'
     | '/investidor'
+    | '/obras'
+    | '/perfil'
+    | '/posse'
+    | '/regularizacao'
+    | '/resultados'
+    | '/tarefas'
     | '/admin/configuracoes'
     | '/admin/usuarios'
     | '/projetos/novo'
@@ -161,8 +281,18 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AssessoresRoute: typeof AssessoresRoute
   DashboardRoute: typeof DashboardRoute
+  DocumentosRoute: typeof DocumentosRoute
+  FinanceiroRoute: typeof FinanceiroRoute
+  ImoveisRoute: typeof ImoveisRoute
   InvestidorRoute: typeof InvestidorRoute
+  ObrasRoute: typeof ObrasRoute
+  PerfilRoute: typeof PerfilRoute
+  PosseRoute: typeof PosseRoute
+  RegularizacaoRoute: typeof RegularizacaoRoute
+  ResultadosRoute: typeof ResultadosRoute
+  TarefasRoute: typeof TarefasRoute
   AdminConfiguracoesRoute: typeof AdminConfiguracoesRoute
   AdminUsuariosRoute: typeof AdminUsuariosRoute
   ProjetosNovoRoute: typeof ProjetosNovoRoute
@@ -182,6 +312,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/assessores': {
+      id: '/assessores'
+      path: '/assessores'
+      fullPath: '/assessores'
+      preLoaderRoute: typeof AssessoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -189,11 +326,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/documentos': {
+      id: '/documentos'
+      path: '/documentos'
+      fullPath: '/documentos'
+      preLoaderRoute: typeof DocumentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/financeiro': {
+      id: '/financeiro'
+      path: '/financeiro'
+      fullPath: '/financeiro'
+      preLoaderRoute: typeof FinanceiroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/imoveis': {
+      id: '/imoveis'
+      path: '/imoveis'
+      fullPath: '/imoveis'
+      preLoaderRoute: typeof ImoveisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/investidor': {
       id: '/investidor'
       path: '/investidor'
       fullPath: '/investidor'
       preLoaderRoute: typeof InvestidorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/obras': {
+      id: '/obras'
+      path: '/obras'
+      fullPath: '/obras'
+      preLoaderRoute: typeof ObrasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/perfil': {
+      id: '/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof PerfilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/posse': {
+      id: '/posse'
+      path: '/posse'
+      fullPath: '/posse'
+      preLoaderRoute: typeof PosseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/regularizacao': {
+      id: '/regularizacao'
+      path: '/regularizacao'
+      fullPath: '/regularizacao'
+      preLoaderRoute: typeof RegularizacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resultados': {
+      id: '/resultados'
+      path: '/resultados'
+      fullPath: '/resultados'
+      preLoaderRoute: typeof ResultadosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tarefas': {
+      id: '/tarefas'
+      path: '/tarefas'
+      fullPath: '/tarefas'
+      preLoaderRoute: typeof TarefasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/configuracoes': {
@@ -257,8 +457,18 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AssessoresRoute: AssessoresRoute,
   DashboardRoute: DashboardRoute,
+  DocumentosRoute: DocumentosRoute,
+  FinanceiroRoute: FinanceiroRoute,
+  ImoveisRoute: ImoveisRoute,
   InvestidorRoute: InvestidorRoute,
+  ObrasRoute: ObrasRoute,
+  PerfilRoute: PerfilRoute,
+  PosseRoute: PosseRoute,
+  RegularizacaoRoute: RegularizacaoRoute,
+  ResultadosRoute: ResultadosRoute,
+  TarefasRoute: TarefasRoute,
   AdminConfiguracoesRoute: AdminConfiguracoesRoute,
   AdminUsuariosRoute: AdminUsuariosRoute,
   ProjetosNovoRoute: ProjetosNovoRoute,
