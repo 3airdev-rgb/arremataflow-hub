@@ -16,6 +16,7 @@ import { Route as DocumentosRouteImport } from './routes/documentos'
 import { Route as FinanceiroRouteImport } from './routes/financeiro'
 import { Route as ImoveisRouteImport } from './routes/imoveis'
 import { Route as InvestidorRouteImport } from './routes/investidor'
+import { Route as NotificacoesRouteImport } from './routes/notificacoes'
 import { Route as ObrasRouteImport } from './routes/obras'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PosseRouteImport } from './routes/posse'
@@ -64,6 +65,11 @@ const ImoveisRoute = ImoveisRouteImport.update({
 const InvestidorRoute = InvestidorRouteImport.update({
   id: '/investidor',
   path: '/investidor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificacoesRoute = NotificacoesRouteImport.update({
+  id: '/notificacoes',
+  path: '/notificacoes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ObrasRoute = ObrasRouteImport.update({
@@ -145,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/financeiro': typeof FinanceiroRoute
   '/imoveis': typeof ImoveisRoute
   '/investidor': typeof InvestidorRoute
+  '/notificacoes': typeof NotificacoesRoute
   '/obras': typeof ObrasRoute
   '/perfil': typeof PerfilRoute
   '/posse': typeof PosseRoute
@@ -168,6 +175,7 @@ export interface FileRoutesByTo {
   '/financeiro': typeof FinanceiroRoute
   '/imoveis': typeof ImoveisRoute
   '/investidor': typeof InvestidorRoute
+  '/notificacoes': typeof NotificacoesRoute
   '/obras': typeof ObrasRoute
   '/perfil': typeof PerfilRoute
   '/posse': typeof PosseRoute
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   '/financeiro': typeof FinanceiroRoute
   '/imoveis': typeof ImoveisRoute
   '/investidor': typeof InvestidorRoute
+  '/notificacoes': typeof NotificacoesRoute
   '/obras': typeof ObrasRoute
   '/perfil': typeof PerfilRoute
   '/posse': typeof PosseRoute
@@ -217,6 +226,7 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/imoveis'
     | '/investidor'
+    | '/notificacoes'
     | '/obras'
     | '/perfil'
     | '/posse'
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/imoveis'
     | '/investidor'
+    | '/notificacoes'
     | '/obras'
     | '/perfil'
     | '/posse'
@@ -263,6 +274,7 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/imoveis'
     | '/investidor'
+    | '/notificacoes'
     | '/obras'
     | '/perfil'
     | '/posse'
@@ -287,6 +299,7 @@ export interface RootRouteChildren {
   FinanceiroRoute: typeof FinanceiroRoute
   ImoveisRoute: typeof ImoveisRoute
   InvestidorRoute: typeof InvestidorRoute
+  NotificacoesRoute: typeof NotificacoesRoute
   ObrasRoute: typeof ObrasRoute
   PerfilRoute: typeof PerfilRoute
   PosseRoute: typeof PosseRoute
@@ -352,6 +365,13 @@ declare module '@tanstack/react-router' {
       path: '/investidor'
       fullPath: '/investidor'
       preLoaderRoute: typeof InvestidorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notificacoes': {
+      id: '/notificacoes'
+      path: '/notificacoes'
+      fullPath: '/notificacoes'
+      preLoaderRoute: typeof NotificacoesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/obras': {
@@ -463,6 +483,7 @@ const rootRouteChildren: RootRouteChildren = {
   FinanceiroRoute: FinanceiroRoute,
   ImoveisRoute: ImoveisRoute,
   InvestidorRoute: InvestidorRoute,
+  NotificacoesRoute: NotificacoesRoute,
   ObrasRoute: ObrasRoute,
   PerfilRoute: PerfilRoute,
   PosseRoute: PosseRoute,
