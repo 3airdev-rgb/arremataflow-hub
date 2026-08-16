@@ -142,7 +142,7 @@ function FichaProjeto() {
         ))}
       </div>
 
-      <Tabs defaultValue={slug(abas[0])} className="mt-8">
+      <Tabs defaultValue="visao-geral" className="mt-8">
         <div className="overflow-x-auto">
           <TabsList className="w-max">
             {abas.map((a) => (

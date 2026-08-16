@@ -62,11 +62,11 @@ function SectionCard({
   );
 }
 
-const galeria = projetos[0].fotos;
+const galeria = projetos[0]?.fotos ?? [];
 
 function NovoProjeto() {
   const navigate = useNavigate();
-  const [principal, setPrincipal] = useState(galeria[0]);
+  const [principal, setPrincipal] = useState(galeria[0] ?? "");
   const [participantes, setParticipantes] = useState([
     { nome: "Marcos Ribeiro", papel: "Investidor", percentual: "45" },
   ]);

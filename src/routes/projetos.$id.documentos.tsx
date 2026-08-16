@@ -95,7 +95,7 @@ function DocumentosProjeto() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="categoria">Categoria</Label>
-                <Select name="categoria" defaultValue={categoriasDocumentos[0]}>
+                <Select name="categoria" defaultValue="Aquisição">
                   <SelectTrigger id="categoria">
                     <SelectValue />
                   </SelectTrigger>
