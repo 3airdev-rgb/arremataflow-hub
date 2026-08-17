@@ -232,7 +232,7 @@ function NovoProjeto() {
               <Input id="honorario" placeholder="20" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="fixo">Honorários</Label>
+              <Label htmlFor="fixo">language selector</Label>
               <Input id="fixo" placeholder="R$ 0,00" />
             </div>
             <div className="space-y-2">
