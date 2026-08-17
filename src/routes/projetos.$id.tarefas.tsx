@@ -221,7 +221,7 @@ function TarefasProjeto() {
                   }}
                 >
                   <Edit2 className="size-3" />
-                  Editar tarefa
+                  language selector
                 </Button>
                 <StatusBadge status={t.status} />
               </div>
