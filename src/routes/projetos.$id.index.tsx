@@ -52,6 +52,7 @@ const abas = [
   "Obra",
   "Venda",
   "Resultado",
+  "Distribuição de Resultados",
   "Histórico",
 ];
 
