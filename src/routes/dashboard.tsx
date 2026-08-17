@@ -23,6 +23,7 @@ import {
   alertasCriticos,
   movimentacoesRecentes,
   formatBRL,
+  projetos,
 } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/dashboard")({
@@ -66,18 +67,34 @@ function Dashboard() {
             <h3 className="text-base font-semibold">Alertas do dia</h3>
           </div>
           <ul className="space-y-3">
-            {alertasCriticos.map((a) => (
-              <li
-                key={a.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3"
-              >
-                <div>
-                  <p className="text-sm font-medium">{a.texto}</p>
-                  <p className="text-xs text-muted-foreground">Projeto {a.projeto}</p>
-                </div>
-                <StatusBadge status={a.nivel} />
-              </li>
-            ))}
+            {alertasCriticos.map((a) => {
+              const projeto = projetos.find((p) => p.codigo === a.projeto);
+              return (
+                <li
+                  key={a.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{a.texto}</p>
+                    <div className="mt-1 flex flex-col gap-0.5">
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        {projeto?.nome || `Projeto ${a.projeto}`}
+                      </p>
+                      {projeto?.investidores && projeto.investidores.length > 0 && (
+                        <div className="flex flex-col">
+                          {projeto.investidores.map((investidor, idx) => (
+                            <p key={idx} className="text-[10px] text-muted-foreground/80">
+                              {investidor}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <StatusBadge status={a.nivel} />
+                </li>
+              );
+            })}
           </ul>
         </div>
 
