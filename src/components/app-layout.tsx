@@ -137,7 +137,7 @@ export function AppLayout({
               <span className="grid size-8 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
                 CA
               </span>
-              <span className="hidden text-sm font-medium sm:block">Camila A.</span>
+              <span className="hidden text-sm font-medium sm:block">Olá, Camila A.</span>
             </div>
           </div>
         </header>
