@@ -228,7 +228,7 @@ function NovoProjeto() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="honorario">Honorário (% sobre resultado)</Label>
+              <Label htmlFor="honorario">language selector</Label>
               <Input id="honorario" placeholder="20" />
             </div>
             <div className="space-y-2">
