@@ -107,7 +107,7 @@ function LoginPage() {
               <div>
                 <h1 className="text-2xl">Entrar</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Ative Supabase para este projeto.
+                  conectar ao projeto https://fmvgomdqtdsllucggcds.supabase.co do supabase
                 </p>
               </div>
               <div className="space-y-2">
