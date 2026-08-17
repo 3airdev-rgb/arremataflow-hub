@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
-import { House, Handshake, BriefcaseBusiness, Users, Plus, Trash2, Save, UserPlus, Search, CalendarIcon } from "lucide-react";
+import { House, Handshake, BriefcaseBusiness, Users, Plus, Trash2, Save, UserPlus, Search, CalendarIcon, CheckCircle2 } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -422,7 +422,7 @@ function NovoProjeto() {
                               }
                             }}
                           >
-                            <CircleCheckBig className="mr-2 h-4 w-4" />
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
                             {investidor.nome} ({investidor.email})
                           </CommandItem>
                         ))}
