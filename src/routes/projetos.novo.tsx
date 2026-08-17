@@ -68,6 +68,7 @@ const galeria = projetos[0]?.fotos ?? [];
 function NovoProjeto() {
   const navigate = useNavigate();
   const [principal, setPrincipal] = useState(galeria[0] ?? "");
+  const [isInvestorModalOpen, setIsInvestorModalOpen] = useState(false);
   const [participantes, setParticipantes] = useState([
     { nome: "Marcos Ribeiro", papel: "Investidor", percentual: "45" },
   ]);
@@ -292,17 +293,40 @@ function NovoProjeto() {
                 </Button>
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setParticipantes((prev) => [...prev, { nome: "", papel: "Investidor", percentual: "" }])
-              }
-            >
-              <Plus className="size-4" /> Adicionar participante
-            </Button>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setParticipantes((prev) => [...prev, { nome: "", papel: "Investidor", percentual: "" }])
+                }
+              >
+                <Plus className="size-4" /> Adicionar participante
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-brand text-brand hover:bg-brand/5"
+                onClick={() => setIsInvestorModalOpen(true)}
+              >
+                <UserPlus className="size-4" /> Cadastrar novo investidor
+              </Button>
+            </div>
           </div>
+
+          <InvestorRegistrationModal
+            open={isInvestorModalOpen}
+            onOpenChange={setIsInvestorModalOpen}
+            onSave={(data) => {
+              setParticipantes((prev) => [
+                ...prev,
+                { nome: data.nome, papel: "Investidor", percentual: "" },
+              ]);
+              toast.success(`Investidor ${data.nome} cadastrado e adicionado!`);
+            }}
+          />
         </SectionCard>
 
         <div className="flex justify-end gap-3 pb-4">
