@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Edit2, Plus } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,9 @@ function TarefasProjeto() {
   const [lista, setLista] = useState(tarefasMock);
   const [filtro, setFiltro] = useState<"todos" | StatusKey>("todos");
   const [open, setOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<(typeof tarefasMock)[0] | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+
   const visiveis = filtro === "todos" ? lista : lista.filter((t) => t.status === filtro);
 
   return (
@@ -110,6 +113,76 @@ function TarefasProjeto() {
         </Dialog>
       }
     >
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar tarefa</DialogTitle>
+            <DialogDescription>Altere as informações da tarefa selecionada.</DialogDescription>
+          </DialogHeader>
+          {editingTask && (
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                setLista((prev) =>
+                  prev.map((t) =>
+                    t.id === editingTask.id
+                      ? {
+                          ...t,
+                          titulo: String(fd.get("titulo")),
+                          responsavel: String(fd.get("resp")),
+                          prazo: String(fd.get("prazo")),
+                          status: fd.get("status") as StatusKey,
+                        }
+                      : t
+                  )
+                );
+                setEditOpen(false);
+                toast.success("Tarefa atualizada!");
+              }}
+            >
+              <div className="space-y-2">
+                <Label htmlFor="edit-titulo">Título</Label>
+                <Input
+                  id="edit-titulo"
+                  name="titulo"
+                  defaultValue={editingTask.titulo}
+                  required
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-resp">Responsável</Label>
+                  <Input id="edit-resp" name="resp" defaultValue={editingTask.responsavel} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-prazo">Prazo</Label>
+                  <Input id="edit-prazo" name="prazo" defaultValue={editingTask.prazo} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-status">Status</Label>
+                <Select name="status" defaultValue={editingTask.status}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(statusLabels) as StatusKey[]).map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {statusLabels[s]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter>
+                <Button type="submit">Salvar alterações</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
       <div className="surface-card">
         <div className="flex flex-wrap items-center gap-3 border-b border-border p-4">
           <Label className="text-sm text-muted-foreground">Filtrar por status</Label>
@@ -137,7 +210,21 @@ function TarefasProjeto() {
                   {t.categoria} · {t.responsavel} · vence {t.prazo}
                 </p>
               </div>
-              <StatusBadge status={t.status} />
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1 text-xs font-normal"
+                  onClick={() => {
+                    setEditingTask(t);
+                    setEditOpen(true);
+                  }}
+                >
+                  <Edit2 className="size-3" />
+                  Editar tarefa
+                </Button>
+                <StatusBadge status={t.status} />
+              </div>
             </li>
           ))}
           {visiveis.length === 0 ? (
