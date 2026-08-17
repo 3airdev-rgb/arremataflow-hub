@@ -52,6 +52,7 @@ const abas = [
   "Obra",
   "Venda",
   "Resultado",
+  "Distribuição de Resultados",
   "Histórico",
 ];
 
@@ -381,6 +382,87 @@ function FichaProjeto() {
               { label: "Assessoria (20%)", valor: formatBRL(37400) },
             ]}
           />
+        </TabsContent>
+
+        <TabsContent value="distribuicao-de-resultados" className="mt-5 space-y-5">
+          <div className="surface-card p-6">
+            <h3 className="mb-6 text-lg font-semibold">Cálculo de Distribuição</h3>
+            
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground font-medium">Resultado Líquido</p>
+                <p className="text-2xl font-bold text-brand">{formatBRL(188000)}</p>
+                <p className="text-xs text-muted-foreground">Valor total após despesas e impostos</p>
+              </div>
+              <div className="space-y-1 border-l pl-6">
+                <p className="text-sm text-muted-foreground font-medium">Parcela da Assessoria (50%)</p>
+                <p className="text-2xl font-bold text-brand">{formatBRL(94000)}</p>
+              </div>
+              <div className="space-y-1 border-l pl-6">
+                <p className="text-sm text-muted-foreground font-medium">Parcela dos Investidores (50%)</p>
+                <p className="text-2xl font-bold text-brand">{formatBRL(94000)}</p>
+              </div>
+              <div className="space-y-1 border-l pl-6">
+                <p className="text-sm text-muted-foreground font-medium">Status da Operação</p>
+                <div className="pt-1">
+                  <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success ring-1 ring-inset ring-success/20">
+                    Apurado
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-8 lg:grid-cols-2">
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Repasse aos Investidores</h4>
+                <div className="space-y-3">
+                  {[
+                    { nome: "Marcos Ribeiro", cota: "60%", valor: 56400 },
+                    { nome: "Julia Santos", cota: "40%", valor: 37600 },
+                  ].map((inv) => (
+                    <div key={inv.nome} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                      <div>
+                        <p className="font-medium">{inv.nome}</p>
+                        <p className="text-xs text-muted-foreground">Participação: {inv.cota}</p>
+                      </div>
+                      <p className="font-semibold text-brand">{formatBRL(inv.valor)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Honorários da Assessoria</h4>
+                <div className="space-y-3">
+                   {[
+                    { nome: "Camila Andrade", cota: "100%", valor: 94000 },
+                  ].map((ass) => (
+                    <div key={ass.nome} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                      <div>
+                        <p className="font-medium">{ass.nome}</p>
+                        <p className="text-xs text-muted-foreground">Participação: {ass.cota}</p>
+                      </div>
+                      <p className="font-semibold text-brand">{formatBRL(ass.valor)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 pt-6 border-t">
+               <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Histórico da Distribuição</h4>
+               <div className="text-sm text-muted-foreground">
+                 <div className="flex gap-4 py-2">
+                   <span className="w-24">20/08/2026</span>
+                   <span className="font-medium text-foreground">Distribuição final processada por Camila Andrade</span>
+                 </div>
+                 <div className="flex gap-4 py-2">
+                   <span className="w-24">18/08/2026</span>
+                   <span className="font-medium text-foreground">Encerramento financeiro do projeto</span>
+                 </div>
+               </div>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="historico" className="mt-5">

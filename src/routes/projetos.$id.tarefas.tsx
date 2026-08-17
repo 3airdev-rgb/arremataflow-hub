@@ -1,12 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Edit2, Plus } from "lucide-react";
+import { Edit2, Plus, CalendarIcon } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +30,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import { tarefas as tarefasMock, statusLabels, type StatusKey } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/projetos/$id/tarefas")({
@@ -47,6 +56,8 @@ function TarefasProjeto() {
   const [open, setOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<(typeof tarefasMock)[0] | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [dataSelecionada, setDataSelecionada] = useState<Date | undefined>(undefined);
+  const [editDataSelecionada, setEditDataSelecionada] = useState<Date | undefined>(undefined);
 
   const visiveis = filtro === "todos" ? lista : lista.filter((t) => t.status === filtro);
 
@@ -77,7 +88,7 @@ function TarefasProjeto() {
                     titulo: String(fd.get("titulo") || "Nova tarefa"),
                     projeto: "AF-2026-018",
                     responsavel: String(fd.get("resp") || "Camila Andrade"),
-                    prazo: String(fd.get("prazo") || "Hoje"),
+                    prazo: dataSelecionada ? format(dataSelecionada, "dd/MM/yyyy") : "Hoje",
                     status: "nao_iniciado",
                     categoria: "Geral",
                   },
@@ -97,8 +108,33 @@ function TarefasProjeto() {
                   <Input id="resp" name="resp" defaultValue="Camila Andrade" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="prazo">Prazo</Label>
-                  <Input id="prazo" name="prazo" placeholder="20/08/2026" />
+                  <Label>Prazo</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !dataSelecionada && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dataSelecionada ? (
+                          format(dataSelecionada, "dd/MM/yyyy")
+                        ) : (
+                          <span>Selecione uma data</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dataSelecionada}
+                        onSelect={setDataSelecionada}
+                        locale={ptBR}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
               <div className="space-y-2">
@@ -113,7 +149,21 @@ function TarefasProjeto() {
         </Dialog>
       }
     >
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+      <Dialog open={editOpen} onOpenChange={(val) => {
+        setEditOpen(val);
+        if (val && editingTask) {
+          const parts = editingTask.prazo?.split('/');
+          if (parts && parts.length === 3) {
+             const year = parts[2] ? parseInt(parts[2]) : 2026;
+             const month = parts[1] ? parseInt(parts[1]) - 1 : 0;
+             const day = parts[0] ? parseInt(parts[0]) : 1;
+             const d = new Date(year, month, day);
+             setEditDataSelecionada(d);
+          } else {
+             setEditDataSelecionada(undefined);
+          }
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar tarefa</DialogTitle>
@@ -132,7 +182,7 @@ function TarefasProjeto() {
                           ...t,
                           titulo: String(fd.get("titulo")),
                           responsavel: String(fd.get("resp")),
-                          prazo: String(fd.get("prazo")),
+                          prazo: editDataSelecionada ? format(editDataSelecionada, "dd/MM/yyyy") : t.prazo,
                           status: fd.get("status") as StatusKey,
                         }
                       : t
@@ -157,8 +207,33 @@ function TarefasProjeto() {
                   <Input id="edit-resp" name="resp" defaultValue={editingTask.responsavel} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-prazo">Prazo</Label>
-                  <Input id="edit-prazo" name="prazo" defaultValue={editingTask.prazo} />
+                  <Label>Prazo</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !editDataSelecionada && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {editDataSelecionada ? (
+                          format(editDataSelecionada, "dd/MM/yyyy")
+                        ) : (
+                          <span>Selecione uma data</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={editDataSelecionada}
+                        onSelect={setEditDataSelecionada}
+                        locale={ptBR}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
               <div className="space-y-2">
@@ -211,6 +286,7 @@ function TarefasProjeto() {
                 </p>
               </div>
               <div className="flex items-center gap-3">
+                <StatusBadge status={t.status} />
                 <Button
                   variant="ghost"
                   size="sm"
@@ -221,9 +297,8 @@ function TarefasProjeto() {
                   }}
                 >
                   <Edit2 className="size-3" />
-                  language selector
+                  Editar
                 </Button>
-                <StatusBadge status={t.status} />
               </div>
             </li>
           ))}

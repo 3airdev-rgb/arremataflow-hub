@@ -1,11 +1,18 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { House, Handshake, BriefcaseBusiness, Users, Plus, Trash2, Save, UserPlus } from "lucide-react";
+import { useState, useMemo } from "react";
+import { House, Handshake, BriefcaseBusiness, Users, Plus, Trash2, Save, UserPlus, Search, CalendarIcon, CheckCircle2 } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -13,8 +20,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { toast } from "sonner";
-import { projetos } from "@/lib/mock-data";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { projetos, usuarios, formatBRL } from "@/lib/mock-data";
 import { InvestorRegistrationModal } from "@/components/investor-registration-modal";
 
 export const Route = createFileRoute("/projetos/novo")({
@@ -72,6 +90,24 @@ function NovoProjeto() {
   const [participantes, setParticipantes] = useState([
     { nome: "Marcos Ribeiro", papel: "Investidor", percentual: "45" },
   ]);
+  
+  // States for new logic
+  const [modalidade, setModalidade] = useState<string>("");
+  const [valorAquisicao, setValorAquisicao] = useState<number>(0);
+  const [percentualHonorarios, setPercentualHonorarios] = useState<number>(10);
+  const [temMinimo, setTemMinimo] = useState<string>("nao");
+  const [valorMinimo, setValorMinimo] = useState<number>(0);
+  const [dataAquisicao, setDataAquisicao] = useState<Date | undefined>(undefined);
+
+  const honorarioCalculado = useMemo(() => {
+    const calculado = valorAquisicao * (percentualHonorarios / 100);
+    if (temMinimo === "sim") {
+      return Math.max(calculado, valorMinimo);
+    }
+    return calculado;
+  }, [valorAquisicao, percentualHonorarios, temMinimo, valorMinimo]);
+
+  const investidoresDisponiveis = usuarios.filter(u => u.perfil === "Investidor");
 
   return (
     <AppLayout title="Cadastro de Projeto" subtitle="Novo projeto imobiliário">
@@ -177,11 +213,43 @@ function NovoProjeto() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="valor">Valor de aquisição</Label>
-              <Input id="valor" placeholder="R$ 0,00" />
+              <Input 
+                id="valor" 
+                placeholder="R$ 0,00" 
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0;
+                  setValorAquisicao(val);
+                }}
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="data">Data da aquisição</Label>
-              <Input id="data" type="date" />
+              <Label>Data da aquisição</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dataAquisicao && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dataAquisicao ? (
+                      format(dataAquisicao, "dd/MM/yyyy")
+                    ) : (
+                      <span>Selecione uma data</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dataAquisicao}
+                    onSelect={setDataAquisicao}
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label htmlFor="pagamento">Forma de pagamento</Label>
@@ -215,26 +283,95 @@ function NovoProjeto() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="modalidade">Modalidade</Label>
-              <Select>
+              <Select onValueChange={setModalidade} required>
                 <SelectTrigger id="modalidade">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="completa">Assessoria Completa</SelectItem>
+                  <SelectItem value="parcial">Assessoria Parcial</SelectItem>
                   <SelectItem value="juridica">Assessoria Jurídica</SelectItem>
                   <SelectItem value="operacional">Assessoria Operacional</SelectItem>
-                  <SelectItem value="consultiva">Consultoria pontual</SelectItem>
+                  <SelectItem value="consultiva">Consultoria Específica</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="honorario">Honorários (%)</Label>
-              <Input id="honorario" placeholder="20" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="fixo">Valor dos honorários</Label>
-              <Input id="fixo" placeholder="R$ 0,00" />
-            </div>
+
+            {modalidade === "parcial" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="honorario">Percentual de Honorários (%)</Label>
+                  <Input 
+                    id="honorario" 
+                    type="number"
+                    value={percentualHonorarios}
+                    onChange={(e) => setPercentualHonorarios(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                
+                <div className="space-y-3">
+                  <Label>Há valor mínimo de honorários?</Label>
+                  <RadioGroup 
+                    value={temMinimo} 
+                    onValueChange={setTemMinimo}
+                    className="flex items-center gap-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="sim" id="min-sim" />
+                      <Label htmlFor="min-sim" className="cursor-pointer">Sim</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="nao" id="min-nao" />
+                      <Label htmlFor="min-nao" className="cursor-pointer">Não</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {temMinimo === "sim" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="val-min">Valor Mínimo de Honorários</Label>
+                    <Input 
+                      id="val-min" 
+                      placeholder="R$ 0,00"
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0;
+                        setValorMinimo(val);
+                      }}
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label>Valor devido calculado</Label>
+                  <div className="h-10 flex items-center px-3 rounded-md border bg-muted font-medium">
+                    {formatBRL(honorarioCalculado)}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {modalidade === "completa" && (
+              <div className="md:col-span-2 rounded-lg bg-primary-soft p-4 border border-brand/20">
+                <p className="text-sm font-medium text-brand">Regra de Assessoria Completa</p>
+                <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                  Honorários apurados sobre o Resultado Líquido (Venda - Despesas).
+                  Distribuição: 50% Assessoria / 50% Investidores.
+                </p>
+              </div>
+            )}
+
+            {modalidade !== "completa" && modalidade !== "parcial" && modalidade !== "" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="honorario-padrao">Honorários (%)</Label>
+                  <Input id="honorario-padrao" placeholder="20" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fixo">Valor dos honorários</Label>
+                  <Input id="fixo" placeholder="R$ 0,00" />
+                </div>
+              </>
+            )}
             <div className="space-y-2">
               <Label htmlFor="resp">Assessor responsável</Label>
               <Select>
@@ -251,59 +388,87 @@ function NovoProjeto() {
           </div>
         </SectionCard>
 
-        <SectionCard icon={Users} title="Participantes" description="Investidores e cotas do projeto">
-          <div className="space-y-3">
-            {participantes.map((p, i) => (
-              <div key={i} className="grid gap-3 md:grid-cols-[1fr_1fr_140px_auto]">
-                <Input
-                  value={p.nome}
-                  placeholder="Nome do participante"
-                  onChange={(e) =>
-                    setParticipantes((prev) =>
-                      prev.map((x, idx) => (idx === i ? { ...x, nome: e.target.value } : x)),
-                    )
-                  }
-                />
-                <Input
-                  value={p.papel}
-                  placeholder="Papel"
-                  onChange={(e) =>
-                    setParticipantes((prev) =>
-                      prev.map((x, idx) => (idx === i ? { ...x, papel: e.target.value } : x)),
-                    )
-                  }
-                />
-                <Input
-                  value={p.percentual}
-                  placeholder="% cota"
-                  onChange={(e) =>
-                    setParticipantes((prev) =>
-                      prev.map((x, idx) => (idx === i ? { ...x, percentual: e.target.value } : x)),
-                    )
-                  }
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Remover participante"
-                  onClick={() => setParticipantes((prev) => prev.filter((_, idx) => idx !== i))}
-                >
-                  <Trash2 className="size-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
+        <SectionCard icon={Users} title="Investidores" description="Investidores e cotas do projeto">
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <Label>Vincular investidor existente</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between"
+                  >
+                    Procurar por nome...
+                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Digite o nome do investidor..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum investidor encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {investidoresDisponiveis.map((investidor) => (
+                          <CommandItem
+                            key={investidor.id}
+                            value={investidor.nome}
+                            onSelect={() => {
+                              if (!participantes.find(p => p.nome === investidor.nome)) {
+                                setParticipantes([...participantes, { nome: investidor.nome, papel: "Investidor", percentual: "" }]);
+                                toast.success(`${investidor.nome} adicionado.`);
+                              } else {
+                                toast.error("Investidor já adicionado.");
+                              }
+                            }}
+                          >
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            {investidor.nome} ({investidor.email})
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-3">
+              {participantes.map((p, i) => (
+                <div key={i} className="grid gap-3 md:grid-cols-[2fr_140px_auto] items-end">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Nome</Label>
+                    <div className="h-10 flex items-center px-3 rounded-md border bg-muted font-medium text-sm">
+                      {p.nome}
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">% Participação</Label>
+                    <Input
+                      value={p.percentual}
+                      placeholder="00"
+                      onChange={(e) =>
+                        setParticipantes((prev) =>
+                          prev.map((x, idx) => (idx === i ? { ...x, percentual: e.target.value } : x)),
+                        )
+                      }
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="mb-0.5"
+                    aria-label="Remover investidor"
+                    onClick={() => setParticipantes((prev) => prev.filter((_, idx) => idx !== i))}
+                  >
+                    <Trash2 className="size-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            
             <div className="flex flex-wrap gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setParticipantes((prev) => [...prev, { nome: "", papel: "Investidor", percentual: "" }])
-                }
-              >
-                <Plus className="size-4" /> Adicionar participante
-              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -311,7 +476,7 @@ function NovoProjeto() {
                 className="border-brand text-brand hover:bg-brand/5"
                 onClick={() => setIsInvestorModalOpen(true)}
               >
-                <UserPlus className="size-4" /> Cadastrar novo investidor
+                <Plus className="size-4" /> Cadastrar novo investidor
               </Button>
             </div>
           </div>
