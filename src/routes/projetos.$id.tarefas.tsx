@@ -132,7 +132,6 @@ function TarefasProjeto() {
                         selected={dataSelecionada}
                         onSelect={setDataSelecionada}
                         locale={ptBR}
-                        initialFocus
                       />
                     </PopoverContent>
                   </Popover>
@@ -153,8 +152,8 @@ function TarefasProjeto() {
       <Dialog open={editOpen} onOpenChange={(val) => {
         setEditOpen(val);
         if (val && editingTask) {
-          const parts = editingTask.prazo.split('/');
-          if (parts.length === 3) {
+          const parts = editingTask.prazo?.split('/');
+          if (parts && parts.length === 3) {
              const d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
              setEditDataSelecionada(d);
           } else {
@@ -229,7 +228,6 @@ function TarefasProjeto() {
                         selected={editDataSelecionada}
                         onSelect={setEditDataSelecionada}
                         locale={ptBR}
-                        initialFocus
                       />
                     </PopoverContent>
                   </Popover>
