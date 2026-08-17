@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +25,9 @@ interface InvestorData {
   cpf: string;
   dataNascimento: string;
   estadoCivil: string;
+  celulares: string[];
   endereco: string;
+  email: string;
   banco: string;
   agencia: string;
   conta: string;
@@ -46,11 +49,33 @@ export function InvestorRegistrationModal({
     cpf: "",
     dataNascimento: "",
     estadoCivil: "",
+    celulares: [""],
     endereco: "",
+    email: "",
     banco: "",
     agencia: "",
     conta: "",
   });
+
+  const addCelular = () => {
+    setFormData({
+      ...formData,
+      celulares: [...formData.celulares, ""],
+    });
+  };
+
+  const removeCelular = (index: number) => {
+    if (formData.celulares.length <= 1) return;
+    const newCelulares = [...formData.celulares];
+    newCelulares.splice(index, 1);
+    setFormData({ ...formData, celulares: newCelulares });
+  };
+
+  const updateCelular = (index: number, value: string) => {
+    const newCelulares = [...formData.celulares];
+    newCelulares[index] = value;
+    setFormData({ ...formData, celulares: newCelulares });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +87,9 @@ export function InvestorRegistrationModal({
       cpf: "",
       dataNascimento: "",
       estadoCivil: "",
+      celulares: [""],
       endereco: "",
+      email: "",
       banco: "",
       agencia: "",
       conta: "",
@@ -132,18 +159,67 @@ export function InvestorRegistrationModal({
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label>Celular</Label>
+              <div className="space-y-2">
+                {formData.celulares.map((cel, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <Input
+                      value={cel}
+                      onChange={(e) => updateCelular(idx, e.target.value)}
+                      placeholder="+5548988888888"
+                    />
+                    {formData.celulares.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeCelular(idx)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={addCelular}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Adicionar celular
+                </Button>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="endereco">Endereço Completo</Label>
-            <Textarea
-              id="endereco"
-              required
-              value={formData.endereco}
-              onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
-              placeholder="Rua, Número, Complemento, Bairro, Cidade - UF"
-              rows={3}
-            />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="endereco">Endereço Completo</Label>
+              <Textarea
+                id="endereco"
+                required
+                value={formData.endereco}
+                onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
+                placeholder="Rua, Número, Complemento, Bairro, Cidade - UF"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                required
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="exemplo@email.com"
+              />
+            </div>
           </div>
 
           <div className="space-y-4">
