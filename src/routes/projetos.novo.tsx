@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { House, Handshake, BriefcaseBusiness, Users, Plus, Trash2, Save } from "lucide-react";
+import { House, Handshake, BriefcaseBusiness, Users, Plus, Trash2, Save, UserPlus } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { projetos } from "@/lib/mock-data";
+import { InvestorRegistrationModal } from "@/components/investor-registration-modal";
 
 export const Route = createFileRoute("/projetos/novo")({
   head: () => ({
