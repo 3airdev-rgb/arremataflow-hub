@@ -154,7 +154,10 @@ function TarefasProjeto() {
         if (val && editingTask) {
           const parts = editingTask.prazo?.split('/');
           if (parts && parts.length === 3) {
-             const d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+             const year = parts[2] ? parseInt(parts[2]) : 2026;
+             const month = parts[1] ? parseInt(parts[1]) - 1 : 0;
+             const day = parts[0] ? parseInt(parts[0]) : 1;
+             const d = new Date(year, month, day);
              setEditDataSelecionada(d);
           } else {
              setEditDataSelecionada(undefined);
