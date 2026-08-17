@@ -228,11 +228,11 @@ function NovoProjeto() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="honorario">language selector</Label>
+              <Label htmlFor="honorario">Honorários (%)</Label>
               <Input id="honorario" placeholder="20" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="fixo">language selector</Label>
+              <Label htmlFor="fixo">Valor dos honorários</Label>
               <Input id="fixo" placeholder="R$ 0,00" />
             </div>
             <div className="space-y-2">
