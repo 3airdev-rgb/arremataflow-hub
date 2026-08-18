@@ -109,7 +109,7 @@ function FichaProjeto() {
             </p>
           </div>
         </div>
-        <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <p className="text-xs text-muted-foreground">Investidores</p>
             <p className="text-sm font-medium">{projeto.investidores.length > 0 ? projeto.investidores.join(", ") : "Nenhum investidor vinculado"}</p>
@@ -117,6 +117,10 @@ function FichaProjeto() {
           <div>
             <p className="text-xs text-muted-foreground">Assessores</p>
             <p className="text-sm font-medium">{projeto.assessores.length > 0 ? projeto.assessores.join(", ") : "Nenhum assessor vinculado"}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Responsáveis</p>
+            <p className="text-sm font-medium">{projeto.responsavel || "Nenhum responsável"}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Etapa atual</p>
