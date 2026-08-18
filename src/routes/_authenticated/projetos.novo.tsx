@@ -901,8 +901,10 @@ function NovoProjeto() {
             </div>
           </div>
 
-          {/* Nova Seção: Responsável pelo Projeto */}
-          <div className="space-y-6 pt-8 border-t mt-8">
+        </SectionCard>
+        
+        <SectionCard icon={UserCheck} title="Responsável pelo Projeto" description="Nome do(s) responsável(eis)">
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="text-sm font-semibold">Responsável pelo Projeto</h4>
