@@ -85,7 +85,34 @@ function ProjetosPage() {
               <tbody>
                 {salvos.map((p) => (
                   <tr key={p.id} className="border-t border-border">
-                    <td className="px-4 py-3 font-medium">{p.nome}</td>
+                    <td className="px-4 py-3 font-medium">
+                      <Link
+                        to="/projetos/$id"
+                        params={{ id: p.id }}
+                        className="flex items-center gap-3"
+                      >
+                        {p.foto_principal ? (
+                          <img
+                            src={p.foto_principal}
+                            alt={`Fachada do imóvel ${p.nome}`}
+                            loading="lazy"
+                            className="size-10 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="size-10 rounded-lg bg-muted flex items-center justify-center">
+                            <Plus className="size-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <span className="block">
+                          <span className="block font-medium text-foreground hover:text-brand">
+                            {p.nome}
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            {p.cidade}
+                          </span>
+                        </span>
+                      </Link>
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">{p.leiloeiro_nome ?? "—"}</td>
                     <td className="px-4 py-3">{formatBRL(Number(p.valor_aquisicao))}</td>
                     <td className="px-4 py-3">
