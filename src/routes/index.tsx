@@ -98,37 +98,62 @@ function LoginPage() {
           ) : (
             <form
               className="space-y-5"
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
+                const form = e.currentTarget;
+                const email = (form.elements.namedItem("email") as HTMLInputElement).value;
+                const senha = (form.elements.namedItem("senha") as HTMLInputElement).value;
                 setLoading(true);
-                setTimeout(() => navigate({ to: "/dashboard" }), 600);
+                setErro(null);
+                const { error } = modo === "entrar"
+                  ? await supabase.auth.signInWithPassword({ email, password: senha })
+                  : await supabase.auth.signUp({
+                      email,
+                      password: senha,
+                      options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+                    });
+                setLoading(false);
+                if (error) {
+                  setErro(error.message);
+                  return;
+                }
+                const { data } = await supabase.auth.getSession();
+                if (!data.session) {
+                  setErro("Conta criada. Confirme seu e-mail para entrar.");
+                  return;
+                }
+                navigate({ to: "/dashboard" });
               }}
             >
               <div>
-                <h1 className="text-2xl">Entrar</h1>
+                <h1 className="text-2xl">{modo === "entrar" ? "Entrar" : "Criar conta"}</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  language selector
+                  Acesse o painel da sua empresa.
                 </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="voce@empresa.com"
-                  defaultValue="camila@arremataflow.com"
-                  required
-                />
+                <Input id="email" name="email" type="email" placeholder="voce@empresa.com" required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="senha">Senha</Label>
-                <Input id="senha" type="password" defaultValue="demo1234" required />
+                <Input id="senha" name="senha" type="password" minLength={6} required />
               </div>
+              {erro ? (
+                <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{erro}</p>
+              ) : null}
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? <Loader2 className="size-4 animate-spin" /> : null}
-                Entrar
+                {modo === "entrar" ? "Entrar" : "Criar conta"}
               </Button>
               <div className="flex items-center justify-between text-sm">
+                <button
+                  type="button"
+                  className="text-brand hover:underline"
+                  onClick={() => setModo(modo === "entrar" ? "criar" : "entrar")}
+                >
+                  {modo === "entrar" ? "Criar uma conta" : "Já tenho conta"}
+                </button>
                 <button
                   type="button"
                   className="text-brand hover:underline"
@@ -136,11 +161,14 @@ function LoginPage() {
                 >
                   Esqueci minha senha
                 </button>
+              </div>
+              <div className="text-center text-sm">
                 <Link to="/investidor" className="text-muted-foreground hover:underline">
                   Sou investidor
                 </Link>
               </div>
             </form>
+
           )}
         </div>
       </div>
