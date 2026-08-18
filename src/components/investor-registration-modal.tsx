@@ -37,12 +37,14 @@ interface InvestorModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (data: InvestorData) => void;
+  type?: "Investidor" | "Assessor";
 }
 
 export function InvestorRegistrationModal({
   open,
   onOpenChange,
   onSave,
+  type = "Investidor",
 }: InvestorModalProps) {
   const [formData, setFormData] = useState<InvestorData>({
     nome: "",
@@ -100,9 +102,9 @@ export function InvestorRegistrationModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Cadastro de Investidor</DialogTitle>
+          <DialogTitle>Cadastro de {type}</DialogTitle>
           <DialogDescription>
-            Insira os dados do novo investidor para adicioná-lo ao projeto.
+            Insira os dados do novo {type.toLowerCase()} para adicioná-lo ao projeto.
           </DialogDescription>
         </DialogHeader>
 
