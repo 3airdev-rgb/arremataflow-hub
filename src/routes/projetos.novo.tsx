@@ -88,6 +88,7 @@ function NovoProjeto() {
   const [principal, setPrincipal] = useState(galeria[0] ?? "");
   const [isInvestorModalOpen, setIsInvestorModalOpen] = useState(false);
   const [isAssessorModalOpen, setIsAssessorModalOpen] = useState(false);
+  const [isLeiloeiroModalOpen, setIsLeiloeiroModalOpen] = useState(false);
   const [participantes, setParticipantes] = useState([
     { nome: "Marcos Ribeiro", papel: "Investidor", percentual: "45" },
   ]);
@@ -102,6 +103,15 @@ function NovoProjeto() {
   const [temMinimo, setTemMinimo] = useState<string>("nao");
   const [valorMinimo, setValorMinimo] = useState<number>(0);
   const [dataAquisicao, setDataAquisicao] = useState<Date | undefined>(undefined);
+  const [formaPagamento, setFormaPagamento] = useState<string>("");
+  
+  // Leiloeiro states
+  const [leiloeiroVinculado, setLeiloeiroVinculado] = useState<{id: string, nome: string} | null>(null);
+  const [percentualComissao, setPercentualComissao] = useState<number>(5);
+
+  // Financiamento states
+  const [valorFinanciado, setValorFinanciado] = useState<number>(0);
+  const [quantidadeParcelas, setQuantidadeParcelas] = useState<number>(1);
 
   const honorarioCalculado = useMemo(() => {
     const calculado = valorAquisicao * (percentualHonorarios / 100);
@@ -111,8 +121,18 @@ function NovoProjeto() {
     return calculado;
   }, [valorAquisicao, percentualHonorarios, temMinimo, valorMinimo]);
 
+  const comissaoCalculada = useMemo(() => {
+    return valorAquisicao * (percentualComissao / 100);
+  }, [valorAquisicao, percentualComissao]);
+
+  const valorParcelaCalculado = useMemo(() => {
+    if (quantidadeParcelas <= 0) return 0;
+    return valorFinanciado / quantidadeParcelas;
+  }, [valorFinanciado, quantidadeParcelas]);
+
   const investidoresDisponiveis = usuarios.filter(u => u.perfil === "Investidor");
   const assessoresDisponiveis = usuarios.filter(u => u.perfil === "Assessor" || u.perfil === "Administrador" || u.perfil === "Jurídico");
+  const leiloeirosDisponiveis = usuarios.filter(u => u.perfil === "Leiloeiro");
 
   return (
     <AppLayout title="Cadastro de Projeto" subtitle="Novo projeto imobiliário">
@@ -258,7 +278,7 @@ function NovoProjeto() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="pagamento">Forma de pagamento</Label>
-              <Select>
+              <Select onValueChange={setFormaPagamento}>
                 <SelectTrigger id="pagamento">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
@@ -269,14 +289,114 @@ function NovoProjeto() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="itbi">ITBI e custas estimadas</Label>
-              <Input id="itbi" placeholder="R$ 0,00" />
+
+            <div className="space-y-2 md:col-span-2 border-t pt-4 mt-2">
+              <div className="flex items-center justify-between mb-2">
+                <Label>Leiloeiro / Comitente</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setIsLeiloeiroModalOpen(true)}
+                >
+                  <UserPlus className="mr-1 size-3" />
+                  Cadastrar novo leiloeiro
+                </Button>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="md:col-span-1">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between"
+                      >
+                        {leiloeiroVinculado ? leiloeiroVinculado.nome : "Vincular Leiloeiro..."}
+                        <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Pesquisar leiloeiro..." />
+                        <CommandList>
+                          <CommandEmpty>Nenhum leiloeiro encontrado.</CommandEmpty>
+                          <CommandGroup>
+                            {leiloeirosDisponiveis.map((leiloeiro) => (
+                              <CommandItem
+                                key={leiloeiro.id}
+                                onSelect={() => {
+                                  setLeiloeiroVinculado({ id: leiloeiro.id, nome: leiloeiro.nome });
+                                }}
+                              >
+                                <CheckCircle2
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    leiloeiroVinculado?.id === leiloeiro.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {leiloeiro.nome}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Label>Comissão do Leiloeiro (%)</Label>
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    value={percentualComissao} 
+                    onChange={(e) => setPercentualComissao(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Valor da Comissão (R$)</Label>
+                  <Input value={formatBRL(comissaoCalculada)} disabled className="bg-muted" />
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="leiloeiro">Leiloeiro / Comitente</Label>
-              <Input id="leiloeiro" placeholder="Nome do leiloeiro" />
-            </div>
+
+            {(formaPagamento === "parcelado" || formaPagamento === "financiado") && (
+              <div className="space-y-2 md:col-span-2 border-t pt-4 mt-2">
+                <Label className="text-brand font-semibold mb-2 block">
+                  Dados do {formaPagamento === "parcelado" ? "Parcelamento" : "Financiamento"}
+                </Label>
+                <div className="grid gap-4 md:grid-cols-4">
+                  <div className="space-y-2">
+                    <Label>Credor</Label>
+                    <Input placeholder="Nome do credor" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Valor {formaPagamento === "parcelado" ? "Parcelado" : "Financiado"}</Label>
+                    <Input 
+                      placeholder="R$ 0,00" 
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0;
+                        setValorFinanciado(val);
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Qtd. de Parcelas</Label>
+                    <Input 
+                      type="number" 
+                      min="1" 
+                      value={quantidadeParcelas}
+                      onChange={(e) => setQuantidadeParcelas(parseInt(e.target.value) || 1)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Valor da Parcela (R$)</Label>
+                    <Input value={formatBRL(valorParcelaCalculado)} disabled className="bg-muted" />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </SectionCard>
 
@@ -606,6 +726,16 @@ function NovoProjeto() {
               toast.success(`Assessor ${data.nome} cadastrado e adicionado!`);
             }}
             type="Assessor"
+          />
+
+          <InvestorRegistrationModal
+            open={isLeiloeiroModalOpen}
+            onOpenChange={setIsLeiloeiroModalOpen}
+            onSave={(data) => {
+              setLeiloeiroVinculado({ id: Math.random().toString(), nome: data.nome });
+              toast.success(`Leiloeiro ${data.nome} cadastrado e vinculado!`);
+            }}
+            type="Leiloeiro"
           />
         </SectionCard>
 
