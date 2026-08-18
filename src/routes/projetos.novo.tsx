@@ -290,25 +290,14 @@ function NovoProjeto() {
               </Select>
             </div>
 
-            <div className="space-y-2 md:col-span-2 border-t pt-4 mt-2">
-              <div className="flex items-center justify-between mb-2">
-                <Label>Leiloeiro / Comitente</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => setIsLeiloeiroModalOpen(true)}
-                >
-                  <UserPlus className="mr-1 size-3" />
-                  Cadastrar novo leiloeiro
-                </Button>
-              </div>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="md:col-span-1">
+            <div className="space-y-4 md:col-span-2 border-t pt-4 mt-2">
+              <div className="grid gap-4 md:grid-cols-3 items-end">
+                <div className="space-y-2">
+                  <Label htmlFor="leiloeiro-select">Leiloeiro / Comitente</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
+                        id="leiloeiro-select"
                         variant="outline"
                         role="combobox"
                         className="w-full justify-between"
@@ -344,6 +333,16 @@ function NovoProjeto() {
                       </Command>
                     </PopoverContent>
                   </Popover>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs px-0 hover:bg-transparent"
+                    onClick={() => setIsLeiloeiroModalOpen(true)}
+                  >
+                    <UserPlus className="mr-1 size-3" />
+                    Cadastrar novo leiloeiro
+                  </Button>
                 </div>
                 <div className="space-y-2">
                   <Label>Comissão do Leiloeiro (%)</Label>
