@@ -136,7 +136,7 @@ function LoginPage() {
               <div>
                 <h1 className="text-2xl">{modo === "entrar" ? "Entrar" : "Criar conta"}</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Acesse o painel da sua empresa.
+                  Implementar o login real com e-mail e senha, com recuperação de senha, para eu logar e conferir projetos salvos.
                 </p>
               </div>
               <div className="space-y-2">
