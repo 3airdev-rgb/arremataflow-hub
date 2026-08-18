@@ -34,6 +34,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { projetos, usuarios, formatBRL } from "@/lib/mock-data";
 import { InvestorRegistrationModal, type UnifiedEntityData } from "@/components/investor-registration-modal";
+import { ImageManagementSection, type ProjetoFoto } from "@/components/image-management-section";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/projetos/novo")({
@@ -110,7 +111,7 @@ async function salvarPessoa(data: UnifiedEntityData, tipo: "Investidor" | "Asses
 
 function NovoProjeto() {
   const navigate = useNavigate();
-  const [principal, setPrincipal] = useState(galeria[0] ?? "");
+  const [fotosUpload, setFotosUpload] = useState<ProjetoFoto[]>([]);
   const [isInvestorModalOpen, setIsInvestorModalOpen] = useState(false);
   const [isAssessorModalOpen, setIsAssessorModalOpen] = useState(false);
   const [isLeiloeiroModalOpen, setIsLeiloeiroModalOpen] = useState(false);
@@ -204,8 +205,8 @@ function NovoProjeto() {
                 tipo_imovel: tipoImovel || null,
                 iptu: txt("iptu"),
                 observacoes: txt("obs"),
-                fotos: galeria,
-                foto_principal: principal || null,
+                fotos: fotosUpload.map(f => f.url),
+                foto_principal: fotosUpload.find(f => f.is_main)?.url || null,
                 origem: origem || null,
                 valor_aquisicao: valorAquisicao,
                 data_aquisicao: dataAquisicao ? format(dataAquisicao, "yyyy-MM-dd") : null,
@@ -249,6 +250,24 @@ function NovoProjeto() {
               if (vinculoError) throw vinculoError;
             }
 
+            // Salvar metadados das fotos
+            if (fotosUpload.length > 0) {
+              const fotosMetadata = fotosUpload.map((f, idx) => ({
+                projeto_id: projeto.id,
+                file_path: f.file_path,
+                file_name: f.file_name,
+                display_order: idx,
+                is_main: f.is_main,
+                user_id: userId
+              }));
+              
+              const { error: fotosError } = await supabase
+                .from("projeto_fotos")
+                .insert(fotosMetadata);
+                
+              if (fotosError) console.error("Erro ao salvar metadados das fotos:", fotosError);
+            }
+
             toast.success("Projeto salvo no banco com sucesso!");
             navigate({ to: "/projetos" });
           } catch (err) {
@@ -260,31 +279,9 @@ function NovoProjeto() {
       >
         <SectionCard icon={House} title="Imóvel" description="Dados cadastrais e localização">
           <div className="mb-6">
-            <div className="mb-3 flex items-center justify-between">
-              <Label>Fotos do imóvel</Label>
-              <Button type="button" variant="outline" size="sm">
-                <Plus className="size-4" /> Adicionar fotos
-              </Button>
-            </div>
-            <img
-              src={principal}
-              alt="Foto principal do imóvel"
-              className="aspect-[16/7] w-full rounded-xl object-cover"
+            <ImageManagementSection 
+              onImagesChange={(imgs) => setFotosUpload(imgs)}
             />
-            <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
-              {galeria.map((f) => (
-                <button
-                  type="button"
-                  key={f}
-                  onClick={() => setPrincipal(f)}
-                  className={`size-20 shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${
-                    principal === f ? "border-brand" : "border-transparent hover:border-border"
-                  }`}
-                >
-                  <img src={f} alt="Miniatura do imóvel" className="size-full object-cover" />
-                </button>
-              ))}
-            </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
