@@ -590,6 +590,20 @@ function NovoProjeto() {
               ]);
               toast.success(`Investidor ${data.nome} cadastrado e adicionado!`);
             }}
+            type="Investidor"
+          />
+
+          <InvestorRegistrationModal
+            open={isAssessorModalOpen}
+            onOpenChange={setIsAssessorModalOpen}
+            onSave={(data) => {
+              setAssessoresVinculados((prev) => [
+                ...prev,
+                { nome: data.nome, papel: "Assessor", percentual: "" },
+              ]);
+              toast.success(`Assessor ${data.nome} cadastrado e adicionado!`);
+            }}
+            type="Assessor"
           />
         </SectionCard>
 
