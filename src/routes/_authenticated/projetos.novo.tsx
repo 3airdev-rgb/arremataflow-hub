@@ -33,7 +33,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { projetos, usuarios, formatBRL } from "@/lib/mock-data";
-import { InvestorRegistrationModal } from "@/components/investor-registration-modal";
+import { InvestorRegistrationModal, type UnifiedEntityData } from "@/components/investor-registration-modal";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/projetos/novo")({
@@ -83,6 +83,30 @@ function SectionCard({
 }
 
 const galeria = projetos[0]?.fotos ?? [];
+
+async function salvarPessoa(data: UnifiedEntityData, tipo: "Investidor" | "Assessor" | "Leiloeiro") {
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id;
+  if (!userId) return;
+  const { error } = await supabase.from("pessoas").insert({
+    user_id: userId,
+    tipo,
+    nome: data.nome,
+    documento: data.documento || null,
+    email: data.email || null,
+    celulares: data.celulares ?? [],
+    data_nascimento: data.dataNascimento || null,
+    estado_civil: data.estadoCivil || null,
+    endereco: data.endereco || null,
+    banco: data.banco || null,
+    agencia: data.agencia || null,
+    conta: data.conta || null,
+    website: data.website || null,
+    cidade: data.cidade || null,
+    estado: data.estado || null,
+  });
+  if (error) toast.error(`Não foi possível salvar ${tipo.toLowerCase()}: ${error.message}`);
+}
 
 function NovoProjeto() {
   const navigate = useNavigate();
@@ -195,10 +219,10 @@ function NovoProjeto() {
                 quantidade_parcelas: parcelado ? quantidadeParcelas : 1,
                 valor_parcela: parcelado ? valorParcelaCalculado : 0,
                 modalidade: modalidade || null,
-                percentual_honorarios: modalidade === "sem" ? 0 : percentualHonorarios,
+                percentual_honorarios: modalidade === "nenhuma" ? 0 : percentualHonorarios,
                 tem_minimo: temMinimo === "sim",
                 valor_minimo: valorMinimo,
-                valor_honorarios: modalidade === "sem" ? 0 : honorarioCalculado,
+                valor_honorarios: modalidade === "nenhuma" ? 0 : honorarioCalculado,
               })
               .select("id")
               .single();
@@ -799,11 +823,12 @@ function NovoProjeto() {
           <InvestorRegistrationModal
             open={isInvestorModalOpen}
             onOpenChange={setIsInvestorModalOpen}
-            onSave={(data) => {
+            onSave={async (data) => {
               setParticipantes((prev) => [
                 ...prev,
                 { nome: data.nome, papel: "Investidor", percentual: "" },
               ]);
+              await salvarPessoa(data, "Investidor");
               toast.success(`Investidor ${data.nome} cadastrado e adicionado!`);
             }}
             type="Investidor"
@@ -812,11 +837,12 @@ function NovoProjeto() {
           <InvestorRegistrationModal
             open={isAssessorModalOpen}
             onOpenChange={setIsAssessorModalOpen}
-            onSave={(data) => {
+            onSave={async (data) => {
               setAssessoresVinculados((prev) => [
                 ...prev,
                 { nome: data.nome, papel: "Assessor", percentual: "" },
               ]);
+              await salvarPessoa(data, "Assessor");
               toast.success(`Assessor ${data.nome} cadastrado e adicionado!`);
             }}
             type="Assessor"
@@ -825,8 +851,9 @@ function NovoProjeto() {
           <InvestorRegistrationModal
             open={isLeiloeiroModalOpen}
             onOpenChange={setIsLeiloeiroModalOpen}
-            onSave={(data) => {
+            onSave={async (data) => {
               setLeiloeiroVinculado({ id: Math.random().toString(), nome: data.nome });
+              await salvarPessoa(data, "Leiloeiro");
               toast.success(`Leiloeiro ${data.nome} cadastrado e vinculado!`);
             }}
             type="Leiloeiro"
