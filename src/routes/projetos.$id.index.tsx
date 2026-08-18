@@ -397,12 +397,12 @@ function FichaProjeto() {
               <div className="space-y-1 border-l pl-6">
                 <p className="text-sm text-muted-foreground font-medium">Parcela da Assessoria (50%)</p>
                 <p className="text-2xl font-bold text-brand">{formatBRL(94000)}</p>
-                <p className="text-xs text-muted-foreground">Divisão entre {projeto.assessores.length} assessores</p>
+                <p className="text-xs text-muted-foreground">Regra: Assessoria Completa</p>
               </div>
               <div className="space-y-1 border-l pl-6">
                 <p className="text-sm text-muted-foreground font-medium">Parcela dos Investidores (50%)</p>
                 <p className="text-2xl font-bold text-brand">{formatBRL(94000)}</p>
-                <p className="text-xs text-muted-foreground">Divisão entre {projeto.investidores.length} investidores</p>
+                <p className="text-xs text-muted-foreground">Divisão proporcional às cotas</p>
               </div>
               <div className="space-y-1 border-l pl-6">
                 <p className="text-sm text-muted-foreground font-medium">Status da Operação</p>
@@ -416,11 +416,11 @@ function FichaProjeto() {
 
             <div className="grid gap-8 lg:grid-cols-2">
               <div className="space-y-4">
-                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Repasse aos Investidores</h4>
+                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Repasse aos Investidores (Cotas)</h4>
                 <div className="space-y-3">
                   {[
                     { nome: "Marcos Ribeiro", cota: "60%", valor: 56400 },
-                    { nome: "Julia Santos", cota: "40%", valor: 37600 },
+                    { nome: "Fundo Atlas", cota: "40%", valor: 37600 },
                   ].map((inv) => (
                     <div key={inv.nome} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
                       <div>
@@ -434,27 +434,9 @@ function FichaProjeto() {
               </div>
 
               <div className="space-y-4">
-                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Repasse aos Assessores</h4>
+                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Honorários dos Assessores</h4>
                 <div className="space-y-3">
                   {[
-                    { nome: "Camila Andrade", cota: "60%", valor: 56400 },
-                    { nome: "Dr. Paulo Tavares", cota: "40%", valor: 37600 },
-                  ].map((ass) => (
-                    <div key={ass.nome} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-                      <div>
-                        <p className="font-medium">{ass.nome}</p>
-                        <p className="text-xs text-muted-foreground">Participação: {ass.cota}</p>
-                      </div>
-                      <p className="font-semibold text-brand">{formatBRL(ass.valor)}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Honorários da Assessoria</h4>
-                <div className="space-y-3">
-                   {[
                     { nome: "Camila Andrade", cota: "100%", valor: 94000 },
                   ].map((ass) => (
                     <div key={ass.nome} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
