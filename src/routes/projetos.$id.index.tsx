@@ -112,11 +112,11 @@ function FichaProjeto() {
         <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <p className="text-xs text-muted-foreground">Investidores</p>
-            <p className="text-sm font-medium">{projeto.investidores.join(", ")}</p>
+            <p className="text-sm font-medium">{projeto.investidores.length > 0 ? projeto.investidores.join(", ") : "Nenhum investidor vinculado"}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Assessores</p>
-            <p className="text-sm font-medium">{projeto.assessores.join(", ")}</p>
+            <p className="text-sm font-medium">{projeto.assessores.length > 0 ? projeto.assessores.join(", ") : "Nenhum assessor vinculado"}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Etapa atual</p>
@@ -397,10 +397,12 @@ function FichaProjeto() {
               <div className="space-y-1 border-l pl-6">
                 <p className="text-sm text-muted-foreground font-medium">Parcela da Assessoria (50%)</p>
                 <p className="text-2xl font-bold text-brand">{formatBRL(94000)}</p>
+                <p className="text-xs text-muted-foreground">Divisão entre {projeto.assessores.length} assessores</p>
               </div>
               <div className="space-y-1 border-l pl-6">
                 <p className="text-sm text-muted-foreground font-medium">Parcela dos Investidores (50%)</p>
                 <p className="text-2xl font-bold text-brand">{formatBRL(94000)}</p>
+                <p className="text-xs text-muted-foreground">Divisão entre {projeto.investidores.length} investidores</p>
               </div>
               <div className="space-y-1 border-l pl-6">
                 <p className="text-sm text-muted-foreground font-medium">Status da Operação</p>
@@ -426,6 +428,24 @@ function FichaProjeto() {
                         <p className="text-xs text-muted-foreground">Participação: {inv.cota}</p>
                       </div>
                       <p className="font-semibold text-brand">{formatBRL(inv.valor)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Repasse aos Assessores</h4>
+                <div className="space-y-3">
+                  {[
+                    { nome: "Camila Andrade", cota: "60%", valor: 56400 },
+                    { nome: "Dr. Paulo Tavares", cota: "40%", valor: 37600 },
+                  ].map((ass) => (
+                    <div key={ass.nome} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                      <div>
+                        <p className="font-medium">{ass.nome}</p>
+                        <p className="text-xs text-muted-foreground">Participação: {ass.cota}</p>
+                      </div>
+                      <p className="font-semibold text-brand">{formatBRL(ass.valor)}</p>
                     </div>
                   ))}
                 </div>

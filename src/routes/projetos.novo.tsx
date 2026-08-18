@@ -87,8 +87,12 @@ function NovoProjeto() {
   const navigate = useNavigate();
   const [principal, setPrincipal] = useState(galeria[0] ?? "");
   const [isInvestorModalOpen, setIsInvestorModalOpen] = useState(false);
+  const [isAssessorModalOpen, setIsAssessorModalOpen] = useState(false);
   const [participantes, setParticipantes] = useState([
     { nome: "Marcos Ribeiro", papel: "Investidor", percentual: "45" },
+  ]);
+  const [assessoresVinculados, setAssessoresVinculados] = useState([
+    { nome: "Camila Andrade", papel: "Assessor", percentual: "100" },
   ]);
   
   // States for new logic
@@ -108,6 +112,7 @@ function NovoProjeto() {
   }, [valorAquisicao, percentualHonorarios, temMinimo, valorMinimo]);
 
   const investidoresDisponiveis = usuarios.filter(u => u.perfil === "Investidor");
+  const assessoresDisponiveis = usuarios.filter(u => u.perfil === "Assessor" || u.perfil === "Administrador" || u.perfil === "Jurídico");
 
   return (
     <AppLayout title="Cadastro de Projeto" subtitle="Novo projeto imobiliário">
@@ -293,11 +298,12 @@ function NovoProjeto() {
                   <SelectItem value="juridica">Assessoria Jurídica</SelectItem>
                   <SelectItem value="operacional">Assessoria Operacional</SelectItem>
                   <SelectItem value="consultiva">Consultoria Específica</SelectItem>
+                  <SelectItem value="nenhuma">Sem Assessoria</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {modalidade === "parcial" && (
+            {(modalidade === "parcial" || modalidade === "juridica" || modalidade === "operacional" || modalidade === "consultiva") && (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="honorario">Percentual de Honorários (%)</Label>
@@ -360,31 +366,126 @@ function NovoProjeto() {
               </div>
             )}
 
-            {modalidade !== "completa" && modalidade !== "parcial" && modalidade !== "" && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="honorario-padrao">Honorários (%)</Label>
-                  <Input id="honorario-padrao" placeholder="20" />
+            {modalidade === "nenhuma" && (
+              <div className="md:col-span-2 space-y-4">
+                <div className="rounded-lg bg-muted p-4 border border-border">
+                  <p className="text-sm font-medium">Sem Assessoria</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Nenhum cálculo de honorários ou distribuição será realizado para assessoria.
+                  </p>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fixo">Valor dos honorários</Label>
-                  <Input id="fixo" placeholder="R$ 0,00" />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="fixo-zero">Valor dos honorários</Label>
+                    <Input id="fixo-zero" value="R$ 0,00" disabled />
+                  </div>
                 </div>
-              </>
+              </div>
             )}
-            <div className="space-y-2">
-              <Label htmlFor="resp">Assessor responsável</Label>
-              <Select>
-                <SelectTrigger id="resp">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="camila">Camila Andrade</SelectItem>
-                  <SelectItem value="rafael">Rafael Lima</SelectItem>
-                  <SelectItem value="juliana">Juliana Prado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
+            {modalidade !== "nenhuma" && modalidade !== "" && (
+              <div className="md:col-span-2 space-y-6 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-semibold">Assessores</h4>
+                    <p className="text-xs text-muted-foreground">Vincule os assessores e defina suas participações</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAssessorModalOpen(true)}
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Cadastrar novo assessor
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Vincular assessor existente</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between"
+                        >
+                          Procurar por nome...
+                          <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[400px] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Digite o nome do assessor..." />
+                          <CommandList>
+                            <CommandEmpty>Nenhum assessor encontrado.</CommandEmpty>
+                            <CommandGroup>
+                              {assessoresDisponiveis.map((assessor) => (
+                                <CommandItem
+                                  key={assessor.id}
+                                  value={assessor.nome}
+                                  onSelect={() => {
+                                    if (!assessoresVinculados.find(p => p.nome === assessor.nome)) {
+                                      setAssessoresVinculados([...assessoresVinculados, { nome: assessor.nome, papel: "Assessor", percentual: "" }]);
+                                      toast.success(`${assessor.nome} adicionado.`);
+                                    } else {
+                                      toast.error("Assessor já adicionado.");
+                                    }
+                                  }}
+                                >
+                                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                                  {assessor.nome} ({assessor.email})
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="space-y-3">
+                    {assessoresVinculados.map((assessor, index) => (
+                      <div key={index} className="flex items-end gap-3 rounded-lg border bg-muted/30 p-3">
+                        <div className="flex-1 space-y-1">
+                          <Label className="text-xs text-muted-foreground">Nome</Label>
+                          <div className="h-10 flex items-center px-3 rounded-md bg-white border font-medium">
+                            {assessor.nome}
+                          </div>
+                        </div>
+                        <div className="w-32 space-y-1">
+                          <Label className="text-xs text-muted-foreground">% Participação</Label>
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            value={assessor.percentual}
+                            onChange={(e) => {
+                              const newAssessores = [...assessoresVinculados];
+                              if (newAssessores[index]) {
+                                newAssessores[index].percentual = e.target.value;
+                                setAssessoresVinculados(newAssessores);
+                              }
+                            }}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            setAssessoresVinculados(assessoresVinculados.filter((_, i) => i !== index));
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </SectionCard>
 
@@ -491,6 +592,20 @@ function NovoProjeto() {
               ]);
               toast.success(`Investidor ${data.nome} cadastrado e adicionado!`);
             }}
+            type="Investidor"
+          />
+
+          <InvestorRegistrationModal
+            open={isAssessorModalOpen}
+            onOpenChange={setIsAssessorModalOpen}
+            onSave={(data) => {
+              setAssessoresVinculados((prev) => [
+                ...prev,
+                { nome: data.nome, papel: "Assessor", percentual: "" },
+              ]);
+              toast.success(`Assessor ${data.nome} cadastrado e adicionado!`);
+            }}
+            type="Assessor"
           />
         </SectionCard>
 
