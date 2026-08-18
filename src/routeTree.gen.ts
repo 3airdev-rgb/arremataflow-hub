@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AssessoresRouteImport } from './routes/assessores'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DocumentosRouteImport } from './routes/documentos'
@@ -26,7 +27,7 @@ import { Route as TarefasRouteImport } from './routes/tarefas'
 import { Route as AdminConfiguracoesRouteImport } from './routes/admin.configuracoes'
 import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as ProjetosIndexRouteImport } from './routes/projetos.index'
-import { Route as ProjetosNovoRouteImport } from './routes/projetos.novo'
+import { Route as AuthenticatedProjetosNovoRouteImport } from './routes/_authenticated/projetos.novo'
 import { Route as ProjetosIdIndexRouteImport } from './routes/projetos.$id.index'
 import { Route as ProjetosIdDocumentosRouteImport } from './routes/projetos.$id.documentos'
 import { Route as ProjetosIdFinanceiroRouteImport } from './routes/projetos.$id.financeiro'
@@ -35,6 +36,10 @@ import { Route as ProjetosIdTarefasRouteImport } from './routes/projetos.$id.tar
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssessoresRoute = AssessoresRouteImport.update({
@@ -117,11 +122,12 @@ const ProjetosIndexRoute = ProjetosIndexRouteImport.update({
   path: '/projetos/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProjetosNovoRoute = ProjetosNovoRouteImport.update({
-  id: '/projetos/novo',
-  path: '/projetos/novo',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const AuthenticatedProjetosNovoRoute =
+  AuthenticatedProjetosNovoRouteImport.update({
+    id: '/projetos/novo',
+    path: '/projetos/novo',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ProjetosIdIndexRoute = ProjetosIdIndexRouteImport.update({
   id: '/projetos/$id/',
   path: '/projetos/$id/',
@@ -160,8 +166,8 @@ export interface FileRoutesByFullPath {
   '/tarefas': typeof TarefasRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
-  '/projetos/novo': typeof ProjetosNovoRoute
   '/projetos/': typeof ProjetosIndexRoute
+  '/projetos/novo': typeof AuthenticatedProjetosNovoRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
   '/projetos/$id/financeiro': typeof ProjetosIdFinanceiroRoute
   '/projetos/$id/tarefas': typeof ProjetosIdTarefasRoute
@@ -184,8 +190,8 @@ export interface FileRoutesByTo {
   '/tarefas': typeof TarefasRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
-  '/projetos/novo': typeof ProjetosNovoRoute
   '/projetos': typeof ProjetosIndexRoute
+  '/projetos/novo': typeof AuthenticatedProjetosNovoRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
   '/projetos/$id/financeiro': typeof ProjetosIdFinanceiroRoute
   '/projetos/$id/tarefas': typeof ProjetosIdTarefasRoute
@@ -194,6 +200,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/assessores': typeof AssessoresRoute
   '/dashboard': typeof DashboardRoute
   '/documentos': typeof DocumentosRoute
@@ -209,8 +216,8 @@ export interface FileRoutesById {
   '/tarefas': typeof TarefasRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
-  '/projetos/novo': typeof ProjetosNovoRoute
   '/projetos/': typeof ProjetosIndexRoute
+  '/_authenticated/projetos/novo': typeof AuthenticatedProjetosNovoRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
   '/projetos/$id/financeiro': typeof ProjetosIdFinanceiroRoute
   '/projetos/$id/tarefas': typeof ProjetosIdTarefasRoute
@@ -235,8 +242,8 @@ export interface FileRouteTypes {
     | '/tarefas'
     | '/admin/configuracoes'
     | '/admin/usuarios'
-    | '/projetos/novo'
     | '/projetos/'
+    | '/projetos/novo'
     | '/projetos/$id/documentos'
     | '/projetos/$id/financeiro'
     | '/projetos/$id/tarefas'
@@ -259,8 +266,8 @@ export interface FileRouteTypes {
     | '/tarefas'
     | '/admin/configuracoes'
     | '/admin/usuarios'
-    | '/projetos/novo'
     | '/projetos'
+    | '/projetos/novo'
     | '/projetos/$id/documentos'
     | '/projetos/$id/financeiro'
     | '/projetos/$id/tarefas'
@@ -268,6 +275,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
     | '/assessores'
     | '/dashboard'
     | '/documentos'
@@ -283,8 +291,8 @@ export interface FileRouteTypes {
     | '/tarefas'
     | '/admin/configuracoes'
     | '/admin/usuarios'
-    | '/projetos/novo'
     | '/projetos/'
+    | '/_authenticated/projetos/novo'
     | '/projetos/$id/documentos'
     | '/projetos/$id/financeiro'
     | '/projetos/$id/tarefas'
@@ -293,6 +301,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AssessoresRoute: typeof AssessoresRoute
   DashboardRoute: typeof DashboardRoute
   DocumentosRoute: typeof DocumentosRoute
@@ -308,7 +317,6 @@ export interface RootRouteChildren {
   TarefasRoute: typeof TarefasRoute
   AdminConfiguracoesRoute: typeof AdminConfiguracoesRoute
   AdminUsuariosRoute: typeof AdminUsuariosRoute
-  ProjetosNovoRoute: typeof ProjetosNovoRoute
   ProjetosIndexRoute: typeof ProjetosIndexRoute
   ProjetosIdDocumentosRoute: typeof ProjetosIdDocumentosRoute
   ProjetosIdFinanceiroRoute: typeof ProjetosIdFinanceiroRoute
@@ -323,6 +331,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assessores': {
@@ -437,12 +452,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjetosIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/projetos/novo': {
-      id: '/projetos/novo'
+    '/_authenticated/projetos/novo': {
+      id: '/_authenticated/projetos/novo'
       path: '/projetos/novo'
       fullPath: '/projetos/novo'
-      preLoaderRoute: typeof ProjetosNovoRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedProjetosNovoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/projetos/$id/': {
       id: '/projetos/$id/'
@@ -475,8 +490,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedProjetosNovoRoute: typeof AuthenticatedProjetosNovoRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedProjetosNovoRoute: AuthenticatedProjetosNovoRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AssessoresRoute: AssessoresRoute,
   DashboardRoute: DashboardRoute,
   DocumentosRoute: DocumentosRoute,
@@ -492,7 +519,6 @@ const rootRouteChildren: RootRouteChildren = {
   TarefasRoute: TarefasRoute,
   AdminConfiguracoesRoute: AdminConfiguracoesRoute,
   AdminUsuariosRoute: AdminUsuariosRoute,
-  ProjetosNovoRoute: ProjetosNovoRoute,
   ProjetosIndexRoute: ProjetosIndexRoute,
   ProjetosIdDocumentosRoute: ProjetosIdDocumentosRoute,
   ProjetosIdFinanceiroRoute: ProjetosIdFinanceiroRoute,
