@@ -101,6 +101,47 @@ export type Database = {
         }
         Relationships: []
       }
+      projeto_fotos: {
+        Row: {
+          created_at: string
+          display_order: number
+          file_name: string
+          file_path: string
+          id: string
+          is_main: boolean
+          projeto_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          file_name: string
+          file_path: string
+          id?: string
+          is_main?: boolean
+          projeto_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          file_name?: string
+          file_path?: string
+          id?: string
+          is_main?: boolean
+          projeto_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projeto_fotos_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projeto_participantes: {
         Row: {
           created_at: string

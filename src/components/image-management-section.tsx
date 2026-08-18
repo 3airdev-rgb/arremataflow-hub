@@ -165,7 +165,7 @@ export function ImageManagementSection({
         setImages(prev => prev.filter(img => img.id !== tempId));
       }
     }
-  }, [images, userId]);
+  }, [images]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
