@@ -29,6 +29,9 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [recuperar, setRecuperar] = useState(false);
   const [enviado, setEnviado] = useState(false);
+  const [modo, setModo] = useState<"entrar" | "criar">("entrar");
+  const [erro, setErro] = useState<string | null>(null);
+
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
