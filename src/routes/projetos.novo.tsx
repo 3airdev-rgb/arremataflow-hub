@@ -291,8 +291,8 @@ function NovoProjeto() {
             </div>
 
             <div className="space-y-4 md:col-span-2 border-t pt-4 mt-2">
-              <div className="flex flex-col md:flex-row gap-4 items-start">
-                <div className="flex-[0_0_100%] md:flex-[0_0_60%] space-y-2">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
                   <Label htmlFor="leiloeiro-select">Leiloeiro / Comitente</Label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -346,19 +346,21 @@ function NovoProjeto() {
                     </Button>
                   </div>
                 </div>
-                <div className="flex-[0_0_100%] md:flex-[0_0_15%] space-y-2">
-                  <Label>Comissão (%)</Label>
-                  <Input 
-                    type="number" 
-                    step="0.01" 
-                    value={percentualComissao} 
-                    onChange={(e) => setPercentualComissao(parseFloat(e.target.value) || 0)}
-                    className="w-full"
-                  />
-                </div>
-                <div className="flex-[0_0_100%] md:flex-[0_0_25%] space-y-2 min-w-0">
-                  <Label className="truncate block">Valor da Comissão (R$)</Label>
-                  <Input value={formatBRL(comissaoCalculada)} disabled className="bg-muted w-full" />
+                <div className="grid gap-4 grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Comissão (%)</Label>
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      value={percentualComissao} 
+                      onChange={(e) => setPercentualComissao(parseFloat(e.target.value) || 0)}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="truncate block">Valor da Comissão (R$)</Label>
+                    <Input value={formatBRL(comissaoCalculada)} disabled className="bg-muted w-full" />
+                  </div>
                 </div>
               </div>
             </div>
