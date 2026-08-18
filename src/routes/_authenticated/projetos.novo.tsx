@@ -1039,7 +1039,7 @@ function NovoProjeto() {
             }}
             type="Leiloeiro"
           />
-        </SectionCard>
+        {/* Removido o fechamento extra do SectionCard aqui */}
 
         <div className="flex justify-end gap-3 pb-4">
           <Button type="button" variant="outline" onClick={() => navigate({ to: "/projetos" })}>
