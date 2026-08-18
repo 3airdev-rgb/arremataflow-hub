@@ -27,6 +27,9 @@ export type Projeto = {
   modalidade: string;
   matricula: string;
   area: string;
+  land_area?: number;
+  built_area?: number;
+  total_area?: number;
   valorAquisicao: number;
   dataAquisicao: string;
   capitalInvestido: number;
