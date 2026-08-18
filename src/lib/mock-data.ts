@@ -27,6 +27,9 @@ export type Projeto = {
   modalidade: string;
   matricula: string;
   area: string;
+  land_area?: number;
+  built_area?: number;
+  total_area?: number;
   valorAquisicao: number;
   dataAquisicao: string;
   capitalInvestido: number;
@@ -54,6 +57,9 @@ export const projetos: Projeto[] = [
     modalidade: "Assessoria Completa",
     matricula: "128.442 - 5º CRI SP",
     area: "78 m²",
+    land_area: 120,
+    built_area: 78,
+    total_area: 78,
     valorAquisicao: 412000,
     dataAquisicao: "12/03/2026",
     capitalInvestido: 468500,
@@ -82,6 +88,9 @@ export const projetos: Projeto[] = [
     modalidade: "Assessoria Jurídica",
     matricula: "44.902 - 2º CRI CWB",
     area: "160 m²",
+    land_area: 250,
+    built_area: 160,
+    total_area: 160,
     valorAquisicao: 690000,
     dataAquisicao: "02/02/2026",
     capitalInvestido: 742000,
