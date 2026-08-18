@@ -4,6 +4,7 @@ import { Building2, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -67,8 +68,12 @@ function LoginPage() {
           {recuperar ? (
             <form
               className="space-y-5"
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
+                const email = (e.currentTarget.elements.namedItem("email-rec") as HTMLInputElement).value;
+                await supabase.auth.resetPasswordForEmail(email, {
+                  redirectTo: `${window.location.origin}/`,
+                });
                 setEnviado(true);
               }}
             >
@@ -80,7 +85,7 @@ function LoginPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email-rec">E-mail</Label>
-                <Input id="email-rec" type="email" placeholder="voce@empresa.com" required />
+                <Input id="email-rec" name="email-rec" type="email" placeholder="voce@empresa.com" required />
               </div>
               {enviado ? (
                 <p className="rounded-lg bg-success-soft px-3 py-2 text-sm text-success">
