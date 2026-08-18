@@ -190,6 +190,7 @@ export type Database = {
       projetos: {
         Row: {
           area: string | null
+          built_area: number | null
           cep: string | null
           cidade: string | null
           codigo: string | null
@@ -202,6 +203,7 @@ export type Database = {
           fotos: string[]
           id: string
           iptu: string | null
+          land_area: number | null
           leiloeiro_id: string | null
           leiloeiro_nome: string | null
           matricula: string | null
@@ -214,6 +216,7 @@ export type Database = {
           quantidade_parcelas: number
           tem_minimo: boolean
           tipo_imovel: string | null
+          total_area: number | null
           updated_at: string
           user_id: string
           valor_aquisicao: number
@@ -225,6 +228,7 @@ export type Database = {
         }
         Insert: {
           area?: string | null
+          built_area?: number | null
           cep?: string | null
           cidade?: string | null
           codigo?: string | null
@@ -237,6 +241,7 @@ export type Database = {
           fotos?: string[]
           id?: string
           iptu?: string | null
+          land_area?: number | null
           leiloeiro_id?: string | null
           leiloeiro_nome?: string | null
           matricula?: string | null
@@ -249,6 +254,7 @@ export type Database = {
           quantidade_parcelas?: number
           tem_minimo?: boolean
           tipo_imovel?: string | null
+          total_area?: number | null
           updated_at?: string
           user_id: string
           valor_aquisicao?: number
@@ -260,6 +266,7 @@ export type Database = {
         }
         Update: {
           area?: string | null
+          built_area?: number | null
           cep?: string | null
           cidade?: string | null
           codigo?: string | null
@@ -272,6 +279,7 @@ export type Database = {
           fotos?: string[]
           id?: string
           iptu?: string | null
+          land_area?: number | null
           leiloeiro_id?: string | null
           leiloeiro_nome?: string | null
           matricula?: string | null
@@ -284,6 +292,7 @@ export type Database = {
           quantidade_parcelas?: number
           tem_minimo?: boolean
           tipo_imovel?: string | null
+          total_area?: number | null
           updated_at?: string
           user_id?: string
           valor_aquisicao?: number
