@@ -291,8 +291,8 @@ function NovoProjeto() {
             </div>
 
             <div className="space-y-4 md:col-span-2 border-t pt-4 mt-2">
-              <div className="grid gap-4 md:grid-cols-3 items-end">
-                <div className="space-y-2">
+              <div className="flex flex-col md:flex-row gap-4 items-start">
+                <div className="flex-[0_0_100%] md:flex-[0_0_60%] space-y-2">
                   <Label htmlFor="leiloeiro-select">Leiloeiro / Comitente</Label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -333,29 +333,32 @@ function NovoProjeto() {
                       </Command>
                     </PopoverContent>
                   </Popover>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs px-0 hover:bg-transparent"
-                    onClick={() => setIsLeiloeiroModalOpen(true)}
-                  >
-                    <UserPlus className="mr-1 size-3" />
-                    Cadastrar novo leiloeiro
-                  </Button>
+                  <div className="pt-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs px-0 hover:bg-transparent text-brand"
+                      onClick={() => setIsLeiloeiroModalOpen(true)}
+                    >
+                      <UserPlus className="mr-1 size-3" />
+                      Cadastrar novo leiloeiro
+                    </Button>
+                  </div>
                 </div>
-                <div className="space-y-2">
+                <div className="flex-[0_0_100%] md:flex-[0_0_15%] space-y-2">
                   <Label>Comissão do Leiloeiro (%)</Label>
                   <Input 
                     type="number" 
                     step="0.01" 
                     value={percentualComissao} 
                     onChange={(e) => setPercentualComissao(parseFloat(e.target.value) || 0)}
+                    className="w-full"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="flex-[0_0_100%] md:flex-[0_0_25%] space-y-2">
                   <Label>Valor da Comissão (R$)</Label>
-                  <Input value={formatBRL(comissaoCalculada)} disabled className="bg-muted" />
+                  <Input value={formatBRL(comissaoCalculada)} disabled className="bg-muted w-full" />
                 </div>
               </div>
             </div>
