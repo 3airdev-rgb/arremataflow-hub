@@ -905,7 +905,67 @@ function NovoProjeto() {
         
         <SectionCard icon={UserCheck} title="Responsável pelo Projeto" description="Nome do(s) responsável(eis)">
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Label>Vincular responsável existente</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between"
+                  >
+                    Procurar por nome...
+                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Pesquisar assessor para vincular..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum assessor encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {assessoresDisponiveis.map((assessor) => (
+                          <CommandItem
+                            key={assessor.id}
+                            value={assessor.nome}
+                            onSelect={() => {
+                              if (!responsaveisVinculados.find(r => r.id === assessor.id)) {
+                                setResponsaveisVinculados([...responsaveisVinculados, { id: assessor.id, nome: assessor.nome }]);
+                                toast.success(`${assessor.nome} vinculado como responsável.`);
+                              } else {
+                                toast.error("Responsável já vinculado.");
+                              }
+                            }}
+                          >
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            {assessor.nome} ({assessor.email})
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {responsaveisVinculados.map((resp, index) => (
+                <div key={resp.id} className="flex items-center gap-2 rounded-full border bg-muted/50 px-3 py-1 text-sm font-medium">
+                  {resp.nome}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResponsaveisVinculados(responsaveisVinculados.filter((_, i) => i !== index));
+                    }}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="size-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between border-t pt-4">
               <div>
                 <p className="text-sm font-medium">Cadastrar novo responsável</p>
               </div>
@@ -918,68 +978,6 @@ function NovoProjeto() {
                 <UserPlus className="mr-2 h-4 w-4" />
                 Cadastrar
               </Button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Vincular responsável existente</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      className="w-full justify-between"
-                    >
-                      Procurar por nome...
-                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[400px] p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Pesquisar assessor para vincular..." />
-                      <CommandList>
-                        <CommandEmpty>Nenhum assessor encontrado.</CommandEmpty>
-                        <CommandGroup>
-                          {assessoresDisponiveis.map((assessor) => (
-                            <CommandItem
-                              key={assessor.id}
-                              value={assessor.nome}
-                              onSelect={() => {
-                                if (!responsaveisVinculados.find(r => r.id === assessor.id)) {
-                                  setResponsaveisVinculados([...responsaveisVinculados, { id: assessor.id, nome: assessor.nome }]);
-                                  toast.success(`${assessor.nome} vinculado como responsável.`);
-                                } else {
-                                  toast.error("Responsável já vinculado.");
-                                }
-                              }}
-                            >
-                              <CheckCircle2 className="mr-2 h-4 w-4" />
-                              {assessor.nome} ({assessor.email})
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {responsaveisVinculados.map((resp, index) => (
-                  <div key={resp.id} className="flex items-center gap-2 rounded-full border bg-muted/50 px-3 py-1 text-sm font-medium">
-                    {resp.nome}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setResponsaveisVinculados(responsaveisVinculados.filter((_, i) => i !== index));
-                      }}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="size-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         </SectionCard>
