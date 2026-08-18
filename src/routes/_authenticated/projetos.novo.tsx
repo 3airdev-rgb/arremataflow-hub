@@ -983,6 +983,7 @@ function NovoProjeto() {
               </div>
             </div>
           </div>
+        </SectionCard>
 
           <InvestorRegistrationModal
             open={isInvestorModalOpen}
