@@ -101,6 +101,45 @@ export type Database = {
         }
         Relationships: []
       }
+      project_managers: {
+        Row: {
+          assessor_id: string
+          created_at: string
+          id: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          assessor_id: string
+          created_at?: string
+          id?: string
+          project_id: string
+          user_id?: string
+        }
+        Update: {
+          assessor_id?: string
+          created_at?: string
+          id?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_managers_assessor_id_fkey"
+            columns: ["assessor_id"]
+            isOneToOne: false
+            referencedRelation: "pessoas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_managers_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projeto_fotos: {
         Row: {
           created_at: string
