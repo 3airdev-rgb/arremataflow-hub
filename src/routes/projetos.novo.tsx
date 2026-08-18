@@ -449,7 +449,7 @@ function NovoProjeto() {
                     {assessoresVinculados.map((assessor, index) => (
                       <div key={index} className="flex items-end gap-3 rounded-lg border bg-muted/30 p-3">
                         <div className="flex-1 space-y-1">
-                          <Label className="text-xs text-muted-foreground">Nome</lebel>
+                          <Label className="text-xs text-muted-foreground">Nome</Label>
                           <div className="h-10 flex items-center px-3 rounded-md bg-white border font-medium">
                             {assessor.nome}
                           </div>
