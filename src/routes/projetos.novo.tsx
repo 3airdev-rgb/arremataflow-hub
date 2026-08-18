@@ -347,7 +347,7 @@ function NovoProjeto() {
                   </div>
                 </div>
                 <div className="flex-[0_0_100%] md:flex-[0_0_15%] space-y-2">
-                  <Label>Comissão do Leiloeiro (%)</Label>
+                  <Label>Comissão (%)</Label>
                   <Input 
                     type="number" 
                     step="0.01" 
@@ -356,8 +356,8 @@ function NovoProjeto() {
                     className="w-full"
                   />
                 </div>
-                <div className="flex-[0_0_100%] md:flex-[0_0_25%] space-y-2">
-                  <Label>Valor da Comissão (R$)</Label>
+                <div className="flex-[0_0_100%] md:flex-[0_0_25%] space-y-2 min-w-0">
+                  <Label className="truncate block">Valor da Comissão (R$)</Label>
                   <Input value={formatBRL(comissaoCalculada)} disabled className="bg-muted w-full" />
                 </div>
               </div>
