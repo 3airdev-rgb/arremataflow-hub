@@ -83,7 +83,7 @@ function SectionCard({
   );
 }
 
-const galeria = projetos[0]?.fotos ?? [];
+
 
 async function salvarPessoa(data: UnifiedEntityData, tipo: "Investidor" | "Assessor" | "Leiloeiro") {
   const { data: userData } = await supabase.auth.getUser();
