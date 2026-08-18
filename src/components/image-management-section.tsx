@@ -110,6 +110,7 @@ export function ImageManagementSection({
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id;
 
+
     for (const file of filesArray) {
       if (!ALLOWED_TYPES.includes(file.type)) {
         toast.error(`Formato de arquivo não suportado: ${file.name}`);
