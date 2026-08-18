@@ -114,6 +114,7 @@ function NovoProjeto() {
   const [fotosUpload, setFotosUpload] = useState<ProjetoFoto[]>([]);
   const [isInvestorModalOpen, setIsInvestorModalOpen] = useState(false);
   const [isAssessorModalOpen, setIsAssessorModalOpen] = useState(false);
+  const [isResponsibleModalOpen, setIsResponsibleModalOpen] = useState(false);
   const [isLeiloeiroModalOpen, setIsLeiloeiroModalOpen] = useState(false);
   const [participantes, setParticipantes] = useState([
     { nome: "Marcos Ribeiro", papel: "Investidor", percentual: "45" },
@@ -121,6 +122,7 @@ function NovoProjeto() {
   const [assessoresVinculados, setAssessoresVinculados] = useState([
     { nome: "Camila Andrade", papel: "Assessor", percentual: "100" },
   ]);
+  const [responsaveisVinculados, setResponsaveisVinculados] = useState<{id: string, nome: string}[]>([]);
   
   // States for new logic
   const [modalidade, setModalidade] = useState<string>("");
@@ -257,6 +259,19 @@ function NovoProjeto() {
                 .from("projeto_participantes")
                 .insert(vinculos);
               if (vinculoError) throw vinculoError;
+            }
+            
+            // Salvar responsáveis (project_managers)
+            if (responsaveisVinculados.length > 0) {
+              const managers = responsaveisVinculados.map((r) => ({
+                projeto_id: projeto.id,
+                assessor_id: r.id,
+                user_id: userId
+              }));
+              const { error: managerError } = await supabase
+                .from("project_managers")
+                .insert(managers);
+              if (managerError) throw managerError;
             }
 
             // Salvar metadados das fotos
@@ -886,6 +901,87 @@ function NovoProjeto() {
             </div>
           </div>
 
+          {/* Nova Seção: Responsável pelo Projeto */}
+          <div className="space-y-6 pt-8 border-t mt-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-semibold">Responsável pelo Projeto</h4>
+                <p className="text-xs text-muted-foreground">Nome do(s) responsável(eis)</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsResponsibleModalOpen(true)}
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                Cadastrar novo assessor
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Vincular responsável existente</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between"
+                    >
+                      Procurar por nome...
+                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Pesquisar assessor para vincular..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhum assessor encontrado.</CommandEmpty>
+                        <CommandGroup>
+                          {assessoresDisponiveis.map((assessor) => (
+                            <CommandItem
+                              key={assessor.id}
+                              value={assessor.nome}
+                              onSelect={() => {
+                                if (!responsaveisVinculados.find(r => r.id === assessor.id)) {
+                                  setResponsaveisVinculados([...responsaveisVinculados, { id: assessor.id, nome: assessor.nome }]);
+                                  toast.success(`${assessor.nome} vinculado como responsável.`);
+                                } else {
+                                  toast.error("Responsável já vinculado.");
+                                }
+                              }}
+                            >
+                              <CheckCircle2 className="mr-2 h-4 w-4" />
+                              {assessor.nome} ({assessor.email})
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {responsaveisVinculados.map((resp, index) => (
+                  <div key={resp.id} className="flex items-center gap-2 rounded-full border bg-muted/50 px-3 py-1 text-sm font-medium">
+                    {resp.nome}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResponsaveisVinculados(responsaveisVinculados.filter((_, i) => i !== index));
+                      }}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
           <InvestorRegistrationModal
             open={isInvestorModalOpen}
             onOpenChange={setIsInvestorModalOpen}
@@ -910,6 +1006,22 @@ function NovoProjeto() {
               ]);
               await salvarPessoa(data, "Assessor");
               toast.success(`Assessor ${data.nome} cadastrado e adicionado!`);
+            }}
+            type="Assessor"
+          />
+
+          <InvestorRegistrationModal
+            open={isResponsibleModalOpen}
+            onOpenChange={setIsResponsibleModalOpen}
+            onSave={async (data) => {
+              // Create a temporary ID for the UI
+              const tempId = Math.random().toString();
+              setResponsaveisVinculados((prev) => [
+                ...prev,
+                { id: tempId, nome: data.nome },
+              ]);
+              await salvarPessoa(data, "Assessor");
+              toast.success(`Assessor ${data.nome} cadastrado e vinculado como responsável!`);
             }}
             type="Assessor"
           />
