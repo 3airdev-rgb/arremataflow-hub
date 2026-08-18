@@ -264,7 +264,7 @@ function NovoProjeto() {
             // Salvar responsáveis (project_managers)
             if (responsaveisVinculados.length > 0) {
               const managers = responsaveisVinculados.map((r) => ({
-                projeto_id: projeto.id,
+                project_id: projeto.id,
                 assessor_id: r.id,
                 user_id: userId
               }));
