@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import { projetos, usuarios, formatBRL } from "@/lib/mock-data";
 import { InvestorRegistrationModal } from "@/components/investor-registration-modal";
 
-export const Route = createFileRoute("/projetos/novo")({
+export const Route = createFileRoute("/_authenticated/projetos/novo")({
   head: () => ({
     meta: [
       { title: "Novo Projeto | ArremataFlow" },
