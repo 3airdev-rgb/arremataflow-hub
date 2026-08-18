@@ -293,6 +293,8 @@ export const usuarios = [
   { id: "u4", nome: "Dr. Paulo Tavares", email: "paulo@tavaresadv.com", perfil: "Jurídico", status: "Ativo" },
   { id: "u5", nome: "Marcos Ribeiro", email: "marcos.ribeiro@investidor.com", perfil: "Investidor", status: "Convite enviado" },
   { id: "u6", nome: "Ana Beatriz Souza", email: "ana.souza@investidor.com", perfil: "Investidor", status: "Ativo" },
+  { id: "u7", nome: "Leilões Judiciais BR", email: "contato@leiloesjudiciais.com.br", perfil: "Leiloeiro", status: "Ativo" },
+  { id: "u8", nome: "Zukerman Leilões", email: "atendimento@zukerman.com.br", perfil: "Leiloeiro", status: "Ativo" },
 ];
 
 export const movimentacoesRecentes = [
