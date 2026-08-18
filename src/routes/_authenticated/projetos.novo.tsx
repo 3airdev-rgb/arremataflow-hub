@@ -907,8 +907,7 @@ function NovoProjeto() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="text-sm font-semibold">Responsável pelo Projeto</h4>
-                <p className="text-xs text-muted-foreground">Nome do(s) responsável(eis)</p>
+                <p className="text-sm font-medium">Cadastrar novo responsável</p>
               </div>
               <Button
                 type="button"
@@ -917,7 +916,7 @@ function NovoProjeto() {
                 onClick={() => setIsResponsibleModalOpen(true)}
               >
                 <UserPlus className="mr-2 h-4 w-4" />
-                Cadastrar novo assessor
+                Cadastrar
               </Button>
             </div>
 
