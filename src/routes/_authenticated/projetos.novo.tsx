@@ -174,6 +174,12 @@ function NovoProjeto() {
             const v = fd.get(k);
             return typeof v === "string" && v.trim() !== "" ? v.trim() : null;
           };
+          const num = (k: string) => {
+            const v = fd.get(k);
+            if (typeof v !== "string") return null;
+            const val = parseFloat(v.replace(/[^\d.,]/g, "").replace(",", "."));
+            return isNaN(val) ? null : val;
+          };
           setSalvando(true);
           try {
             const { data: userData } = await supabase.auth.getUser();
@@ -201,6 +207,9 @@ function NovoProjeto() {
                 cidade: txt("cidade"),
                 cep: txt("cep"),
                 area: txt("area"),
+                land_area: num("land_area"),
+                built_area: num("built_area"),
+                total_area: num("total_area"),
                 matricula: txt("mat"),
                 tipo_imovel: tipoImovel || null,
                 iptu: txt("iptu"),
@@ -289,6 +298,7 @@ function NovoProjeto() {
               <Label htmlFor="end">Endereço</Label>
               <Input id="end" name="end" placeholder="Rua, número, complemento" />
             </div>
+            
             <div className="space-y-2">
               <Label htmlFor="cidade">Cidade / UF</Label>
               <Input id="cidade" name="cidade" placeholder="São Paulo / SP" />
@@ -297,15 +307,77 @@ function NovoProjeto() {
               <Label htmlFor="cep">CEP</Label>
               <Input id="cep" name="cep" placeholder="00000-000" />
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="area">Área privativa</Label>
-              <Input id="area" name="area" placeholder="78 m²" />
+              <Label htmlFor="area">Área Privativa</Label>
+              <div className="relative">
+                <Input id="area" name="area" placeholder="0,00" />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">m²</span>
+              </div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="land_area">Área do Terreno</Label>
+              <div className="relative">
+                <Input 
+                  id="land_area" 
+                  name="land_area" 
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0,00" 
+                  onBlur={(e) => {
+                    const val = e.target.value.replace(/[^\d.,]/g, "").replace(",", ".");
+                    if (val) e.target.value = parseFloat(val).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                  }}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">m²</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="built_area">Área Construída</Label>
+              <div className="relative">
+                <Input 
+                  id="built_area" 
+                  name="built_area" 
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0,00" 
+                  onBlur={(e) => {
+                    const val = e.target.value.replace(/[^\d.,]/g, "").replace(",", ".");
+                    if (val) e.target.value = parseFloat(val).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                  }}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">m²</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="total_area">Área Total</Label>
+              <div className="relative">
+                <Input 
+                  id="total_area" 
+                  name="total_area" 
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0,00" 
+                  onBlur={(e) => {
+                    const val = e.target.value.replace(/[^\d.,]/g, "").replace(",", ".");
+                    if (val) e.target.value = parseFloat(val).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                  }}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">m²</span>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="mat">Matrícula / Cartório</Label>
               <Input id="mat" name="mat" placeholder="128.442 - 5º CRI" />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="iptu">Inscrição municipal (IPTU)</Label>
+              <Input id="iptu" name="iptu" placeholder="000.000.0000-0" />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
               <Label htmlFor="tipo">Tipo do imóvel</Label>
               <Select value={tipoImovel} onValueChange={setTipoImovel}>
                 <SelectTrigger id="tipo">
@@ -320,10 +392,7 @@ function NovoProjeto() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="iptu">Inscrição municipal (IPTU)</Label>
-              <Input id="iptu" name="iptu" placeholder="000.000.0000-0" />
-            </div>
+            
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="obs">Observações</Label>
               <Textarea id="obs" name="obs" rows={3} placeholder="Situação de ocupação, pendências conhecidas..." />

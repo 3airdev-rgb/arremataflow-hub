@@ -160,7 +160,10 @@ function FichaProjeto() {
             itens={[
               { label: "Endereço", valor: projeto.endereco },
               { label: "Cidade", valor: projeto.cidade },
-              { label: "Área", valor: projeto.area },
+              { label: "Área Privativa", valor: projeto.area || "-" },
+              { label: "Área do Terreno", valor: projeto.land_area ? `${projeto.land_area.toLocaleString('pt-BR')} m²` : "-" },
+              { label: "Área Construída", valor: projeto.built_area ? `${projeto.built_area.toLocaleString('pt-BR')} m²` : "-" },
+              { label: "Área Total", valor: projeto.total_area ? `${projeto.total_area.toLocaleString('pt-BR')} m²` : "-" },
               { label: "Matrícula", valor: projeto.matricula },
             ]}
           />
