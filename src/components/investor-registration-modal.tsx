@@ -204,7 +204,7 @@ export function InvestorRegistrationModal({
               <div className="space-y-2">
                 <Label htmlFor="estadoCivil">Estado Civil</Label>
                 <Select
-                  value={formData.estadoCivil}
+                  value={formData.estadoCivil || ""}
                   onValueChange={(val) => setFormData({ ...formData, estadoCivil: val })}
                 >
                   <SelectTrigger id="estadoCivil">
