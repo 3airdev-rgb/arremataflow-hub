@@ -727,6 +727,16 @@ function NovoProjeto() {
             }}
             type="Assessor"
           />
+
+          <InvestorRegistrationModal
+            open={isLeiloeiroModalOpen}
+            onOpenChange={setIsLeiloeiroModalOpen}
+            onSave={(data) => {
+              setLeiloeiroVinculado({ id: Math.random().toString(), nome: data.nome });
+              toast.success(`Leiloeiro ${data.nome} cadastrado e vinculado!`);
+            }}
+            type="Leiloeiro"
+          />
         </SectionCard>
 
         <div className="flex justify-end gap-3 pb-4">
