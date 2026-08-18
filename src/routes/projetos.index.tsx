@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { projetos, formatBRL } from "@/lib/mock-data";
+import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/projetos/")({
   head: () => ({
@@ -28,6 +30,23 @@ export const Route = createFileRoute("/projetos/")({
 
 function ProjetosPage() {
   const [q, setQ] = useState("");
+  const [salvos, setSalvos] = useState<Tables<"projetos">[]>([]);
+
+  useEffect(() => {
+    let ativo = true;
+    (async () => {
+      const { data: sessao } = await supabase.auth.getSession();
+      if (!sessao.session) return;
+      const { data } = await supabase
+        .from("projetos")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (ativo && data) setSalvos(data);
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, []);
   const lista = projetos.filter((p) =>
     `${p.nome} ${p.endereco} ${p.codigo}`.toLowerCase().includes(q.toLowerCase()),
   );
@@ -44,6 +63,47 @@ function ProjetosPage() {
         </Button>
       }
     >
+      {salvos.length > 0 ? (
+        <div className="surface-card mb-6 overflow-hidden">
+          <div className="border-b border-border p-4">
+            <h2 className="text-sm font-semibold">Projetos salvos no banco</h2>
+            <p className="text-xs text-muted-foreground">
+              {salvos.length} registro(s) persistido(s) na sua conta
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Projeto</th>
+                  <th className="px-4 py-3 font-medium">Leiloeiro</th>
+                  <th className="px-4 py-3 font-medium">Aquisição</th>
+                  <th className="px-4 py-3 font-medium">Comissão</th>
+                  <th className="px-4 py-3 font-medium">Parcelas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {salvos.map((p) => (
+                  <tr key={p.id} className="border-t border-border">
+                    <td className="px-4 py-3 font-medium">{p.nome}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{p.leiloeiro_nome ?? "—"}</td>
+                    <td className="px-4 py-3">{formatBRL(Number(p.valor_aquisicao))}</td>
+                    <td className="px-4 py-3">
+                      {Number(p.percentual_comissao)}% · {formatBRL(Number(p.valor_comissao))}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {p.quantidade_parcelas > 1
+                        ? `${p.quantidade_parcelas}x ${formatBRL(Number(p.valor_parcela))}`
+                        : "À vista"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+
       <div className="surface-card overflow-hidden">
         <div className="border-b border-border p-4">
           <div className="relative max-w-md">

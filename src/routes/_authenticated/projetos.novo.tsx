@@ -33,9 +33,10 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { projetos, usuarios, formatBRL } from "@/lib/mock-data";
-import { InvestorRegistrationModal } from "@/components/investor-registration-modal";
+import { InvestorRegistrationModal, type UnifiedEntityData } from "@/components/investor-registration-modal";
+import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/projetos/novo")({
+export const Route = createFileRoute("/_authenticated/projetos/novo")({
   head: () => ({
     meta: [
       { title: "Novo Projeto | ArremataFlow" },
@@ -83,6 +84,30 @@ function SectionCard({
 
 const galeria = projetos[0]?.fotos ?? [];
 
+async function salvarPessoa(data: UnifiedEntityData, tipo: "Investidor" | "Assessor" | "Leiloeiro") {
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id;
+  if (!userId) return;
+  const { error } = await supabase.from("pessoas").insert({
+    user_id: userId,
+    tipo,
+    nome: data.nome,
+    documento: data.documento || null,
+    email: data.email || null,
+    celulares: data.celulares ?? [],
+    data_nascimento: data.dataNascimento || null,
+    estado_civil: data.estadoCivil || null,
+    endereco: data.endereco || null,
+    banco: data.banco || null,
+    agencia: data.agencia || null,
+    conta: data.conta || null,
+    website: data.website || null,
+    cidade: data.cidade || null,
+    estado: data.estado || null,
+  });
+  if (error) toast.error(`Não foi possível salvar ${tipo.toLowerCase()}: ${error.message}`);
+}
+
 function NovoProjeto() {
   const navigate = useNavigate();
   const [principal, setPrincipal] = useState(galeria[0] ?? "");
@@ -104,6 +129,9 @@ function NovoProjeto() {
   const [valorMinimo, setValorMinimo] = useState<number>(0);
   const [dataAquisicao, setDataAquisicao] = useState<Date | undefined>(undefined);
   const [formaPagamento, setFormaPagamento] = useState<string>("");
+  const [tipoImovel, setTipoImovel] = useState<string>("");
+  const [origem, setOrigem] = useState<string>("");
+  const [salvando, setSalvando] = useState(false);
   
   // Leiloeiro states
   const [leiloeiroVinculado, setLeiloeiroVinculado] = useState<{id: string, nome: string} | null>(null);
@@ -138,10 +166,96 @@ function NovoProjeto() {
     <AppLayout title="Cadastro de Projeto" subtitle="Novo projeto imobiliário">
       <form
         className="grid gap-6"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          toast.success("Projeto salvo com sucesso!");
-          setTimeout(() => navigate({ to: "/projetos/$id", params: { id: "1" } }), 600);
+          const fd = new FormData(e.currentTarget);
+          const txt = (k: string) => {
+            const v = fd.get(k);
+            return typeof v === "string" && v.trim() !== "" ? v.trim() : null;
+          };
+          setSalvando(true);
+          try {
+            const { data: userData } = await supabase.auth.getUser();
+            const userId = userData.user?.id;
+            if (!userId) throw new Error("Sessão expirada. Entre novamente.");
+
+            let leiloeiroId: string | null = null;
+            if (leiloeiroVinculado) {
+              const { data: pessoa, error: pessoaError } = await supabase
+                .from("pessoas")
+                .insert({ user_id: userId, tipo: "Leiloeiro", nome: leiloeiroVinculado.nome })
+                .select("id")
+                .single();
+              if (pessoaError) throw pessoaError;
+              leiloeiroId = pessoa.id;
+            }
+
+            const parcelado = formaPagamento === "parcelado" || formaPagamento === "financiado";
+            const { data: projeto, error: projetoError } = await supabase
+              .from("projetos")
+              .insert({
+                user_id: userId,
+                nome: txt("end") ?? "Novo projeto",
+                endereco: txt("end"),
+                cidade: txt("cidade"),
+                cep: txt("cep"),
+                area: txt("area"),
+                matricula: txt("mat"),
+                tipo_imovel: tipoImovel || null,
+                iptu: txt("iptu"),
+                observacoes: txt("obs"),
+                fotos: galeria,
+                foto_principal: principal || null,
+                origem: origem || null,
+                valor_aquisicao: valorAquisicao,
+                data_aquisicao: dataAquisicao ? format(dataAquisicao, "yyyy-MM-dd") : null,
+                forma_pagamento: formaPagamento || null,
+                leiloeiro_id: leiloeiroId,
+                leiloeiro_nome: leiloeiroVinculado?.nome ?? null,
+                percentual_comissao: percentualComissao,
+                valor_comissao: comissaoCalculada,
+                credor: parcelado ? txt("credor") : null,
+                valor_parcelado: parcelado ? valorFinanciado : 0,
+                quantidade_parcelas: parcelado ? quantidadeParcelas : 1,
+                valor_parcela: parcelado ? valorParcelaCalculado : 0,
+                modalidade: modalidade || null,
+                percentual_honorarios: modalidade === "nenhuma" ? 0 : percentualHonorarios,
+                tem_minimo: temMinimo === "sim",
+                valor_minimo: valorMinimo,
+                valor_honorarios: modalidade === "nenhuma" ? 0 : honorarioCalculado,
+              })
+              .select("id")
+              .single();
+            if (projetoError) throw projetoError;
+
+            const vinculos = [
+              ...participantes.map((p) => ({
+                projeto_id: projeto.id,
+                nome: p.nome,
+                papel: "Investidor",
+                percentual: parseFloat(p.percentual) || 0,
+              })),
+              ...assessoresVinculados.map((a) => ({
+                projeto_id: projeto.id,
+                nome: a.nome,
+                papel: "Assessor",
+                percentual: parseFloat(a.percentual) || 0,
+              })),
+            ];
+            if (vinculos.length > 0) {
+              const { error: vinculoError } = await supabase
+                .from("projeto_participantes")
+                .insert(vinculos);
+              if (vinculoError) throw vinculoError;
+            }
+
+            toast.success("Projeto salvo no banco com sucesso!");
+            navigate({ to: "/projetos" });
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Não foi possível salvar o projeto.");
+          } finally {
+            setSalvando(false);
+          }
         }}
       >
         <SectionCard icon={House} title="Imóvel" description="Dados cadastrais e localização">
@@ -176,27 +290,27 @@ function NovoProjeto() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="end">Endereço</Label>
-              <Input id="end" placeholder="Rua, número, complemento" />
+              <Input id="end" name="end" placeholder="Rua, número, complemento" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="cidade">Cidade / UF</Label>
-              <Input id="cidade" placeholder="São Paulo / SP" />
+              <Input id="cidade" name="cidade" placeholder="São Paulo / SP" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="cep">CEP</Label>
-              <Input id="cep" placeholder="00000-000" />
+              <Input id="cep" name="cep" placeholder="00000-000" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="area">Área privativa</Label>
-              <Input id="area" placeholder="78 m²" />
+              <Input id="area" name="area" placeholder="78 m²" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="mat">Matrícula / Cartório</Label>
-              <Input id="mat" placeholder="128.442 - 5º CRI" />
+              <Input id="mat" name="mat" placeholder="128.442 - 5º CRI" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="tipo">Tipo do imóvel</Label>
-              <Select>
+              <Select value={tipoImovel} onValueChange={setTipoImovel}>
                 <SelectTrigger id="tipo">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
@@ -211,11 +325,11 @@ function NovoProjeto() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="iptu">Inscrição municipal (IPTU)</Label>
-              <Input id="iptu" placeholder="000.000.0000-0" />
+              <Input id="iptu" name="iptu" placeholder="000.000.0000-0" />
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="obs">Observações</Label>
-              <Textarea id="obs" rows={3} placeholder="Situação de ocupação, pendências conhecidas..." />
+              <Textarea id="obs" name="obs" rows={3} placeholder="Situação de ocupação, pendências conhecidas..." />
             </div>
           </div>
         </SectionCard>
@@ -224,7 +338,7 @@ function NovoProjeto() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="origem">Origem</Label>
-              <Select>
+              <Select value={origem} onValueChange={setOrigem}>
                 <SelectTrigger id="origem">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
@@ -373,7 +487,7 @@ function NovoProjeto() {
                 <div className="grid gap-4 md:grid-cols-4">
                   <div className="space-y-2">
                     <Label>Credor</Label>
-                    <Input placeholder="Nome do credor" />
+                    <Input name="credor" placeholder="Nome do credor" />
                   </div>
                   <div className="space-y-2">
                     <Label>Valor {formaPagamento === "parcelado" ? "Parcelado" : "Financiado"}</Label>
@@ -709,11 +823,12 @@ function NovoProjeto() {
           <InvestorRegistrationModal
             open={isInvestorModalOpen}
             onOpenChange={setIsInvestorModalOpen}
-            onSave={(data) => {
+            onSave={async (data) => {
               setParticipantes((prev) => [
                 ...prev,
                 { nome: data.nome, papel: "Investidor", percentual: "" },
               ]);
+              await salvarPessoa(data, "Investidor");
               toast.success(`Investidor ${data.nome} cadastrado e adicionado!`);
             }}
             type="Investidor"
@@ -722,11 +837,12 @@ function NovoProjeto() {
           <InvestorRegistrationModal
             open={isAssessorModalOpen}
             onOpenChange={setIsAssessorModalOpen}
-            onSave={(data) => {
+            onSave={async (data) => {
               setAssessoresVinculados((prev) => [
                 ...prev,
                 { nome: data.nome, papel: "Assessor", percentual: "" },
               ]);
+              await salvarPessoa(data, "Assessor");
               toast.success(`Assessor ${data.nome} cadastrado e adicionado!`);
             }}
             type="Assessor"
@@ -735,8 +851,9 @@ function NovoProjeto() {
           <InvestorRegistrationModal
             open={isLeiloeiroModalOpen}
             onOpenChange={setIsLeiloeiroModalOpen}
-            onSave={(data) => {
+            onSave={async (data) => {
               setLeiloeiroVinculado({ id: Math.random().toString(), nome: data.nome });
+              await salvarPessoa(data, "Leiloeiro");
               toast.success(`Leiloeiro ${data.nome} cadastrado e vinculado!`);
             }}
             type="Leiloeiro"
@@ -747,8 +864,8 @@ function NovoProjeto() {
           <Button type="button" variant="outline" onClick={() => navigate({ to: "/projetos" })}>
             Cancelar
           </Button>
-          <Button type="submit">
-            <Save className="size-4" /> Salvar projeto
+          <Button type="submit" disabled={salvando}>
+            <Save className="size-4" /> {salvando ? "Salvando..." : "Salvar projeto"}
           </Button>
         </div>
       </form>

@@ -14,7 +14,254 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      pessoas: {
+        Row: {
+          agencia: string | null
+          banco: string | null
+          celulares: string[]
+          cidade: string | null
+          conta: string | null
+          created_at: string
+          data_nascimento: string | null
+          documento: string | null
+          email: string | null
+          endereco: string | null
+          estado: string | null
+          estado_civil: string | null
+          id: string
+          nome: string
+          tipo: string
+          updated_at: string
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          agencia?: string | null
+          banco?: string | null
+          celulares?: string[]
+          cidade?: string | null
+          conta?: string | null
+          created_at?: string
+          data_nascimento?: string | null
+          documento?: string | null
+          email?: string | null
+          endereco?: string | null
+          estado?: string | null
+          estado_civil?: string | null
+          id?: string
+          nome: string
+          tipo: string
+          updated_at?: string
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          agencia?: string | null
+          banco?: string | null
+          celulares?: string[]
+          cidade?: string | null
+          conta?: string | null
+          created_at?: string
+          data_nascimento?: string | null
+          documento?: string | null
+          email?: string | null
+          endereco?: string | null
+          estado?: string | null
+          estado_civil?: string | null
+          id?: string
+          nome?: string
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          nome: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id: string
+          nome?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      projeto_participantes: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          papel: string
+          percentual: number
+          pessoa_id: string | null
+          projeto_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          papel: string
+          percentual?: number
+          pessoa_id?: string | null
+          projeto_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          papel?: string
+          percentual?: number
+          pessoa_id?: string | null
+          projeto_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projeto_participantes_pessoa_id_fkey"
+            columns: ["pessoa_id"]
+            isOneToOne: false
+            referencedRelation: "pessoas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projeto_participantes_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projetos: {
+        Row: {
+          area: string | null
+          cep: string | null
+          cidade: string | null
+          codigo: string | null
+          created_at: string
+          credor: string | null
+          data_aquisicao: string | null
+          endereco: string | null
+          forma_pagamento: string | null
+          foto_principal: string | null
+          fotos: string[]
+          id: string
+          iptu: string | null
+          leiloeiro_id: string | null
+          leiloeiro_nome: string | null
+          matricula: string | null
+          modalidade: string | null
+          nome: string | null
+          observacoes: string | null
+          origem: string | null
+          percentual_comissao: number
+          percentual_honorarios: number
+          quantidade_parcelas: number
+          tem_minimo: boolean
+          tipo_imovel: string | null
+          updated_at: string
+          user_id: string
+          valor_aquisicao: number
+          valor_comissao: number
+          valor_honorarios: number
+          valor_minimo: number
+          valor_parcela: number
+          valor_parcelado: number
+        }
+        Insert: {
+          area?: string | null
+          cep?: string | null
+          cidade?: string | null
+          codigo?: string | null
+          created_at?: string
+          credor?: string | null
+          data_aquisicao?: string | null
+          endereco?: string | null
+          forma_pagamento?: string | null
+          foto_principal?: string | null
+          fotos?: string[]
+          id?: string
+          iptu?: string | null
+          leiloeiro_id?: string | null
+          leiloeiro_nome?: string | null
+          matricula?: string | null
+          modalidade?: string | null
+          nome?: string | null
+          observacoes?: string | null
+          origem?: string | null
+          percentual_comissao?: number
+          percentual_honorarios?: number
+          quantidade_parcelas?: number
+          tem_minimo?: boolean
+          tipo_imovel?: string | null
+          updated_at?: string
+          user_id: string
+          valor_aquisicao?: number
+          valor_comissao?: number
+          valor_honorarios?: number
+          valor_minimo?: number
+          valor_parcela?: number
+          valor_parcelado?: number
+        }
+        Update: {
+          area?: string | null
+          cep?: string | null
+          cidade?: string | null
+          codigo?: string | null
+          created_at?: string
+          credor?: string | null
+          data_aquisicao?: string | null
+          endereco?: string | null
+          forma_pagamento?: string | null
+          foto_principal?: string | null
+          fotos?: string[]
+          id?: string
+          iptu?: string | null
+          leiloeiro_id?: string | null
+          leiloeiro_nome?: string | null
+          matricula?: string | null
+          modalidade?: string | null
+          nome?: string | null
+          observacoes?: string | null
+          origem?: string | null
+          percentual_comissao?: number
+          percentual_honorarios?: number
+          quantidade_parcelas?: number
+          tem_minimo?: boolean
+          tipo_imovel?: string | null
+          updated_at?: string
+          user_id?: string
+          valor_aquisicao?: number
+          valor_comissao?: number
+          valor_honorarios?: number
+          valor_minimo?: number
+          valor_parcela?: number
+          valor_parcelado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projetos_leiloeiro_id_fkey"
+            columns: ["leiloeiro_id"]
+            isOneToOne: false
+            referencedRelation: "pessoas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
