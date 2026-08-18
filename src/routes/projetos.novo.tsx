@@ -462,8 +462,10 @@ function NovoProjeto() {
                             value={assessor.percentual}
                             onChange={(e) => {
                               const newAssessores = [...assessoresVinculados];
-                              newAssessores[index].percentual = e.target.value;
-                              setAssessoresVinculados(newAssessores);
+                              if (newAssessores[index]) {
+                                newAssessores[index].percentual = e.target.value;
+                                setAssessoresVinculados(newAssessores);
+                              }
                             }}
                           />
                         </div>
