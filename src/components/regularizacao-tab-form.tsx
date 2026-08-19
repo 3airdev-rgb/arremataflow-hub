@@ -162,7 +162,8 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
 
   const updateAcao = (index: number, field: keyof JudicialAction, value: any) => {
     const newAcoes = [...acoesJudiciais];
-    newAcoes[index] = { ...newAcoes[index], [field]: value };
+    const updatedAcao = { ...newAcoes[index], [field]: value };
+    newAcoes[index] = updatedAcao as JudicialAction;
     setAcoesJudiciais(newAcoes);
   };
 
