@@ -151,6 +151,7 @@ function EditarProjeto() {
             
             const { error: projetoError } = await supabase.from("projetos").update({
               nome: fd.get("end") as string,
+              status: status,
               endereco: fd.get("end") as string,
               cidade: fd.get("cidade") as string,
               cep: fd.get("cep") as string,
