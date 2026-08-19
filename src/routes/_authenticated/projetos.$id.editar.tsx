@@ -79,6 +79,7 @@ function EditarProjeto() {
         setFormaPagamento(d.forma_pagamento || "");
         setTipoImovel(d.tipo_imovel || "");
         setOrigem(d.origem || "");
+        setStatus(d.status || "nao_iniciado");
         setPercentualComissao(Number(d.percentual_comissao));
         setValorFinanciado(Number(d.valor_parcelado));
         setQuantidadeParcelas(Number(d.quantidade_parcelas));
