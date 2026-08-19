@@ -268,6 +268,7 @@ export type Database = {
         Row: {
           area: string | null
           averbacao_status: string | null
+          bailiff_costs: number | null
           built_area: number | null
           carta_arrematacao_status: string | null
           cep: string | null
@@ -281,6 +282,7 @@ export type Database = {
           credor: string | null
           data_aquisicao: string | null
           endereco: string | null
+          expected_possession_date: string | null
           forma_pagamento: string | null
           foto_principal: string | null
           fotos: string[]
@@ -291,17 +293,23 @@ export type Database = {
           iptu_valor: number | null
           itbi_valor: number | null
           land_area: number | null
+          legal_costs: number | null
           leiloeiro_id: string | null
           leiloeiro_nome: string | null
+          locksmith_security_costs: number | null
           matricula: string | null
           modalidade: string | null
           nome: string | null
           observacoes: string | null
+          occupancy_status: string | null
           origem: string | null
           percentual_comissao: number
           percentual_honorarios: number
+          possession_action_required: boolean | null
+          possession_completed_date: string | null
           protocolo_cartorio: string | null
           quantidade_parcelas: number
+          settlement_costs: number | null
           tem_condominio: boolean | null
           tem_minimo: boolean
           tipo_imovel: string | null
@@ -319,6 +327,7 @@ export type Database = {
         Insert: {
           area?: string | null
           averbacao_status?: string | null
+          bailiff_costs?: number | null
           built_area?: number | null
           carta_arrematacao_status?: string | null
           cep?: string | null
@@ -332,6 +341,7 @@ export type Database = {
           credor?: string | null
           data_aquisicao?: string | null
           endereco?: string | null
+          expected_possession_date?: string | null
           forma_pagamento?: string | null
           foto_principal?: string | null
           fotos?: string[]
@@ -342,17 +352,23 @@ export type Database = {
           iptu_valor?: number | null
           itbi_valor?: number | null
           land_area?: number | null
+          legal_costs?: number | null
           leiloeiro_id?: string | null
           leiloeiro_nome?: string | null
+          locksmith_security_costs?: number | null
           matricula?: string | null
           modalidade?: string | null
           nome?: string | null
           observacoes?: string | null
+          occupancy_status?: string | null
           origem?: string | null
           percentual_comissao?: number
           percentual_honorarios?: number
+          possession_action_required?: boolean | null
+          possession_completed_date?: string | null
           protocolo_cartorio?: string | null
           quantidade_parcelas?: number
+          settlement_costs?: number | null
           tem_condominio?: boolean | null
           tem_minimo?: boolean
           tipo_imovel?: string | null
@@ -370,6 +386,7 @@ export type Database = {
         Update: {
           area?: string | null
           averbacao_status?: string | null
+          bailiff_costs?: number | null
           built_area?: number | null
           carta_arrematacao_status?: string | null
           cep?: string | null
@@ -383,6 +400,7 @@ export type Database = {
           credor?: string | null
           data_aquisicao?: string | null
           endereco?: string | null
+          expected_possession_date?: string | null
           forma_pagamento?: string | null
           foto_principal?: string | null
           fotos?: string[]
@@ -393,17 +411,23 @@ export type Database = {
           iptu_valor?: number | null
           itbi_valor?: number | null
           land_area?: number | null
+          legal_costs?: number | null
           leiloeiro_id?: string | null
           leiloeiro_nome?: string | null
+          locksmith_security_costs?: number | null
           matricula?: string | null
           modalidade?: string | null
           nome?: string | null
           observacoes?: string | null
+          occupancy_status?: string | null
           origem?: string | null
           percentual_comissao?: number
           percentual_honorarios?: number
+          possession_action_required?: boolean | null
+          possession_completed_date?: string | null
           protocolo_cartorio?: string | null
           quantidade_parcelas?: number
+          settlement_costs?: number | null
           tem_condominio?: boolean | null
           tem_minimo?: boolean
           tipo_imovel?: string | null
