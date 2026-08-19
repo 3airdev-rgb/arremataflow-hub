@@ -49,6 +49,7 @@ export type Projeto = {
   fotos: string[];
   investidores: string[];
   assessores: string[];
+  updated_at: string;
 };
 
 const foto = (seed: string) => `https://images.unsplash.com/${seed}?auto=format&fit=crop&w=1200&q=70`;
