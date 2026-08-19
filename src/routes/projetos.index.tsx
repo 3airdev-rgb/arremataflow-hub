@@ -1,11 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { Plus, Search, X } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { projetos, formatBRL } from "@/lib/mock-data";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { projetos, formatBRL, statusLabels, type StatusKey } from "@/lib/mock-data";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -30,6 +37,8 @@ export const Route = createFileRoute("/projetos/")({
 
 function ProjetosPage() {
   const [q, setQ] = useState("");
+  const [etapaFilter, setEtapaFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [salvos, setSalvos] = useState<Tables<"projetos">[]>([]);
 
   useEffect(() => {
@@ -47,9 +56,42 @@ function ProjetosPage() {
       ativo = false;
     };
   }, []);
-  const lista = projetos.filter((p) =>
-    `${p.nome} ${p.endereco} ${p.codigo}`.toLowerCase().includes(q.toLowerCase()),
-  );
+
+  const todasEtapas = useMemo(() => {
+    const etapas = new Set(projetos.map((p) => p.etapa));
+    salvos.forEach((p) => {
+      if (p.modalidade) etapas.add(p.modalidade);
+    });
+    return Array.from(etapas).sort();
+  }, [salvos]);
+
+  const listaFiltrada = useMemo(() => {
+    return projetos.filter((p) => {
+      const matchesSearch = `${p.nome} ${p.endereco} ${p.codigo}`
+        .toLowerCase()
+        .includes(q.toLowerCase());
+      const matchesEtapa = etapaFilter === "all" || p.etapa === etapaFilter;
+      const matchesStatus = statusFilter === "all" || p.status === statusFilter;
+      return matchesSearch && matchesEtapa && matchesStatus;
+    });
+  }, [q, etapaFilter, statusFilter]);
+
+  const salvosFiltrados = useMemo(() => {
+    return salvos.filter((p) => {
+      const matchesSearch = `${p.nome} ${p.endereco}`
+        .toLowerCase()
+        .includes(q.toLowerCase());
+      const matchesEtapa = etapaFilter === "all" || p.modalidade === etapaFilter;
+      const matchesStatus = statusFilter === "all" || p.modalidade === statusFilter; // Note: projects table might not have status yet, using modalidade as proxy or just all
+      return matchesSearch && matchesEtapa;
+    });
+  }, [q, etapaFilter, salvos]);
+
+  const clearFilters = () => {
+    setQ("");
+    setEtapaFilter("all");
+    setStatusFilter("all");
+  };
 
   return (
     <AppLayout
@@ -63,27 +105,27 @@ function ProjetosPage() {
         </Button>
       }
     >
-      {salvos.length > 0 ? (
+      {salvosFiltrados.length > 0 ? (
         <div className="surface-card mb-6 overflow-hidden">
           <div className="border-b border-border p-4">
             <h2 className="text-sm font-semibold">Projetos salvos no banco</h2>
             <p className="text-xs text-muted-foreground">
-              {salvos.length} registro(s) persistido(s) na sua conta
+              {salvosFiltrados.length} registro(s) filtrado(s) da sua conta
             </p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3 font-medium">Projeto</th>
-                  <th className="px-4 py-3 font-medium">Leiloeiro</th>
-                  <th className="px-4 py-3 font-medium">Aquisição</th>
-                  <th className="px-4 py-3 font-medium">Comissão</th>
-                  <th className="px-4 py-3 font-medium">Parcelas</th>
+                  <th className="px-4 py-3 font-medium text-[11px]">Projeto</th>
+                  <th className="px-4 py-3 font-medium text-[11px]">Leiloeiro</th>
+                  <th className="px-4 py-3 font-medium text-[11px]">Aquisição</th>
+                  <th className="px-4 py-3 font-medium text-[11px]">Comissão</th>
+                  <th className="px-4 py-3 font-medium text-[11px]">Parcelas</th>
                 </tr>
               </thead>
               <tbody>
-                {salvos.map((p) => (
+                {salvosFiltrados.map((p) => (
                   <tr key={p.id} className="border-t border-border">
                     <td className="px-4 py-3 font-medium">
                       <Link
@@ -132,8 +174,8 @@ function ProjetosPage() {
       ) : null}
 
       <div className="surface-card overflow-hidden">
-        <div className="border-b border-border p-4">
-          <div className="relative max-w-md">
+        <div className="border-b border-border p-4 flex flex-col md:flex-row md:items-center gap-4">
+          <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={q}
@@ -142,21 +184,63 @@ function ProjetosPage() {
               className="pl-9"
             />
           </div>
+          
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={etapaFilter} onValueChange={setEtapaFilter}>
+              <SelectTrigger className="w-[160px] h-9">
+                <SelectValue placeholder="Filtrar por Etapa" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as Etapas</SelectItem>
+                {todasEtapas.map((etapa) => (
+                  <SelectItem key={etapa} value={etapa}>
+                    {etapa}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[160px] h-9">
+                <SelectValue placeholder="Filtrar por Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Status</SelectItem>
+                {(Object.entries(statusLabels) as [StatusKey, string][]).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {(q !== "" || etapaFilter !== "all" || statusFilter !== "all") && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={clearFilters}
+                className="text-muted-foreground hover:text-foreground h-9"
+              >
+                <X className="size-4 mr-2" />
+                Limpar
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 font-medium">Projeto</th>
-                <th className="px-4 py-3 font-medium">Etapa</th>
-                <th className="px-4 py-3 font-medium">Responsável</th>
-                <th className="px-4 py-3 font-medium">Investidores</th>
-                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium text-[11px]">Projeto</th>
+                <th className="px-4 py-3 font-medium text-[11px]">Etapa</th>
+                <th className="px-4 py-3 font-medium text-[11px]">Responsável</th>
+                <th className="px-4 py-3 font-medium text-[11px]">Investidores</th>
+                <th className="px-4 py-3 font-medium text-[11px]">Status</th>
               </tr>
             </thead>
             <tbody>
-              {lista.map((p) => (
+              {listaFiltrada.map((p) => (
                 <tr key={p.id} className="border-t border-border transition-colors hover:bg-muted/40">
                   <td className="px-4 py-3">
                     <Link
@@ -194,10 +278,10 @@ function ProjetosPage() {
                   </td>
                 </tr>
               ))}
-              {lista.length === 0 ? (
+              {listaFiltrada.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                    Nenhum projeto encontrado.
+                    Nenhum projeto encontrado para os filtros selecionados.
                   </td>
                 </tr>
               ) : null}
