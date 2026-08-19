@@ -190,17 +190,31 @@ function FinanceiroProjeto() {
               onSubmit={(e) => {
                 e.preventDefault();
                 const fd = new FormData(e.currentTarget);
+                const desc = String(fd.get("descricao") || "Movimentação");
+                const cat = String(fd.get("categoria"));
+                const val = Number(fd.get("valor") || 0);
+                const tipo = fd.get("tipo");
+
                 const nova: Movimentacao = {
                   id: `n${Date.now()}`,
-                  descricao: String(fd.get("descricao") || "Movimentação"),
-                  categoria: String(fd.get("categoria") || "Geral"),
-                  data: "16/08/2026",
-                  valor: Number(fd.get("valor") || 0),
+                  descricao: desc,
+                  categoria: cat,
+                  data: new Date().toLocaleDateString("pt-BR"),
+                  valor: val,
                   status: "pendente",
+                  comprovanteUrl: arquivo ? URL.createObjectURL(arquivo) : undefined,
                 };
-                if (fd.get("tipo") === "receita") setReceitas((p) => [nova, ...p]);
+
+                if (tipo === "receita") setReceitas((p) => [nova, ...p]);
                 else setDespesas((p) => [nova, ...p]);
+
+                if (arquivo) {
+                  // Simulação de registro automático na gestão documental
+                  toast.info(`Comprovante vinculado à Gestão Documental na categoria ${cat}.`);
+                }
+
                 setOpen(false);
+                setArquivo(null);
                 toast.success("Movimentação registrada!");
               }}
             >
