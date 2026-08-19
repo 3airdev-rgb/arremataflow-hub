@@ -32,6 +32,7 @@ function EditarProjeto() {
   const [loading, setLoading] = useState(true);
   const [projeto, setProjeto] = useState<any>(null);
   const [salvando, setSalvando] = useState(false);
+  const [status, setStatus] = useState<string>("nao_iniciado");
   
   const [fotosUpload, setFotosUpload] = useState<ProjetoFoto[]>([]);
   const [participantes, setParticipantes] = useState<{ nome: string; papel: string; percentual: string }[]>([]);
