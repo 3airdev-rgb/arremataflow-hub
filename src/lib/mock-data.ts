@@ -116,6 +116,7 @@ export const projetos: Projeto[] = [
     ],
     investidores: ["Ana Beatriz Souza"],
     assessores: ["Rafael Lima"],
+    updated_at: new Date(Date.now() - 86400000).toISOString(),
   },
   {
     id: "3",
