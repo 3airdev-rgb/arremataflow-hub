@@ -372,11 +372,17 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
               <div className="space-y-2">
                 <Label>Débitos Anteriores</Label>
                 <div className="flex gap-2">
-                  <Input 
-                    type="number" 
-                    value={formData.condominio_debitos_anteriores} 
-                    onChange={(e) => setFormData(prev => ({ ...prev, condominio_debitos_anteriores: Number(e.target.value) }))}
-                  />
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">R$</span>
+                    <Input 
+                      className="pl-9 text-right"
+                      value={formData.condominio_debitos_anteriores.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        setFormData(prev => ({ ...prev, condominio_debitos_anteriores: Number(val) / 100 }));
+                      }}
+                    />
+                  </div>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
