@@ -189,8 +189,16 @@ function EditarProjeto() {
               ...participantes.map(p => ({ projeto_id: id, nome: p.nome, papel: "Investidor", percentual: parseFloat(p.percentual) || 0 })),
               ...assessoresVinculados.map(a => ({ projeto_id: id, nome: a.nome, papel: "Assessor", percentual: parseFloat(a.percentual) || 0 }))
             ];
-            const vinculosValidos = vinculos.filter(v => v.nome && !v.nome.includes("temp-"));
-            if (vinculosValidos.length > 0) await supabase.from("projeto_participantes").insert(vinculosValidos);
+            const vinculosToInsert = await Promise.all(vinculos.map(async v => {
+              if (v.nome && v.nome.includes("temp-")) {
+                // Handle newly added investors if needed, but PRD uses autocomplete mostly
+                // For now we just exclude temp entries from generic participants to avoid duplicate names as IDs
+                return null;
+              }
+              return v;
+            }));
+            const filteredVinculos = vinculosToInsert.filter(Boolean);
+            if (filteredVinculos.length > 0) await supabase.from("projeto_participantes").insert(filteredVinculos);
 
             // Sync managers
             await supabase.from("project_managers").delete().eq("project_id", id);
