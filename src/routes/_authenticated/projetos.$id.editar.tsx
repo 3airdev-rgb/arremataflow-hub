@@ -228,6 +228,7 @@ function EditarProjeto() {
         <SectionCard icon={House} title="Imóvel" description="Dados cadastrais e localização">
           <div className="mb-6">
             <ImageManagementSection 
+              initialImages={fotosUpload}
               onImagesChange={(imgs) => setFotosUpload(imgs)}
             />
           </div>
