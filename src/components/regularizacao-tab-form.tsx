@@ -513,7 +513,6 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
                             mode="single"
                             selected={acao.ultima_movimentacao ? parseISO(acao.ultima_movimentacao) : undefined}
                             onSelect={(date) => updateAcao(index, "ultima_movimentacao", date ? date.toISOString() : null)}
-                            initialFocus
                           />
                         </PopoverContent>
                       </Popover>
