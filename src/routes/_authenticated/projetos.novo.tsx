@@ -180,6 +180,7 @@ function NovoProjeto() {
               .from("projetos")
               .insert({
                 user_id: userId,
+                status: status,
                 nome: txt("end") ?? "Novo projeto",
                 endereco: txt("end"),
                 cidade: txt("cidade"),
