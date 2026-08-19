@@ -1,0 +1,9 @@
+ALTER TABLE public.projetos 
+ADD COLUMN IF NOT EXISTS occupancy_status TEXT,
+ADD COLUMN IF NOT EXISTS possession_action_required BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS expected_possession_date DATE,
+ADD COLUMN IF NOT EXISTS possession_completed_date DATE,
+ADD COLUMN IF NOT EXISTS legal_costs NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS bailiff_costs NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS locksmith_security_costs NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS settlement_costs NUMERIC DEFAULT 0;

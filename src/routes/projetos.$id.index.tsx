@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { RegularizacaoTab } from "@/components/regularizacao-tab-form";
+import { PosseTab } from "@/components/posse-tab-form";
 import {
   projetos,
   tarefas,
@@ -232,23 +233,8 @@ function FichaProjeto() {
           <RegularizacaoTab projetoId={projeto.id} />
         </TabsContent>
 
-        <TabsContent value="posse" className="mt-5 grid gap-5 lg:grid-cols-2">
-          <Bloco
-            titulo="Situação da posse"
-            itens={[
-              { label: "Ocupação", valor: "Ocupado pelo ex-proprietário" },
-              { label: "Ação de imissão", valor: "Deferida em 1ª instância" },
-              { label: "Data prevista", valor: "18/09/2026" },
-            ]}
-          />
-          <Bloco
-            titulo="Custos da posse"
-            itens={[
-              { label: "Custas processuais", valor: formatBRL(4200) },
-              { label: "Oficial de justiça", valor: formatBRL(860) },
-              { label: "Chaveiro e segurança", valor: formatBRL(1500) },
-            ]}
-          />
+        <TabsContent value="posse">
+          <PosseTab projetoId={projeto.id} />
         </TabsContent>
 
         <TabsContent value="financeiro" className="mt-5">
