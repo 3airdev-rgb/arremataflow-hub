@@ -27,6 +27,7 @@ import { Route as TarefasRouteImport } from './routes/tarefas'
 import { Route as AdminConfiguracoesRouteImport } from './routes/admin.configuracoes'
 import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as ProjetosIndexRouteImport } from './routes/projetos.index'
+import { Route as AuthenticatedProjetosEditarRouteImport } from './routes/_authenticated/projetos..editar'
 import { Route as AuthenticatedProjetosNovoRouteImport } from './routes/_authenticated/projetos.novo'
 import { Route as ProjetosIdIndexRouteImport } from './routes/projetos.$id.index'
 import { Route as ProjetosIdDocumentosRouteImport } from './routes/projetos.$id.documentos'
@@ -122,6 +123,12 @@ const ProjetosIndexRoute = ProjetosIndexRouteImport.update({
   path: '/projetos/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedProjetosEditarRoute =
+  AuthenticatedProjetosEditarRouteImport.update({
+    id: '/projetos/editar',
+    path: '/projetos/editar',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProjetosNovoRoute =
   AuthenticatedProjetosNovoRouteImport.update({
     id: '/projetos/novo',
@@ -167,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/projetos/': typeof ProjetosIndexRoute
+  '/projetos/editar': typeof AuthenticatedProjetosEditarRoute
   '/projetos/novo': typeof AuthenticatedProjetosNovoRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
   '/projetos/$id/financeiro': typeof ProjetosIdFinanceiroRoute
@@ -191,6 +199,7 @@ export interface FileRoutesByTo {
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/projetos': typeof ProjetosIndexRoute
+  '/projetos/editar': typeof AuthenticatedProjetosEditarRoute
   '/projetos/novo': typeof AuthenticatedProjetosNovoRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
   '/projetos/$id/financeiro': typeof ProjetosIdFinanceiroRoute
@@ -217,6 +226,7 @@ export interface FileRoutesById {
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/projetos/': typeof ProjetosIndexRoute
+  '/_authenticated/projetos/editar': typeof AuthenticatedProjetosEditarRoute
   '/_authenticated/projetos/novo': typeof AuthenticatedProjetosNovoRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
   '/projetos/$id/financeiro': typeof ProjetosIdFinanceiroRoute
@@ -243,6 +253,7 @@ export interface FileRouteTypes {
     | '/admin/configuracoes'
     | '/admin/usuarios'
     | '/projetos/'
+    | '/projetos/editar'
     | '/projetos/novo'
     | '/projetos/$id/documentos'
     | '/projetos/$id/financeiro'
@@ -267,6 +278,7 @@ export interface FileRouteTypes {
     | '/admin/configuracoes'
     | '/admin/usuarios'
     | '/projetos'
+    | '/projetos/editar'
     | '/projetos/novo'
     | '/projetos/$id/documentos'
     | '/projetos/$id/financeiro'
@@ -292,6 +304,7 @@ export interface FileRouteTypes {
     | '/admin/configuracoes'
     | '/admin/usuarios'
     | '/projetos/'
+    | '/_authenticated/projetos/editar'
     | '/_authenticated/projetos/novo'
     | '/projetos/$id/documentos'
     | '/projetos/$id/financeiro'
@@ -452,6 +465,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjetosIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/projetos/editar': {
+      id: '/_authenticated/projetos/editar'
+      path: '/projetos/editar'
+      fullPath: '/projetos/editar'
+      preLoaderRoute: typeof AuthenticatedProjetosEditarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/projetos/novo': {
       id: '/_authenticated/projetos/novo'
       path: '/projetos/novo'
@@ -491,10 +511,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedProjetosEditarRoute: typeof AuthenticatedProjetosEditarRoute
   AuthenticatedProjetosNovoRoute: typeof AuthenticatedProjetosNovoRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedProjetosEditarRoute: AuthenticatedProjetosEditarRoute,
   AuthenticatedProjetosNovoRoute: AuthenticatedProjetosNovoRoute,
 }
 
