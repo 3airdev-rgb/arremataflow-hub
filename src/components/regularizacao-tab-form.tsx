@@ -35,7 +35,7 @@ export function RegularizacaoTab({ projetoId, initialData }: { projetoId: string
   };
 
   const removeAcao = (index: number) => {
-    setAcoesJudiciais(acoesJudiciais.filter((_, i) => i !== index));
+    setAcoesJudiciais(acoesJudiciais.filter((_: any, i: number) => i !== index));
   };
 
   return (
