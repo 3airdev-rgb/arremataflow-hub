@@ -32,6 +32,7 @@ function EditarProjeto() {
   const [loading, setLoading] = useState(true);
   const [projeto, setProjeto] = useState<any>(null);
   const [salvando, setSalvando] = useState(false);
+  const [status, setStatus] = useState<string>("nao_iniciado");
   
   const [fotosUpload, setFotosUpload] = useState<ProjetoFoto[]>([]);
   const [participantes, setParticipantes] = useState<{ nome: string; papel: string; percentual: string }[]>([]);
@@ -78,6 +79,7 @@ function EditarProjeto() {
         setFormaPagamento(d.forma_pagamento || "");
         setTipoImovel(d.tipo_imovel || "");
         setOrigem(d.origem || "");
+        setStatus(d.status || "nao_iniciado");
         setPercentualComissao(Number(d.percentual_comissao));
         setValorFinanciado(Number(d.valor_parcelado));
         setQuantidadeParcelas(Number(d.quantidade_parcelas));
@@ -149,6 +151,7 @@ function EditarProjeto() {
             
             const { error: projetoError } = await supabase.from("projetos").update({
               nome: fd.get("end") as string,
+              status: status,
               endereco: fd.get("end") as string,
               cidade: fd.get("cidade") as string,
               cep: fd.get("cep") as string,
@@ -318,7 +321,24 @@ function EditarProjeto() {
               <Input id="iptu" name="iptu" defaultValue={projeto.iptu || ""} placeholder="000.000.0000-0" />
             </div>
 
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2">
+              <Label htmlFor="status">Status operacional</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="atrasado">Atrasado</SelectItem>
+                  <SelectItem value="pendente">Pendente</SelectItem>
+                  <SelectItem value="aguardando">Aguardando terceiro</SelectItem>
+                  <SelectItem value="andamento">Em andamento</SelectItem>
+                  <SelectItem value="nao_iniciado">Não iniciado</SelectItem>
+                  <SelectItem value="concluido">Concluído</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="tipo">Tipo do imóvel</Label>
               <Select value={tipoImovel} onValueChange={setTipoImovel}>
                 <SelectTrigger id="tipo">

@@ -1,18 +1,27 @@
 export type StatusKey =
-  | "concluido"
-  | "andamento"
-  | "aguardando"
-  | "pendente"
   | "atrasado"
-  | "nao_iniciado";
+  | "pendente"
+  | "aguardando"
+  | "andamento"
+  | "nao_iniciado"
+  | "concluido";
 
 export const statusLabels: Record<StatusKey, string> = {
-  concluido: "Concluído",
-  andamento: "Em andamento",
-  aguardando: "Aguardando terceiro",
-  pendente: "Pendente",
   atrasado: "Atrasado",
+  pendente: "Pendente",
+  aguardando: "Aguardando terceiro",
+  andamento: "Em andamento",
   nao_iniciado: "Não iniciado",
+  concluido: "Concluído",
+};
+
+export const statusPriority: Record<StatusKey, number> = {
+  atrasado: 1,
+  pendente: 2,
+  aguardando: 3,
+  andamento: 4,
+  nao_iniciado: 5,
+  concluido: 6,
 };
 
 export type Projeto = {
@@ -40,6 +49,7 @@ export type Projeto = {
   fotos: string[];
   investidores: string[];
   assessores: string[];
+  updated_at: string;
 };
 
 const foto = (seed: string) => `https://images.unsplash.com/${seed}?auto=format&fit=crop&w=1200&q=70`;
@@ -75,6 +85,7 @@ export const projetos: Projeto[] = [
     ],
     investidores: ["Marcos Ribeiro", "Fundo Atlas"],
     assessores: ["Camila Andrade", "Dr. Paulo Tavares"],
+    updated_at: new Date().toISOString(),
   },
   {
     id: "2",
@@ -105,6 +116,7 @@ export const projetos: Projeto[] = [
     ],
     investidores: ["Ana Beatriz Souza"],
     assessores: ["Rafael Lima"],
+    updated_at: new Date(Date.now() - 86400000).toISOString(),
   },
   {
     id: "3",
@@ -132,6 +144,7 @@ export const projetos: Projeto[] = [
     ],
     investidores: ["Fundo Atlas", "Pedro Nogueira"],
     assessores: ["Juliana Prado", "Dr. Paulo Tavares"],
+    updated_at: new Date(Date.now() - 172800000).toISOString(),
   },
   {
     id: "4",
@@ -155,6 +168,7 @@ export const projetos: Projeto[] = [
     fotos: [foto("photo-1553413077-190dd305871c"), foto("photo-1581094794329-c8112a89af12")],
     investidores: ["Fundo Atlas"],
     assessores: ["Camila Andrade"],
+    updated_at: new Date(Date.now() - 259200000).toISOString(),
   },
   {
     id: "5",
@@ -178,6 +192,7 @@ export const projetos: Projeto[] = [
     fotos: [foto("photo-1522708323590-d24dbb6b0267"), foto("photo-1505691938895-1758d7feb511")],
     investidores: ["Marcos Ribeiro"],
     assessores: ["Rafael Lima"],
+    updated_at: new Date(Date.now() - 345600000).toISOString(),
   },
   {
     id: "6",
@@ -201,6 +216,7 @@ export const projetos: Projeto[] = [
     fotos: [foto("photo-1580587771525-78b9dba3b914"), foto("photo-1613490493576-7fde63acd811")],
     investidores: ["Ana Beatriz Souza", "Pedro Nogueira"],
     assessores: ["Juliana Prado"],
+    updated_at: new Date(Date.now() - 432000000).toISOString(),
   },
 ];
 

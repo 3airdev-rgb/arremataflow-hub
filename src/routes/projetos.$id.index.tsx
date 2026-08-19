@@ -118,7 +118,7 @@ function FichaProjeto() {
             </div>
             
             <Button asChild className="bg-white text-brand hover:bg-white/90 font-medium">
-              <Link to="/projetos/novo">
+              <Link to="/projetos/$id/editar" params={{ id: projeto.id }}>
                 <Pencil className="mr-2 size-4" />
                 Editar Projeto
               </Link>
