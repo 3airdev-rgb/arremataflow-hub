@@ -168,6 +168,7 @@ export const projetos: Projeto[] = [
     fotos: [foto("photo-1553413077-190dd305871c"), foto("photo-1581094794329-c8112a89af12")],
     investidores: ["Fundo Atlas"],
     assessores: ["Camila Andrade"],
+    updated_at: new Date(Date.now() - 259200000).toISOString(),
   },
   {
     id: "5",
