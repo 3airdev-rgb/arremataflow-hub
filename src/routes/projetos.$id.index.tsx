@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { RegularizacaoTab } from "@/components/regularizacao-tab-form";
 import {
   projetos,
   tarefas,
@@ -227,39 +228,8 @@ function FichaProjeto() {
           </div>
         </TabsContent>
 
-        <TabsContent value="regularizacao" className="mt-5 grid gap-5 lg:grid-cols-2">
-          <Bloco
-            titulo="Cartório"
-            itens={[
-              { label: "Carta de arrematação", valor: "Registrada" },
-              { label: "Averbação", valor: "Em análise" },
-              { label: "Protocolo", valor: "2026/44.812" },
-            ]}
-          />
-          <Bloco
-            titulo="Prefeitura"
-            itens={[
-              { label: "IPTU", valor: "Quitado" },
-              { label: "Transferência cadastral", valor: "Pendente" },
-              { label: "Habite-se", valor: "Regular" },
-            ]}
-          />
-          <Bloco
-            titulo="Condomínio"
-            itens={[
-              { label: "Débitos anteriores", valor: formatBRL(12360) },
-              { label: "Status negociação", valor: "Quitado" },
-              { label: "Taxa mensal", valor: formatBRL(890) },
-            ]}
-          />
-          <Bloco
-            titulo="Jurídico"
-            itens={[
-              { label: "Ação", valor: "Imissão na posse" },
-              { label: "Vara", valor: "3ª Vara Cível" },
-              { label: "Última movimentação", valor: "02/08/2026" },
-            ]}
-          />
+        <TabsContent value="regularizacao">
+          <RegularizacaoTab projetoId={projeto.id} />
         </TabsContent>
 
         <TabsContent value="posse" className="mt-5 grid gap-5 lg:grid-cols-2">

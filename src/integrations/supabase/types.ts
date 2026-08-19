@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      judicial_actions: {
+        Row: {
+          created_at: string
+          id: string
+          projeto_id: string
+          tipo_acao: string
+          ultima_movimentacao: string | null
+          updated_at: string
+          vara: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          projeto_id: string
+          tipo_acao: string
+          ultima_movimentacao?: string | null
+          updated_at?: string
+          vara?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          projeto_id?: string
+          tipo_acao?: string
+          ultima_movimentacao?: string | null
+          updated_at?: string
+          vara?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "judicial_actions_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pessoas: {
         Row: {
           agencia: string | null
@@ -229,10 +267,16 @@ export type Database = {
       projetos: {
         Row: {
           area: string | null
+          averbacao_status: string | null
           built_area: number | null
+          carta_arrematacao_status: string | null
           cep: string | null
           cidade: string | null
           codigo: string | null
+          condominio_debitos_anteriores: number | null
+          condominio_debitos_status: string | null
+          condominio_responsabilidade: string | null
+          condominio_taxa_mensal: number | null
           created_at: string
           credor: string | null
           data_aquisicao: string | null
@@ -242,6 +286,10 @@ export type Database = {
           fotos: string[]
           id: string
           iptu: string | null
+          iptu_responsabilidade: string | null
+          iptu_status: string | null
+          iptu_valor: number | null
+          itbi_valor: number | null
           land_area: number | null
           leiloeiro_id: string | null
           leiloeiro_nome: string | null
@@ -252,10 +300,13 @@ export type Database = {
           origem: string | null
           percentual_comissao: number
           percentual_honorarios: number
+          protocolo_cartorio: string | null
           quantidade_parcelas: number
+          tem_condominio: boolean | null
           tem_minimo: boolean
           tipo_imovel: string | null
           total_area: number | null
+          transferencia_cadastral_status: string | null
           updated_at: string
           user_id: string
           valor_aquisicao: number
@@ -267,10 +318,16 @@ export type Database = {
         }
         Insert: {
           area?: string | null
+          averbacao_status?: string | null
           built_area?: number | null
+          carta_arrematacao_status?: string | null
           cep?: string | null
           cidade?: string | null
           codigo?: string | null
+          condominio_debitos_anteriores?: number | null
+          condominio_debitos_status?: string | null
+          condominio_responsabilidade?: string | null
+          condominio_taxa_mensal?: number | null
           created_at?: string
           credor?: string | null
           data_aquisicao?: string | null
@@ -280,6 +337,10 @@ export type Database = {
           fotos?: string[]
           id?: string
           iptu?: string | null
+          iptu_responsabilidade?: string | null
+          iptu_status?: string | null
+          iptu_valor?: number | null
+          itbi_valor?: number | null
           land_area?: number | null
           leiloeiro_id?: string | null
           leiloeiro_nome?: string | null
@@ -290,10 +351,13 @@ export type Database = {
           origem?: string | null
           percentual_comissao?: number
           percentual_honorarios?: number
+          protocolo_cartorio?: string | null
           quantidade_parcelas?: number
+          tem_condominio?: boolean | null
           tem_minimo?: boolean
           tipo_imovel?: string | null
           total_area?: number | null
+          transferencia_cadastral_status?: string | null
           updated_at?: string
           user_id: string
           valor_aquisicao?: number
@@ -305,10 +369,16 @@ export type Database = {
         }
         Update: {
           area?: string | null
+          averbacao_status?: string | null
           built_area?: number | null
+          carta_arrematacao_status?: string | null
           cep?: string | null
           cidade?: string | null
           codigo?: string | null
+          condominio_debitos_anteriores?: number | null
+          condominio_debitos_status?: string | null
+          condominio_responsabilidade?: string | null
+          condominio_taxa_mensal?: number | null
           created_at?: string
           credor?: string | null
           data_aquisicao?: string | null
@@ -318,6 +388,10 @@ export type Database = {
           fotos?: string[]
           id?: string
           iptu?: string | null
+          iptu_responsabilidade?: string | null
+          iptu_status?: string | null
+          iptu_valor?: number | null
+          itbi_valor?: number | null
           land_area?: number | null
           leiloeiro_id?: string | null
           leiloeiro_nome?: string | null
@@ -328,10 +402,13 @@ export type Database = {
           origem?: string | null
           percentual_comissao?: number
           percentual_honorarios?: number
+          protocolo_cartorio?: string | null
           quantidade_parcelas?: number
+          tem_condominio?: boolean | null
           tem_minimo?: boolean
           tipo_imovel?: string | null
           total_area?: number | null
+          transferencia_cadastral_status?: string | null
           updated_at?: string
           user_id?: string
           valor_aquisicao?: number
