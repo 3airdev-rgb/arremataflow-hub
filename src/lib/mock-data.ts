@@ -85,6 +85,7 @@ export const projetos: Projeto[] = [
     ],
     investidores: ["Marcos Ribeiro", "Fundo Atlas"],
     assessores: ["Camila Andrade", "Dr. Paulo Tavares"],
+    updated_at: new Date().toISOString(),
   },
   {
     id: "2",
