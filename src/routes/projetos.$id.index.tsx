@@ -162,32 +162,32 @@ function FichaProjeto() {
       </div>
 
       <Tabs defaultValue="visao-geral" className="mt-8">
-        <div className="flex flex-col gap-2">
+        <TabsList className="h-auto w-full bg-transparent p-0 flex flex-col gap-2">
           {/* Primeira linha (6 botões) */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+          <div className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
             {abas.slice(0, 6).map((a) => (
               <TabsTrigger
                 key={a}
                 value={slug(a)}
-                className="w-full h-11 px-4 py-2 text-sm font-semibold rounded-lg transition-all data-[state=active]:bg-brand data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:border-brand border border-border bg-white hover:bg-muted/50 data-[state=active]:hover:bg-brand"
+                className="w-full h-11 px-4 py-2 text-sm font-semibold rounded-lg border border-border bg-white transition-all hover:bg-muted/50 data-[state=active]:bg-brand data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:border-brand"
               >
                 {a}
               </TabsTrigger>
             ))}
           </div>
           {/* Segunda linha (5 botões) */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+          <div className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
             {abas.slice(6).map((a) => (
               <TabsTrigger
                 key={a}
                 value={slug(a)}
-                className="w-full h-11 px-4 py-2 text-sm font-semibold rounded-lg transition-all data-[state=active]:bg-brand data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:border-brand border border-border bg-white hover:bg-muted/50 data-[state=active]:hover:bg-brand"
+                className="w-full h-11 px-4 py-2 text-sm font-semibold rounded-lg border border-border bg-white transition-all hover:bg-muted/50 data-[state=active]:bg-brand data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:border-brand"
               >
                 {a}
               </TabsTrigger>
             ))}
           </div>
-        </div>
+        </TabsList>
 
         <TabsContent value="visao-geral" className="mt-5 grid gap-5 lg:grid-cols-2">
           <Bloco
