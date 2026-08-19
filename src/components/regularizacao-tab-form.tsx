@@ -128,11 +128,11 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
 
       // Sync judicial actions
       // Simple approach: delete all and re-insert for this turn (or handle diff)
-      await supabase.from("judicial_actions" as any).delete().eq("projeto_id", projetoId);
+      await supabase.from("judicial_actions").delete().eq("projeto_id", projetoId);
       
       if (acoesJudiciais.length > 0) {
         const { error: acoesError } = await supabase
-          .from("judicial_actions" as any)
+          .from("judicial_actions")
           .insert(
             acoesJudiciais.map(acao => ({
               projeto_id: projetoId,
