@@ -78,12 +78,12 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
         }
 
         const { data: acoesData } = await supabase
-          .from("judicial_actions" as any)
+          .from("judicial_actions")
           .select("*")
           .eq("projeto_id", projetoId);
 
         if (acoesData) {
-          setAcoesJudiciais(acoesData);
+          setAcoesJudiciais(acoesData as any[]);
         }
       } catch (err: any) {
         toast.error("Erro ao carregar dados: " + err.message);
