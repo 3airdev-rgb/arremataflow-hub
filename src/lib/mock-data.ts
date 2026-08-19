@@ -273,7 +273,7 @@ export type Movimentacao = {
   data: string;
   valor: number;
   status: StatusKey;
-  comprovanteUrl?: string;
+  comprovanteUrl?: string | undefined;
 };
 
 export const receitas: Movimentacao[] = [
