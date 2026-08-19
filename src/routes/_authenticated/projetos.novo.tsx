@@ -109,6 +109,7 @@ function NovoProjeto() {
   const [formaPagamento, setFormaPagamento] = useState<string>("");
   const [tipoImovel, setTipoImovel] = useState<string>("");
   const [origem, setOrigem] = useState<string>("");
+  const [status, setStatus] = useState<string>("nao_iniciado");
   const [salvando, setSalvando] = useState(false);
   
   // Leiloeiro states
