@@ -124,10 +124,8 @@ function EditarProjeto() {
   const leiloeirosDisponiveis = usuarios.filter(u => u.tipo === "Leiloeiro");
 
   async function salvarPessoa(data: UnifiedEntityData, tipo: "Investidor" | "Assessor" | "Leiloeiro") {
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
-    await supabase.from("pessoas").insert({ user_id: u.user.id, tipo, nome: data.nome, email: data.email });
-    setUsuarios(prev => [...prev, { nome: data.nome, perfil: tipo }]);
+    // In edit mode, actual persistence happens in onSubmit for newly added entities with temp- IDs
+    setUsuarios(prev => [...prev, { nome: data.nome, tipo, perfil: tipo }]);
   }
 
   if (loading || !projeto) return <div className="p-8">Carregando...</div>;
