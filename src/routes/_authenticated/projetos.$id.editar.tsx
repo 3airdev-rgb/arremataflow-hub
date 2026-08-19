@@ -191,7 +191,8 @@ function EditarProjeto() {
               ...participantes.map(p => ({ projeto_id: id, nome: p.nome, papel: "Investidor", percentual: parseFloat(p.percentual) || 0 })),
               ...assessoresVinculados.map(a => ({ projeto_id: id, nome: a.nome, papel: "Assessor", percentual: parseFloat(a.percentual) || 0 }))
             ];
-            if (vinculos.length > 0) await supabase.from("projeto_participantes").insert(vinculos);
+            const vinculosValidos = vinculos.filter(v => v.nome && !v.nome.includes("temp-"));
+            if (vinculosValidos.length > 0) await supabase.from("projeto_participantes").insert(vinculosValidos);
 
             // Sync managers
             await supabase.from("project_managers").delete().eq("project_id", id);
