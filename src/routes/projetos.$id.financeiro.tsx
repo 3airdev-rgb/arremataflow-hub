@@ -237,12 +237,58 @@ function FinanceiroProjeto() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="categoria">Categoria</Label>
-                  <Input id="categoria" name="categoria" placeholder="Obra, Tributos..." />
+                  <Select name="categoria" required>
+                    <SelectTrigger id="categoria">
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoriasDocumentos.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="valor">Valor (R$)</Label>
                   <Input id="valor" name="valor" type="number" step="0.01" required />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Comprovante</Label>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-start gap-2"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Paperclip className="size-4" />
+                    {arquivo ? arquivo.name : "Anexar comprovante"}
+                  </Button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp"
+                    onChange={handleFileChange}
+                  />
+                  {arquivo && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive"
+                      onClick={() => setArquivo(null)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  PDF, JPG, PNG ou WEBP até 2MB.
+                </p>
               </div>
               <DialogFooter>
                 <Button type="submit">Registrar</Button>
