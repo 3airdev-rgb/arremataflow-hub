@@ -313,9 +313,35 @@ function FinanceiroProjeto() {
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
-        <Tabela titulo="Receitas" itens={receitas} />
-        <Tabela titulo="Despesas" itens={despesas} />
+        <Tabela titulo="Receitas" itens={receitas} onDelete={handleExcluir} />
+        <Tabela titulo="Despesas" itens={despesas} onDelete={handleExcluir} />
       </div>
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir movimentação?</DialogTitle>
+            <DialogDescription>
+              Esta ação não pode ser desfeita. Deseja manter o comprovante na Gestão Documental?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => confirmarExclusao(false)}>
+                Excluir apenas movimentação
+              </Button>
+              <Button variant="destructive" onClick={() => confirmarExclusao(true)}>
+                Excluir movimentação e documento
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteOpen(false)}>
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="surface-card mt-6 p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
