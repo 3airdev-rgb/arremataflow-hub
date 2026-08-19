@@ -27,11 +27,13 @@ import { Route as TarefasRouteImport } from './routes/tarefas'
 import { Route as AdminConfiguracoesRouteImport } from './routes/admin.configuracoes'
 import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as ProjetosIndexRouteImport } from './routes/projetos.index'
+import { Route as AuthenticatedProjetosEditarRouteImport } from './routes/_authenticated/projetos..editar'
 import { Route as AuthenticatedProjetosNovoRouteImport } from './routes/_authenticated/projetos.novo'
 import { Route as ProjetosIdIndexRouteImport } from './routes/projetos.$id.index'
 import { Route as ProjetosIdDocumentosRouteImport } from './routes/projetos.$id.documentos'
 import { Route as ProjetosIdFinanceiroRouteImport } from './routes/projetos.$id.financeiro'
 import { Route as ProjetosIdTarefasRouteImport } from './routes/projetos.$id.tarefas'
+import { Route as AuthenticatedProjetosIdEditarRouteImport } from './routes/_authenticated/projetos.$id.editar'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -122,6 +124,12 @@ const ProjetosIndexRoute = ProjetosIndexRouteImport.update({
   path: '/projetos/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedProjetosEditarRoute =
+  AuthenticatedProjetosEditarRouteImport.update({
+    id: '/projetos/editar',
+    path: '/projetos/editar',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProjetosNovoRoute =
   AuthenticatedProjetosNovoRouteImport.update({
     id: '/projetos/novo',
@@ -148,6 +156,12 @@ const ProjetosIdTarefasRoute = ProjetosIdTarefasRouteImport.update({
   path: '/projetos/$id/tarefas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedProjetosIdEditarRoute =
+  AuthenticatedProjetosIdEditarRouteImport.update({
+    id: '/projetos/$id/editar',
+    path: '/projetos/$id/editar',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -167,11 +181,13 @@ export interface FileRoutesByFullPath {
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/projetos/': typeof ProjetosIndexRoute
+  '/projetos/editar': typeof AuthenticatedProjetosEditarRoute
   '/projetos/novo': typeof AuthenticatedProjetosNovoRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
   '/projetos/$id/financeiro': typeof ProjetosIdFinanceiroRoute
   '/projetos/$id/tarefas': typeof ProjetosIdTarefasRoute
   '/projetos/$id/': typeof ProjetosIdIndexRoute
+  '/projetos/$id/editar': typeof AuthenticatedProjetosIdEditarRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -191,11 +207,13 @@ export interface FileRoutesByTo {
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/projetos': typeof ProjetosIndexRoute
+  '/projetos/editar': typeof AuthenticatedProjetosEditarRoute
   '/projetos/novo': typeof AuthenticatedProjetosNovoRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
   '/projetos/$id/financeiro': typeof ProjetosIdFinanceiroRoute
   '/projetos/$id/tarefas': typeof ProjetosIdTarefasRoute
   '/projetos/$id': typeof ProjetosIdIndexRoute
+  '/projetos/$id/editar': typeof AuthenticatedProjetosIdEditarRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -217,11 +235,13 @@ export interface FileRoutesById {
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/projetos/': typeof ProjetosIndexRoute
+  '/_authenticated/projetos/editar': typeof AuthenticatedProjetosEditarRoute
   '/_authenticated/projetos/novo': typeof AuthenticatedProjetosNovoRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
   '/projetos/$id/financeiro': typeof ProjetosIdFinanceiroRoute
   '/projetos/$id/tarefas': typeof ProjetosIdTarefasRoute
   '/projetos/$id/': typeof ProjetosIdIndexRoute
+  '/_authenticated/projetos/$id/editar': typeof AuthenticatedProjetosIdEditarRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -243,11 +263,13 @@ export interface FileRouteTypes {
     | '/admin/configuracoes'
     | '/admin/usuarios'
     | '/projetos/'
+    | '/projetos/editar'
     | '/projetos/novo'
     | '/projetos/$id/documentos'
     | '/projetos/$id/financeiro'
     | '/projetos/$id/tarefas'
     | '/projetos/$id/'
+    | '/projetos/$id/editar'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -267,11 +289,13 @@ export interface FileRouteTypes {
     | '/admin/configuracoes'
     | '/admin/usuarios'
     | '/projetos'
+    | '/projetos/editar'
     | '/projetos/novo'
     | '/projetos/$id/documentos'
     | '/projetos/$id/financeiro'
     | '/projetos/$id/tarefas'
     | '/projetos/$id'
+    | '/projetos/$id/editar'
   id:
     | '__root__'
     | '/'
@@ -292,11 +316,13 @@ export interface FileRouteTypes {
     | '/admin/configuracoes'
     | '/admin/usuarios'
     | '/projetos/'
+    | '/_authenticated/projetos/editar'
     | '/_authenticated/projetos/novo'
     | '/projetos/$id/documentos'
     | '/projetos/$id/financeiro'
     | '/projetos/$id/tarefas'
     | '/projetos/$id/'
+    | '/_authenticated/projetos/$id/editar'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -452,6 +478,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjetosIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/projetos/editar': {
+      id: '/_authenticated/projetos/editar'
+      path: '/projetos/editar'
+      fullPath: '/projetos/editar'
+      preLoaderRoute: typeof AuthenticatedProjetosEditarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/projetos/novo': {
       id: '/_authenticated/projetos/novo'
       path: '/projetos/novo'
@@ -487,15 +520,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjetosIdTarefasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/projetos/$id/editar': {
+      id: '/_authenticated/projetos/$id/editar'
+      path: '/projetos/$id/editar'
+      fullPath: '/projetos/$id/editar'
+      preLoaderRoute: typeof AuthenticatedProjetosIdEditarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedProjetosEditarRoute: typeof AuthenticatedProjetosEditarRoute
   AuthenticatedProjetosNovoRoute: typeof AuthenticatedProjetosNovoRoute
+  AuthenticatedProjetosIdEditarRoute: typeof AuthenticatedProjetosIdEditarRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedProjetosEditarRoute: AuthenticatedProjetosEditarRoute,
   AuthenticatedProjetosNovoRoute: AuthenticatedProjetosNovoRoute,
+  AuthenticatedProjetosIdEditarRoute: AuthenticatedProjetosIdEditarRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
