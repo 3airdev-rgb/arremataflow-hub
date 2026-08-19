@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { RegularizacaoTab } from "@/components/regularizacao-tab-form";
 import {
   projetos,
   tarefas,
