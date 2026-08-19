@@ -310,6 +310,7 @@ export type Database = {
           protocolo_cartorio: string | null
           quantidade_parcelas: number
           settlement_costs: number | null
+          status: string | null
           tem_condominio: boolean | null
           tem_minimo: boolean
           tipo_imovel: string | null
@@ -369,6 +370,7 @@ export type Database = {
           protocolo_cartorio?: string | null
           quantidade_parcelas?: number
           settlement_costs?: number | null
+          status?: string | null
           tem_condominio?: boolean | null
           tem_minimo?: boolean
           tipo_imovel?: string | null
@@ -428,6 +430,7 @@ export type Database = {
           protocolo_cartorio?: string | null
           quantidade_parcelas?: number
           settlement_costs?: number | null
+          status?: string | null
           tem_condominio?: boolean | null
           tem_minimo?: boolean
           tipo_imovel?: string | null
