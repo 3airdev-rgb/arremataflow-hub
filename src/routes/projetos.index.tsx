@@ -151,7 +151,7 @@ function ProjetosPage() {
                 <th className="px-4 py-3 font-medium">Projeto</th>
                 <th className="px-4 py-3 font-medium">Etapa</th>
                 <th className="px-4 py-3 font-medium">Responsável</th>
-                <th className="px-4 py-3 font-medium">Capital</th>
+                <th className="px-4 py-3 font-medium">Investidores</th>
                 <th className="px-4 py-3 font-medium">Status</th>
               </tr>
             </thead>
@@ -182,7 +182,13 @@ function ProjetosPage() {
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{p.etapa}</td>
                   <td className="px-4 py-3 text-muted-foreground">{p.responsavel}</td>
-                  <td className="px-4 py-3 font-medium">{formatBRL(p.capitalInvestido)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {p.investidores.map((inv, idx) => (
+                      <span key={idx} className="block">
+                        {inv}
+                      </span>
+                    ))}
+                  </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={p.status} />
                   </td>
