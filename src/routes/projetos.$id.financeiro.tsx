@@ -47,7 +47,15 @@ export const Route = createFileRoute("/projetos/$id/financeiro")({
   component: FinanceiroProjeto,
 });
 
-function Tabela({ titulo, itens }: { titulo: string; itens: Movimentacao[] }) {
+function Tabela({
+  titulo,
+  itens,
+  onDelete,
+}: {
+  titulo: string;
+  itens: Movimentacao[];
+  onDelete: (id: string) => void;
+}) {
   return (
     <div className="surface-card overflow-hidden">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -59,9 +67,24 @@ function Tabela({ titulo, itens }: { titulo: string; itens: Movimentacao[] }) {
       <table className="w-full text-sm">
         <tbody>
           {itens.map((i) => (
-            <tr key={i.id} className="border-b border-border last:border-0">
+            <tr key={i.id} className="group border-b border-border last:border-0 hover:bg-muted/30">
               <td className="px-4 py-3">
-                <p className="font-medium">{i.descricao}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium">{i.descricao}</p>
+                  {i.comprovanteUrl && (
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toast.info("Visualizando comprovante: " + i.descricao);
+                      }}
+                      className="text-brand hover:text-brand-dark"
+                      title="Visualizar comprovante"
+                    >
+                      <Paperclip className="size-3.5" />
+                    </a>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {i.categoria} · {i.data}
                 </p>
@@ -69,7 +92,19 @@ function Tabela({ titulo, itens }: { titulo: string; itens: Movimentacao[] }) {
               <td className="px-4 py-3">
                 <StatusBadge status={i.status} />
               </td>
-              <td className="px-4 py-3 text-right font-medium">{formatBRL(i.valor)}</td>
+              <td className="px-4 py-3 text-right">
+                <div className="flex items-center justify-end gap-3">
+                  <span className="font-medium">{formatBRL(i.valor)}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => onDelete(i.id)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>
