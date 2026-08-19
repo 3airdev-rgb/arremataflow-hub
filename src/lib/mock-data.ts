@@ -192,6 +192,7 @@ export const projetos: Projeto[] = [
     fotos: [foto("photo-1522708323590-d24dbb6b0267"), foto("photo-1505691938895-1758d7feb511")],
     investidores: ["Marcos Ribeiro"],
     assessores: ["Rafael Lima"],
+    updated_at: new Date(Date.now() - 345600000).toISOString(),
   },
   {
     id: "6",
