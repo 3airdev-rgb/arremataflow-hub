@@ -191,7 +191,7 @@ function FinanceiroProjeto() {
                 e.preventDefault();
                 const fd = new FormData(e.currentTarget);
                 const desc = String(fd.get("descricao") || "Movimentação");
-                const cat = String(fd.get("categoria"));
+                const cat = String(fd.get("categoria") || "");
                 const val = Number(fd.get("valor") || 0);
                 const tipo = fd.get("tipo");
 
