@@ -117,7 +117,53 @@ function FinanceiroProjeto() {
   const [receitas, setReceitas] = useState(receitasMock);
   const [despesas, setDespesas] = useState(despesasMock);
   const [open, setOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [movParaExcluir, setMovParaExcluir] = useState<string | null>(null);
   const [calculado, setCalculado] = useState(false);
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Formato inválido. Use PDF, JPG, PNG ou WEBP.");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Arquivo muito grande. Limite de 2MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setArquivo(file);
+    toast.success(`Arquivo "${file.name}" anexado.`);
+  };
+
+  const handleExcluir = (id: string) => {
+    setMovParaExcluir(id);
+    setDeleteOpen(true);
+  };
+
+  const confirmarExclusao = (removerDoDoc = false) => {
+    if (!movParaExcluir) return;
+
+    setReceitas((prev) => prev.filter((m) => m.id !== movParaExcluir));
+    setDespesas((prev) => prev.filter((m) => m.id !== movParaExcluir));
+
+    if (removerDoDoc) {
+      toast.info("Movimentação e documento removidos.");
+    } else {
+      toast.success("Movimentação removida. Documento mantido.");
+    }
+
+    setDeleteOpen(false);
+    setMovParaExcluir(null);
+  };
 
   const totalR = receitas.reduce((s, i) => s + i.valor, 0);
   const totalD = despesas.reduce((s, i) => s + i.valor, 0);
