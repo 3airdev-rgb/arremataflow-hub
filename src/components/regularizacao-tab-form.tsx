@@ -291,11 +291,17 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
             </div>
             <div className="space-y-2">
               <Label>Valor do IPTU</Label>
-              <Input 
-                type="number" 
-                value={formData.iptu_valor} 
-                onChange={(e) => setFormData(prev => ({ ...prev, iptu_valor: Number(e.target.value) }))}
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">R$</span>
+                <Input 
+                  className="pl-9 text-right"
+                  value={formData.iptu_valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setFormData(prev => ({ ...prev, iptu_valor: Number(val) / 100 }));
+                  }}
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Transferência Cadastral</Label>
@@ -317,11 +323,17 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
             <div className="space-y-2">
               <Label>Valor do ITBI</Label>
               <div className="flex gap-2">
-                <Input 
-                  type="number" 
-                  value={formData.itbi_valor} 
-                  onChange={(e) => setFormData(prev => ({ ...prev, itbi_valor: Number(e.target.value) }))}
-                />
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">R$</span>
+                  <Input 
+                    className="pl-9 text-right"
+                    value={formData.itbi_valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "");
+                      setFormData(prev => ({ ...prev, itbi_valor: Number(val) / 100 }));
+                    }}
+                  />
+                </div>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -418,11 +430,17 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
               </div>
               <div className="space-y-2">
                 <Label>Taxa Mensal</Label>
-                <Input 
-                  type="number" 
-                  value={formData.condominio_taxa_mensal} 
-                  onChange={(e) => setFormData(prev => ({ ...prev, condominio_taxa_mensal: Number(e.target.value) }))}
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">R$</span>
+                  <Input 
+                    className="pl-9 text-right"
+                    value={formData.condominio_taxa_mensal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "");
+                      setFormData(prev => ({ ...prev, condominio_taxa_mensal: Number(val) / 100 }));
+                    }}
+                  />
+                </div>
               </div>
             </div>
           ) : (
