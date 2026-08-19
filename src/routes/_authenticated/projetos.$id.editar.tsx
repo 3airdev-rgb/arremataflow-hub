@@ -321,7 +321,24 @@ function EditarProjeto() {
               <Input id="iptu" name="iptu" defaultValue={projeto.iptu || ""} placeholder="000.000.0000-0" />
             </div>
 
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2">
+              <Label htmlFor="status">Status operacional</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="atrasado">Atrasado</SelectItem>
+                  <SelectItem value="pendente">Pendente</SelectItem>
+                  <SelectItem value="aguardando">Aguardando terceiro</SelectItem>
+                  <SelectItem value="andamento">Em andamento</SelectItem>
+                  <SelectItem value="nao_iniciado">Não iniciado</SelectItem>
+                  <SelectItem value="concluido">Concluído</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="tipo">Tipo do imóvel</Label>
               <Select value={tipoImovel} onValueChange={setTipoImovel}>
                 <SelectTrigger id="tipo">
