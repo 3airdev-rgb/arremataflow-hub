@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { MapPin, Wallet, TrendingUp, BadgeDollarSign, ExternalLink } from "lucide-react";
+import { MapPin, Wallet, TrendingUp, BadgeDollarSign, ExternalLink, Pencil } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -93,25 +93,34 @@ function FichaProjeto() {
             className="size-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-primary/85 to-primary/10" />
-          <div className="absolute inset-x-0 bottom-0 p-6 text-primary-foreground">
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="rounded-full bg-white/20 px-2.5 py-1 font-medium">
-                {projeto.codigo}
-              </span>
-              <span className="rounded-full bg-white/20 px-2.5 py-1 font-medium">
-                {projeto.modalidade}
-              </span>
-              <StatusBadge status={projeto.status} className="bg-white/90" />
+          <div className="absolute inset-x-0 bottom-0 p-6 text-primary-foreground flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+            <div>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full bg-white/20 px-2.5 py-1 font-medium">
+                  {projeto.codigo}
+                </span>
+                <span className="rounded-full bg-white/20 px-2.5 py-1 font-medium">
+                  {projeto.modalidade}
+                </span>
+                <StatusBadge status={projeto.status} className="bg-white/90" />
+              </div>
+              <h2 className="mt-2 text-2xl font-semibold text-white">{projeto.nome}</h2>
+              <a 
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${projeto.endereco}, ${projeto.cidade}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-sm text-white/85 hover:text-white hover:underline transition-colors w-fit"
+              >
+                <MapPin className="size-4" /> {projeto.endereco} — {projeto.cidade}
+              </a>
             </div>
-            <h2 className="mt-2 text-2xl font-semibold text-white">{projeto.nome}</h2>
-            <a 
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${projeto.endereco}, ${projeto.cidade}`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-sm text-white/85 hover:text-white hover:underline transition-colors w-fit"
-            >
-              <MapPin className="size-4" /> {projeto.endereco} — {projeto.cidade}
-            </a>
+            
+            <Button asChild className="bg-white text-brand hover:bg-white/90 font-medium">
+              <Link to="/projetos/novo">
+                <Pencil className="mr-2 size-4" />
+                Editar Projeto
+              </Link>
+            </Button>
           </div>
         </div>
         <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-5">
