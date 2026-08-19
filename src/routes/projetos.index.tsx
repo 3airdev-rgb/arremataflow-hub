@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { projetos, formatBRL, statusLabels, type StatusKey } from "@/lib/mock-data";
+import { projetos, formatBRL, statusLabels, statusPriority, type StatusKey } from "@/lib/mock-data";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -35,57 +35,120 @@ export const Route = createFileRoute("/projetos/")({
   component: ProjetosPage,
 });
 
+type UnifiedProject = {
+  id: string;
+  codigo: string;
+  nome: string;
+  endereco: string;
+  cidade: string;
+  etapa: string;
+  status: StatusKey;
+  responsavel: string;
+  investidores: string[];
+  foto: string | null;
+  updated_at: string;
+  isReal: boolean;
+};
+
 function ProjetosPage() {
   const [q, setQ] = useState("");
   const [etapaFilter, setEtapaFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [salvos, setSalvos] = useState<Tables<"projetos">[]>([]);
+  const [salvos, setSalvos] = useState<(Tables<"projetos"> & { 
+    projeto_participantes: Tables<"projeto_participantes">[],
+    project_managers: (Tables<"project_managers"> & { pessoas: Tables<"pessoas"> })[]
+  })[]>([]);
 
   useEffect(() => {
     let ativo = true;
     (async () => {
       const { data: sessao } = await supabase.auth.getSession();
       if (!sessao.session) return;
-      const { data } = await supabase
+      
+      const { data, error } = await supabase
         .from("projetos")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (ativo && data) setSalvos(data);
+        .select(`
+          *,
+          projeto_participantes (*),
+          project_managers (*, pessoas (*))
+        `);
+        
+      if (ativo && data) {
+        setSalvos(data as any);
+      }
     })();
     return () => {
       ativo = false;
     };
   }, []);
 
-  const todasEtapas = useMemo(() => {
-    const etapas = new Set(projetos.map((p) => p.etapa));
-    salvos.forEach((p) => {
-      if (p.modalidade) etapas.add(p.modalidade);
-    });
-    return Array.from(etapas).sort();
+  const unifiedProjects = useMemo(() => {
+    const realProjects: UnifiedProject[] = salvos.map(p => ({
+      id: p.id,
+      codigo: p.codigo || "S/C",
+      nome: p.nome || "Sem nome",
+      endereco: p.endereco || "Sem endereço",
+      cidade: p.cidade || "",
+      etapa: p.modalidade || "Não definida",
+      status: (p.status as StatusKey) || "nao_iniciado",
+      responsavel: p.project_managers?.[0]?.pessoas?.nome || "Não atribuído",
+      investidores: p.projeto_participantes
+        ?.filter(part => part.papel === "Investidor")
+        .map(part => part.nome) || [],
+      foto: p.foto_principal,
+      updated_at: p.updated_at,
+      isReal: true
+    }));
+
+    const mockProjects: UnifiedProject[] = projetos.map(p => ({
+      id: p.id,
+      codigo: p.codigo,
+      nome: p.nome,
+      endereco: p.endereco,
+      cidade: p.cidade,
+      etapa: p.etapa,
+      status: p.status,
+      responsavel: p.responsavel,
+      investidores: p.investidores,
+      foto: p.foto,
+      updated_at: p.updated_at,
+      isReal: false
+    }));
+
+    return [...realProjects, ...mockProjects];
   }, [salvos]);
 
-  const listaFiltrada = useMemo(() => {
-    return projetos.filter((p) => {
-      const matchesSearch = `${p.nome} ${p.endereco} ${p.codigo}`
-        .toLowerCase()
-        .includes(q.toLowerCase());
-      const matchesEtapa = etapaFilter === "all" || p.etapa === etapaFilter;
-      const matchesStatus = statusFilter === "all" || p.status === statusFilter;
-      return matchesSearch && matchesEtapa && matchesStatus;
-    });
-  }, [q, etapaFilter, statusFilter]);
+  const sortedAndFiltrada = useMemo(() => {
+    return unifiedProjects
+      .filter((p) => {
+        const matchesSearch = `${p.nome} ${p.endereco} ${p.codigo}`
+          .toLowerCase()
+          .includes(q.toLowerCase());
+        const matchesEtapa = etapaFilter === "all" || p.etapa === etapaFilter;
+        const matchesStatus = statusFilter === "all" || p.status === statusFilter;
+        return matchesSearch && matchesEtapa && matchesStatus;
+      })
+      .sort((a, b) => {
+        // Priority order: Atrasado, Pendente, Aguardando, Andamento, Não Iniciado, Concluído
+        const pA = statusPriority[a.status] || 99;
+        const pB = statusPriority[b.status] || 99;
+        
+        if (pA !== pB) return pA - pB;
+        
+        // Secondary: updated_at (newest first)
+        const dateA = new Date(a.updated_at).getTime();
+        const dateB = new Date(b.updated_at).getTime();
+        if (dateB !== dateA) return dateB - dateA;
+        
+        // Tertiary: code ascending
+        return a.codigo.localeCompare(b.codigo);
+      });
+  }, [unifiedProjects, q, etapaFilter, statusFilter]);
 
-  const salvosFiltrados = useMemo(() => {
-    return salvos.filter((p) => {
-      const matchesSearch = `${p.nome} ${p.endereco}`
-        .toLowerCase()
-        .includes(q.toLowerCase());
-      const matchesEtapa = etapaFilter === "all" || p.modalidade === etapaFilter;
-      const matchesStatus = statusFilter === "all" || p.modalidade === statusFilter; // Note: projects table might not have status yet, using modalidade as proxy or just all
-      return matchesSearch && matchesEtapa;
-    });
-  }, [q, etapaFilter, salvos]);
+  const todasEtapas = useMemo(() => {
+    const etapas = new Set(unifiedProjects.map((p) => p.etapa));
+    return Array.from(etapas).sort();
+  }, [unifiedProjects]);
 
   const clearFilters = () => {
     setQ("");
@@ -96,7 +159,7 @@ function ProjetosPage() {
   return (
     <AppLayout
       title="Gestão de Projetos"
-      subtitle={`${projetos.length} projetos cadastrados`}
+      subtitle={`${unifiedProjects.length} projetos no total`}
       actions={
         <Button asChild>
           <Link to="/projetos/novo">
@@ -105,74 +168,6 @@ function ProjetosPage() {
         </Button>
       }
     >
-      {salvosFiltrados.length > 0 ? (
-        <div className="surface-card mb-6 overflow-hidden">
-          <div className="border-b border-border p-4">
-            <h2 className="text-sm font-semibold">Projetos salvos no banco</h2>
-            <p className="text-xs text-muted-foreground">
-              {salvosFiltrados.length} registro(s) filtrado(s) da sua conta
-            </p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium text-[11px]">Projeto</th>
-                  <th className="px-4 py-3 font-medium text-[11px]">Leiloeiro</th>
-                  <th className="px-4 py-3 font-medium text-[11px]">Aquisição</th>
-                  <th className="px-4 py-3 font-medium text-[11px]">Comissão</th>
-                  <th className="px-4 py-3 font-medium text-[11px]">Parcelas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {salvosFiltrados.map((p) => (
-                  <tr key={p.id} className="border-t border-border">
-                    <td className="px-4 py-3 font-medium">
-                      <Link
-                        to="/projetos/$id"
-                        params={{ id: p.id }}
-                        className="flex items-center gap-3"
-                      >
-                        {p.foto_principal ? (
-                          <img
-                            src={p.foto_principal}
-                            alt={`Fachada do imóvel ${p.nome}`}
-                            loading="lazy"
-                            className="size-10 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="size-10 rounded-lg bg-muted flex items-center justify-center">
-                            <Plus className="size-4 text-muted-foreground" />
-                          </div>
-                        )}
-                        <span className="block">
-                          <span className="block font-medium text-foreground hover:text-brand">
-                            {p.nome}
-                          </span>
-                          <span className="block text-xs text-muted-foreground">
-                            {p.cidade}
-                          </span>
-                        </span>
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{p.leiloeiro_nome ?? "—"}</td>
-                    <td className="px-4 py-3">{formatBRL(Number(p.valor_aquisicao))}</td>
-                    <td className="px-4 py-3">
-                      {Number(p.percentual_comissao)}% · {formatBRL(Number(p.valor_comissao))}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {p.quantidade_parcelas > 1
-                        ? `${p.quantidade_parcelas}x ${formatBRL(Number(p.valor_parcela))}`
-                        : "À vista"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : null}
-
       <div className="surface-card overflow-hidden">
         <div className="border-b border-border p-4 flex flex-col md:flex-row md:items-center gap-4">
           <div className="relative flex-1 max-w-md">
@@ -240,20 +235,26 @@ function ProjetosPage() {
               </tr>
             </thead>
             <tbody>
-              {listaFiltrada.map((p) => (
-                <tr key={p.id} className="border-t border-border transition-colors hover:bg-muted/40">
+              {sortedAndFiltrada.map((p) => (
+                <tr key={`${p.isReal ? 'real' : 'mock'}-${p.id}`} className="border-t border-border transition-colors hover:bg-muted/40">
                   <td className="px-4 py-3">
                     <Link
                       to="/projetos/$id"
                       params={{ id: p.id }}
                       className="flex items-center gap-3"
                     >
-                      <img
-                        src={p.foto}
-                        alt={`Fachada do imóvel ${p.nome}`}
-                        loading="lazy"
-                        className="size-10 rounded-lg object-cover"
-                      />
+                      {p.foto ? (
+                        <img
+                          src={p.foto}
+                          alt={`Fachada do imóvel ${p.nome}`}
+                          loading="lazy"
+                          className="size-10 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="size-10 rounded-lg bg-muted flex items-center justify-center">
+                          <Plus className="size-4 text-muted-foreground" />
+                        </div>
+                      )}
                       <span className="block">
                         <span className="block font-medium text-foreground hover:text-brand">
                           {p.nome}
@@ -278,7 +279,7 @@ function ProjetosPage() {
                   </td>
                 </tr>
               ))}
-              {listaFiltrada.length === 0 ? (
+              {sortedAndFiltrada.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
                     Nenhum projeto encontrado para os filtros selecionados.
