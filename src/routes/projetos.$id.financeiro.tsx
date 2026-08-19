@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Plus, Calculator } from "lucide-react";
+import { useState, useRef } from "react";
+import { Plus, Calculator, Paperclip, FileText, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import {
   distribuicao,
   formatBRL,
   type Movimentacao,
+  categoriasDocumentos,
 } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/projetos/$id/financeiro")({
@@ -46,7 +47,15 @@ export const Route = createFileRoute("/projetos/$id/financeiro")({
   component: FinanceiroProjeto,
 });
 
-function Tabela({ titulo, itens }: { titulo: string; itens: Movimentacao[] }) {
+function Tabela({
+  titulo,
+  itens,
+  onDelete,
+}: {
+  titulo: string;
+  itens: Movimentacao[];
+  onDelete: (id: string) => void;
+}) {
   return (
     <div className="surface-card overflow-hidden">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -58,9 +67,24 @@ function Tabela({ titulo, itens }: { titulo: string; itens: Movimentacao[] }) {
       <table className="w-full text-sm">
         <tbody>
           {itens.map((i) => (
-            <tr key={i.id} className="border-b border-border last:border-0">
+            <tr key={i.id} className="group border-b border-border last:border-0 hover:bg-muted/30">
               <td className="px-4 py-3">
-                <p className="font-medium">{i.descricao}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium">{i.descricao}</p>
+                  {i.comprovanteUrl && (
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toast.info("Visualizando comprovante: " + i.descricao);
+                      }}
+                      className="text-brand hover:text-brand-dark"
+                      title="Visualizar comprovante"
+                    >
+                      <Paperclip className="size-3.5" />
+                    </a>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {i.categoria} · {i.data}
                 </p>
@@ -68,7 +92,19 @@ function Tabela({ titulo, itens }: { titulo: string; itens: Movimentacao[] }) {
               <td className="px-4 py-3">
                 <StatusBadge status={i.status} />
               </td>
-              <td className="px-4 py-3 text-right font-medium">{formatBRL(i.valor)}</td>
+              <td className="px-4 py-3 text-right">
+                <div className="flex items-center justify-end gap-3">
+                  <span className="font-medium">{formatBRL(i.valor)}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => onDelete(i.id)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -81,7 +117,53 @@ function FinanceiroProjeto() {
   const [receitas, setReceitas] = useState(receitasMock);
   const [despesas, setDespesas] = useState(despesasMock);
   const [open, setOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [movParaExcluir, setMovParaExcluir] = useState<string | null>(null);
   const [calculado, setCalculado] = useState(false);
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Formato inválido. Use PDF, JPG, PNG ou WEBP.");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Arquivo muito grande. Limite de 2MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setArquivo(file);
+    toast.success(`Arquivo "${file.name}" anexado.`);
+  };
+
+  const handleExcluir = (id: string) => {
+    setMovParaExcluir(id);
+    setDeleteOpen(true);
+  };
+
+  const confirmarExclusao = (removerDoDoc = false) => {
+    if (!movParaExcluir) return;
+
+    setReceitas((prev) => prev.filter((m) => m.id !== movParaExcluir));
+    setDespesas((prev) => prev.filter((m) => m.id !== movParaExcluir));
+
+    if (removerDoDoc) {
+      toast.info("Movimentação e documento removidos.");
+    } else {
+      toast.success("Movimentação removida. Documento mantido.");
+    }
+
+    setDeleteOpen(false);
+    setMovParaExcluir(null);
+  };
 
   const totalR = receitas.reduce((s, i) => s + i.valor, 0);
   const totalD = despesas.reduce((s, i) => s + i.valor, 0);
@@ -108,17 +190,31 @@ function FinanceiroProjeto() {
               onSubmit={(e) => {
                 e.preventDefault();
                 const fd = new FormData(e.currentTarget);
+                const desc = String(fd.get("descricao") || "Movimentação");
+                const cat = String(fd.get("categoria") || "");
+                const val = Number(fd.get("valor") || 0);
+                const tipo = fd.get("tipo");
+
                 const nova: Movimentacao = {
                   id: `n${Date.now()}`,
-                  descricao: String(fd.get("descricao") || "Movimentação"),
-                  categoria: String(fd.get("categoria") || "Geral"),
-                  data: "16/08/2026",
-                  valor: Number(fd.get("valor") || 0),
+                  descricao: desc,
+                  categoria: cat,
+                  data: new Date().toLocaleDateString("pt-BR"),
+                  valor: val,
                   status: "pendente",
+                  comprovanteUrl: arquivo ? URL.createObjectURL(arquivo) : undefined,
                 };
-                if (fd.get("tipo") === "receita") setReceitas((p) => [nova, ...p]);
+
+                if (tipo === "receita") setReceitas((p) => [nova, ...p]);
                 else setDespesas((p) => [nova, ...p]);
+
+                if (arquivo) {
+                  // Simulação de registro automático na gestão documental
+                  toast.info(`Comprovante vinculado à Gestão Documental na categoria ${cat}.`);
+                }
+
                 setOpen(false);
+                setArquivo(null);
                 toast.success("Movimentação registrada!");
               }}
             >
@@ -141,12 +237,58 @@ function FinanceiroProjeto() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="categoria">Categoria</Label>
-                  <Input id="categoria" name="categoria" placeholder="Obra, Tributos..." />
+                  <Select name="categoria" required>
+                    <SelectTrigger id="categoria">
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoriasDocumentos.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="valor">Valor (R$)</Label>
                   <Input id="valor" name="valor" type="number" step="0.01" required />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Comprovante</Label>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-start gap-2"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Paperclip className="size-4" />
+                    {arquivo ? arquivo.name : "Anexar comprovante"}
+                  </Button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp"
+                    onChange={handleFileChange}
+                  />
+                  {arquivo && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive"
+                      onClick={() => setArquivo(null)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  PDF, JPG, PNG ou WEBP até 2MB.
+                </p>
               </div>
               <DialogFooter>
                 <Button type="submit">Registrar</Button>
@@ -171,9 +313,35 @@ function FinanceiroProjeto() {
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
-        <Tabela titulo="Receitas" itens={receitas} />
-        <Tabela titulo="Despesas" itens={despesas} />
+        <Tabela titulo="Receitas" itens={receitas} onDelete={handleExcluir} />
+        <Tabela titulo="Despesas" itens={despesas} onDelete={handleExcluir} />
       </div>
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir movimentação?</DialogTitle>
+            <DialogDescription>
+              Esta ação não pode ser desfeita. Deseja manter o comprovante na Gestão Documental?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => confirmarExclusao(false)}>
+                Excluir apenas movimentação
+              </Button>
+              <Button variant="destructive" onClick={() => confirmarExclusao(true)}>
+                Excluir movimentação e documento
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteOpen(false)}>
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="surface-card mt-6 p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
