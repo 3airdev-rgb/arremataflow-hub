@@ -216,6 +216,7 @@ export const projetos: Projeto[] = [
     fotos: [foto("photo-1580587771525-78b9dba3b914"), foto("photo-1613490493576-7fde63acd811")],
     investidores: ["Ana Beatriz Souza", "Pedro Nogueira"],
     assessores: ["Juliana Prado"],
+    updated_at: new Date(Date.now() - 432000000).toISOString(),
   },
 ];
 
