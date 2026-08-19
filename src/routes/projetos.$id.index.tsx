@@ -104,9 +104,14 @@ function FichaProjeto() {
               <StatusBadge status={projeto.status} className="bg-white/90" />
             </div>
             <h2 className="mt-2 text-2xl font-semibold text-white">{projeto.nome}</h2>
-            <p className="flex items-center gap-1.5 text-sm text-white/85">
+            <a 
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${projeto.endereco}, ${projeto.cidade}`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-sm text-white/85 hover:text-white hover:underline transition-colors w-fit"
+            >
               <MapPin className="size-4" /> {projeto.endereco} — {projeto.cidade}
-            </p>
+            </a>
           </div>
         </div>
         <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-5">
