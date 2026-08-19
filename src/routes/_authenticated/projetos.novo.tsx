@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { House, Handshake, BriefcaseBusiness, Users, Plus, Trash2, Save, UserPlus, Search, CalendarIcon, CheckCircle2, UserCheck } from "lucide-react";
+import { SectionCard } from "@/components/project-form-section-card";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,32 +57,6 @@ export const Route = createFileRoute("/_authenticated/projetos/novo")({
   component: NovoProjeto,
 });
 
-function SectionCard({
-  icon: Icon,
-  title,
-  description,
-  children,
-}: {
-  icon: typeof House;
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="surface-card p-6">
-      <div className="mb-5 flex items-start gap-3">
-        <span className="grid size-10 place-items-center rounded-xl bg-primary-soft text-brand">
-          <Icon className="size-5" strokeWidth={1.75} />
-        </span>
-        <div>
-          <h3 className="text-base font-semibold">{title}</h3>
-          <p className="text-sm text-muted-foreground">{description}</p>
-        </div>
-      </div>
-      {children}
-    </section>
-  );
-}
 
 
 
