@@ -29,6 +29,7 @@ import {
   distribuicao,
   formatBRL,
   type Movimentacao,
+  categoriasDocumentos,
 } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/projetos/$id/financeiro")({
