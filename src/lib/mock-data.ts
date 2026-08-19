@@ -1,18 +1,27 @@
 export type StatusKey =
-  | "concluido"
-  | "andamento"
-  | "aguardando"
-  | "pendente"
   | "atrasado"
-  | "nao_iniciado";
+  | "pendente"
+  | "aguardando"
+  | "andamento"
+  | "nao_iniciado"
+  | "concluido";
 
 export const statusLabels: Record<StatusKey, string> = {
-  concluido: "Concluído",
-  andamento: "Em andamento",
-  aguardando: "Aguardando terceiro",
-  pendente: "Pendente",
   atrasado: "Atrasado",
+  pendente: "Pendente",
+  aguardando: "Aguardando terceiro",
+  andamento: "Em andamento",
   nao_iniciado: "Não iniciado",
+  concluido: "Concluído",
+};
+
+export const statusPriority: Record<StatusKey, number> = {
+  atrasado: 1,
+  pendente: 2,
+  aguardando: 3,
+  andamento: 4,
+  nao_iniciado: 5,
+  concluido: 6,
 };
 
 export type Projeto = {
