@@ -157,8 +157,6 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
                         expected_possession_date: date ? format(date, "yyyy-MM-dd") : null 
                       }))
                     }
-                    initialFocus
-                    locale={ptBR}
                   />
                 </PopoverContent>
               </Popover>
@@ -193,8 +191,6 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
                         possession_completed_date: date ? format(date, "yyyy-MM-dd") : null 
                       }))
                     }
-                    initialFocus
-                    locale={ptBR}
                   />
                 </PopoverContent>
               </Popover>
