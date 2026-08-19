@@ -22,6 +22,7 @@ import { Route as ObrasRouteImport } from './routes/obras'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PosseRouteImport } from './routes/posse'
 import { Route as RegularizacaoRouteImport } from './routes/regularizacao'
+import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as ResultadosRouteImport } from './routes/resultados'
 import { Route as TarefasRouteImport } from './routes/tarefas'
 import { Route as AdminConfiguracoesRouteImport } from './routes/admin.configuracoes'
@@ -97,6 +98,11 @@ const PosseRoute = PosseRouteImport.update({
 const RegularizacaoRoute = RegularizacaoRouteImport.update({
   id: '/regularizacao',
   path: '/regularizacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RelatoriosRoute = RelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResultadosRoute = ResultadosRouteImport.update({
@@ -176,6 +182,7 @@ export interface FileRoutesByFullPath {
   '/perfil': typeof PerfilRoute
   '/posse': typeof PosseRoute
   '/regularizacao': typeof RegularizacaoRoute
+  '/relatorios': typeof RelatoriosRoute
   '/resultados': typeof ResultadosRoute
   '/tarefas': typeof TarefasRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
@@ -202,6 +209,7 @@ export interface FileRoutesByTo {
   '/perfil': typeof PerfilRoute
   '/posse': typeof PosseRoute
   '/regularizacao': typeof RegularizacaoRoute
+  '/relatorios': typeof RelatoriosRoute
   '/resultados': typeof ResultadosRoute
   '/tarefas': typeof TarefasRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
@@ -230,6 +238,7 @@ export interface FileRoutesById {
   '/perfil': typeof PerfilRoute
   '/posse': typeof PosseRoute
   '/regularizacao': typeof RegularizacaoRoute
+  '/relatorios': typeof RelatoriosRoute
   '/resultados': typeof ResultadosRoute
   '/tarefas': typeof TarefasRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
@@ -258,6 +267,7 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/posse'
     | '/regularizacao'
+    | '/relatorios'
     | '/resultados'
     | '/tarefas'
     | '/admin/configuracoes'
@@ -284,6 +294,7 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/posse'
     | '/regularizacao'
+    | '/relatorios'
     | '/resultados'
     | '/tarefas'
     | '/admin/configuracoes'
@@ -311,6 +322,7 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/posse'
     | '/regularizacao'
+    | '/relatorios'
     | '/resultados'
     | '/tarefas'
     | '/admin/configuracoes'
@@ -339,6 +351,7 @@ export interface RootRouteChildren {
   PerfilRoute: typeof PerfilRoute
   PosseRoute: typeof PosseRoute
   RegularizacaoRoute: typeof RegularizacaoRoute
+  RelatoriosRoute: typeof RelatoriosRoute
   ResultadosRoute: typeof ResultadosRoute
   TarefasRoute: typeof TarefasRoute
   AdminConfiguracoesRoute: typeof AdminConfiguracoesRoute
@@ -441,6 +454,13 @@ declare module '@tanstack/react-router' {
       path: '/regularizacao'
       fullPath: '/regularizacao'
       preLoaderRoute: typeof RegularizacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/relatorios': {
+      id: '/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof RelatoriosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/resultados': {
@@ -559,6 +579,7 @@ const rootRouteChildren: RootRouteChildren = {
   PerfilRoute: PerfilRoute,
   PosseRoute: PosseRoute,
   RegularizacaoRoute: RegularizacaoRoute,
+  RelatoriosRoute: RelatoriosRoute,
   ResultadosRoute: ResultadosRoute,
   TarefasRoute: TarefasRoute,
   AdminConfiguracoesRoute: AdminConfiguracoesRoute,
