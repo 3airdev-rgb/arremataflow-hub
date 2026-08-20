@@ -455,6 +455,104 @@ export type Database = {
           },
         ]
       }
+      tarefas: {
+        Row: {
+          category: string
+          created_at: string | null
+          descricao: string | null
+          id: string
+          is_online_meeting: boolean | null
+          meeting_time: string | null
+          meeting_url: string | null
+          prazo: string | null
+          projeto_id: string
+          responsavel: string | null
+          status: string | null
+          titulo: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          is_online_meeting?: boolean | null
+          meeting_time?: string | null
+          meeting_url?: string | null
+          prazo?: string | null
+          projeto_id: string
+          responsavel?: string | null
+          status?: string | null
+          titulo: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          is_online_meeting?: boolean | null
+          meeting_time?: string | null
+          meeting_url?: string | null
+          prazo?: string | null
+          projeto_id?: string
+          responsavel?: string | null
+          status?: string | null
+          titulo?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefas_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_meeting_participants: {
+        Row: {
+          created_at: string | null
+          id: string
+          participant_id: string | null
+          participant_type: string
+          task_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          participant_id?: string | null
+          participant_type: string
+          task_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          participant_id?: string | null
+          participant_type?: string
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_meeting_participants_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "pessoas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_meeting_participants_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
