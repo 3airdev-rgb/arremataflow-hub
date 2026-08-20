@@ -64,6 +64,23 @@ async function salvarPessoa(data: UnifiedEntityData, tipo: "Investidor" | "Asses
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData.user?.id;
   if (!userId) return;
+
+  // Check for duplicate document before saving (secondary safety)
+  if (data.documento) {
+    const { data: existing } = await supabase
+      .from("pessoas")
+      .select("id")
+      .eq("documento", data.documento)
+      .maybeSingle();
+    
+    if (existing) {
+      toast.error("Investidor já Cadastrado", {
+        description: "Um registro com este CPF ou CNPJ já existe na base de dados."
+      });
+      return;
+    }
+  }
+
   const { error } = await supabase.from("pessoas").insert({
     user_id: userId,
     tipo,
@@ -81,7 +98,11 @@ async function salvarPessoa(data: UnifiedEntityData, tipo: "Investidor" | "Asses
     cidade: data.cidade || null,
     estado: data.estado || null,
   });
-  if (error) toast.error(`Não foi possível salvar ${tipo.toLowerCase()}: ${error.message}`);
+  if (error) {
+    toast.error(`Não foi possível salvar ${tipo.toLowerCase()}: ${error.message}`);
+  } else {
+    toast.success(`${tipo} cadastrado com sucesso!`);
+  }
 }
 
 function NovoProjeto() {
