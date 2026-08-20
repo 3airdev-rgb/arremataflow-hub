@@ -79,7 +79,7 @@ function TarefasProjeto() {
   // Novos estados para reunião online
   const [isOnlineMeeting, setIsOnlineMeeting] = useState("nao");
   const [participantesSelecionados, setParticipantesSelecionados] = useState<string[]>([]);
-  const [participantesProjeto, setParticipantesProjeto] = useState<{label: string, value: string}[]>([]);
+  const [participantesProjeto, setParticipantesProjeto] = useState<{label: string, value: string, type: string}[]>([]);
 
   const loadData = async () => {
     setLoading(true);
@@ -96,7 +96,7 @@ function TarefasProjeto() {
       // Carregar participantes do projeto (investidores e assessores)
       const { data: parts, error: partsError } = await supabase
         .from("projeto_participantes")
-        .select("pessoa_id, nome")
+        .select("pessoa_id, nome, papel")
         .eq("projeto_id", projetoId);
       
       const { data: managers, error: managersError } = await supabase
@@ -107,11 +107,15 @@ function TarefasProjeto() {
       if (partsError || managersError) throw partsError || managersError;
 
       const allParticipants = [
-        ...(parts?.map(p => ({ label: p.nome, value: p.pessoa_id })) || []),
-        ...(managers?.map(m => ({ label: (m.pessoas as any)?.nome, value: m.assessor_id })) || [])
+        ...(parts?.map(p => ({ label: p.nome, value: p.pessoa_id, type: p.papel || "Investidor" })) || []),
+        ...(managers?.map(m => ({ label: (m.pessoas as any)?.nome, value: m.assessor_id, type: "Assessor" })) || [])
       ].filter((v, i, a) => a.findIndex(t => t.value === v.value) === i); // Unique
 
-      setParticipantesProjeto(allParticipants.filter(p => p.value !== null) as any);
+      if (allParticipants.length === 0) {
+        setParticipantesProjeto([]);
+      } else {
+        setParticipantesProjeto(allParticipants.filter(p => p.value !== null) as any);
+      }
 
     } catch (error) {
       console.error("Erro ao carregar tarefas:", error);
@@ -148,6 +152,11 @@ function TarefasProjeto() {
       status: "nao_iniciado",
     };
 
+    if (taskData.is_online_meeting && participantesSelecionados.length === 0) {
+      toast.error("Selecione pelo menos um participante para a reunião online.");
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from("tarefas")
@@ -158,11 +167,14 @@ function TarefasProjeto() {
       if (error) throw error;
 
       if (isOnlineMeeting === "sim" && participantesSelecionados.length > 0) {
-        const participantData = participantesSelecionados.map(pid => ({
-          task_id: data.id,
-          participant_id: pid,
-          participant_type: "Vinculado",
-        }));
+        const participantData = participantesSelecionados.map(pid => {
+          const p = participantesProjeto.find(opt => opt.value === pid);
+          return {
+            task_id: data.id,
+            participant_id: pid,
+            participant_type: p?.type || "Vinculado",
+          };
+        });
         
         const { error: pError } = await supabase
           .from("task_meeting_participants")
@@ -188,7 +200,14 @@ function TarefasProjeto() {
       title="Gestão de Tarefas"
       subtitle="Pipeline operacional do projeto"
       actions={
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(val) => {
+          setOpen(val);
+          if (!val) {
+            setDataSelecionada(undefined);
+            setIsOnlineMeeting("nao");
+            setParticipantesSelecionados([]);
+          }
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="size-4" /> Nova tarefa
@@ -222,7 +241,23 @@ function TarefasProjeto() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="resp">Responsável</Label>
-                  <Input id="resp" name="resp" defaultValue="Camila Andrade" />
+                  <Select name="resp" required disabled={participantesProjeto.length === 0}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={participantesProjeto.length === 0 ? "Nenhum participante vinculado" : "Selecione o responsável"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {participantesProjeto.map(p => (
+                        <SelectItem key={p.value} value={p.value}>
+                          {p.label} <span className="text-[10px] opacity-50 ml-1">({p.type})</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {participantesProjeto.length === 0 && (
+                    <p className="text-[10px] text-destructive mt-1">
+                      Não existem assessores ou investidores vinculados a este projeto. Cadastre ou vincule um participante antes de criar uma tarefa.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Prazo</Label>
@@ -312,8 +347,13 @@ function TarefasProjeto() {
                         options={participantesProjeto}
                         selected={participantesSelecionados}
                         onChange={setParticipantesSelecionados}
-                        placeholder="Buscar participantes..."
+                        placeholder={participantesProjeto.length === 0 ? "Nenhum participante disponível" : "Buscar participantes..."}
                       />
+                      {isOnlineMeeting === "sim" && participantesSelecionados.length === 0 && (
+                        <p className="text-[10px] text-destructive mt-1">
+                          Selecione pelo menos um participante para a reunião.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -333,7 +373,7 @@ function TarefasProjeto() {
     >
       <Dialog
         open={editOpen}
-        onOpenChange={(val) => {
+        onOpenChange={async (val) => {
           setEditOpen(val);
           if (val && editingTask) {
             const parts = editingTask.prazo?.split("/");
@@ -346,6 +386,22 @@ function TarefasProjeto() {
             } else {
               setEditDataSelecionada(undefined);
             }
+
+            // Carregar participantes vinculados à tarefa
+            setIsOnlineMeeting(editingTask.is_online_meeting ? "sim" : "nao");
+            const { data: pData } = await supabase
+              .from("task_meeting_participants")
+              .select("participant_id")
+              .eq("task_id", editingTask.id);
+            
+            if (pData) {
+              setParticipantesSelecionados(pData.map(p => p.participant_id).filter(Boolean) as string[]);
+            } else {
+              setParticipantesSelecionados([]);
+            }
+          } else if (!val) {
+            setIsOnlineMeeting("nao");
+            setParticipantesSelecionados([]);
           }
         }}
       >
@@ -373,13 +429,34 @@ function TarefasProjeto() {
                   meeting_time: fd.get("is_online_meeting") === "sim" ? String(fd.get("meeting_time")) : null,
                 };
 
-                try {
+                 try {
                   const { error } = await supabase
                     .from("tarefas")
                     .update(taskData)
                     .eq("id", editingTask.id);
 
                   if (error) throw error;
+
+                  // Atualizar participantes da reunião
+                  await supabase
+                    .from("task_meeting_participants")
+                    .delete()
+                    .eq("task_id", editingTask.id);
+
+                  if (taskData.is_online_meeting && participantesSelecionados.length > 0) {
+                    const participantData = participantesSelecionados.map(pid => {
+                      const p = participantesProjeto.find(opt => opt.value === pid);
+                      return {
+                        task_id: editingTask.id,
+                        participant_id: pid,
+                        participant_type: p?.type || "Vinculado",
+                      };
+                    });
+                    
+                    await supabase
+                      .from("task_meeting_participants")
+                      .insert(participantData);
+                  }
                   
                   toast.success("Tarefa atualizada!");
                   setEditOpen(false);
@@ -417,7 +494,18 @@ function TarefasProjeto() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="edit-resp">Responsável</Label>
-                  <Input id="edit-resp" name="resp" defaultValue={editingTask.responsavel} />
+                  <Select name="resp" defaultValue={editingTask.responsavel || undefined} required disabled={participantesProjeto.length === 0}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o responsável" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {participantesProjeto.map(p => (
+                        <SelectItem key={p.value} value={p.value}>
+                          {p.label} <span className="text-[10px] opacity-50 ml-1">({p.type})</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Prazo</Label>
@@ -449,6 +537,72 @@ function TarefasProjeto() {
                   </Popover>
                 </div>
               </div>
+
+               <div className="space-y-3 pt-2 border-t border-border">
+                <Label>Esta tarefa é uma reunião online?</Label>
+                <RadioGroup 
+                  value={isOnlineMeeting} 
+                  className="flex gap-4"
+                  onValueChange={setIsOnlineMeeting}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="sim" id="edit-r-sim" />
+                    <Label htmlFor="edit-r-sim" className="font-normal">Sim</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="nao" id="edit-r-nao" />
+                    <Label htmlFor="edit-r-nao" className="font-normal">Não</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {isOnlineMeeting === "sim" && (
+                <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border animate-in fade-in zoom-in duration-200">
+                  <h4 className="font-medium text-sm flex items-center gap-2">
+                    <Video className="size-4 text-primary" /> Informações da Reunião
+                  </h4>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-meeting_url" className="flex items-center gap-1">
+                      <LinkIcon className="size-3" /> Link da Reunião
+                    </Label>
+                    <Input 
+                      id="edit-meeting_url" 
+                      name="meeting_url" 
+                      type="url" 
+                      defaultValue={editingTask.meeting_url || ""}
+                      placeholder="https://meet.google.com/..." 
+                      required={isOnlineMeeting === "sim"}
+                    />
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-meeting_time" className="flex items-center gap-1">
+                        <Clock className="size-3" /> Horário
+                      </Label>
+                      <Input 
+                        id="edit-meeting_time" 
+                        name="meeting_time" 
+                        type="time" 
+                        defaultValue={editingTask.meeting_time || ""}
+                        required={isOnlineMeeting === "sim"}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1">
+                        <Users className="size-3" /> Participantes
+                      </Label>
+                      <MultiSelect
+                        options={participantesProjeto}
+                        selected={participantesSelecionados}
+                        onChange={setParticipantesSelecionados}
+                        placeholder={participantesProjeto.length === 0 ? "Nenhum participante disponível" : "Buscar participantes..."}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="edit-status">Status</Label>
@@ -506,7 +660,7 @@ function TarefasProjeto() {
                 <div>
                   <p className="font-medium">{t.titulo}</p>
                   <p className="text-xs text-muted-foreground">
-                    {t.category} · {t.responsavel} · vence {t.prazo || "N/A"}
+                    {t.category} · {participantesProjeto.find(p => p.value === t.responsavel)?.label || t.responsavel} · vence {t.prazo || "N/A"}
                   </p>
                 </div>
               </div>
