@@ -111,7 +111,11 @@ function TarefasProjeto() {
         ...(managers?.map(m => ({ label: (m.pessoas as any)?.nome, value: m.assessor_id, type: "Assessor" })) || [])
       ].filter((v, i, a) => a.findIndex(t => t.value === v.value) === i); // Unique
 
-      setParticipantesProjeto(allParticipants.filter(p => p.value !== null) as any);
+      if (allParticipants.length === 0) {
+        setParticipantesProjeto([]);
+      } else {
+        setParticipantesProjeto(allParticipants.filter(p => p.value !== null) as any);
+      }
 
     } catch (error) {
       console.error("Erro ao carregar tarefas:", error);
