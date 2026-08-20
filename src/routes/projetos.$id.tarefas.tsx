@@ -196,7 +196,14 @@ function TarefasProjeto() {
       title="Gestão de Tarefas"
       subtitle="Pipeline operacional do projeto"
       actions={
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(val) => {
+          setOpen(val);
+          if (!val) {
+            setDataSelecionada(undefined);
+            setIsOnlineMeeting("nao");
+            setParticipantesSelecionados([]);
+          }
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="size-4" /> Nova tarefa
