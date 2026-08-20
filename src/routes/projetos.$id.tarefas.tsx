@@ -546,7 +546,7 @@ function TarefasProjeto() {
                 <div>
                   <p className="font-medium">{t.titulo}</p>
                   <p className="text-xs text-muted-foreground">
-                    {t.category} · {t.responsavel} · vence {t.prazo || "N/A"}
+                    {t.category} · {participantesProjeto.find(p => p.value === t.responsavel)?.label || t.responsavel} · vence {t.prazo || "N/A"}
                   </p>
                 </div>
               </div>
