@@ -12,6 +12,7 @@ import { Command as CommandPrimitive } from "cmdk";
 type Option = {
   label: string;
   value: string;
+  type?: string;
 };
 
 interface MultiSelectProps {
@@ -69,7 +70,7 @@ export function MultiSelect({
             const option = options.find((o) => o.value === value);
             return (
               <Badge key={value} variant="secondary">
-                {option?.label}
+                {option?.label} {option?.type && <span className="text-[10px] ml-1 opacity-70">({option.type})</span>}
                 <button
                   className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
                   onKeyDown={(e) => {
@@ -118,7 +119,7 @@ export function MultiSelect({
                       }}
                       className={"cursor-pointer"}
                     >
-                      {option.label}
+                      {option.label} {option.type && <span className="text-[10px] ml-2 opacity-50">({option.type})</span>}
                     </CommandItem>
                   );
                 })}

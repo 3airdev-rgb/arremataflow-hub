@@ -79,7 +79,7 @@ function TarefasProjeto() {
   // Novos estados para reunião online
   const [isOnlineMeeting, setIsOnlineMeeting] = useState("nao");
   const [participantesSelecionados, setParticipantesSelecionados] = useState<string[]>([]);
-  const [participantesProjeto, setParticipantesProjeto] = useState<{label: string, value: string}[]>([]);
+  const [participantesProjeto, setParticipantesProjeto] = useState<{label: string, value: string, type: string}[]>([]);
 
   const loadData = async () => {
     setLoading(true);
@@ -96,7 +96,7 @@ function TarefasProjeto() {
       // Carregar participantes do projeto (investidores e assessores)
       const { data: parts, error: partsError } = await supabase
         .from("projeto_participantes")
-        .select("pessoa_id, nome")
+        .select("pessoa_id, nome, papel")
         .eq("projeto_id", projetoId);
       
       const { data: managers, error: managersError } = await supabase
@@ -107,8 +107,8 @@ function TarefasProjeto() {
       if (partsError || managersError) throw partsError || managersError;
 
       const allParticipants = [
-        ...(parts?.map(p => ({ label: p.nome, value: p.pessoa_id })) || []),
-        ...(managers?.map(m => ({ label: (m.pessoas as any)?.nome, value: m.assessor_id })) || [])
+        ...(parts?.map(p => ({ label: p.nome, value: p.pessoa_id, type: p.papel || "Investidor" })) || []),
+        ...(managers?.map(m => ({ label: (m.pessoas as any)?.nome, value: m.assessor_id, type: "Assessor" })) || [])
       ].filter((v, i, a) => a.findIndex(t => t.value === v.value) === i); // Unique
 
       setParticipantesProjeto(allParticipants.filter(p => p.value !== null) as any);
@@ -148,6 +148,11 @@ function TarefasProjeto() {
       status: "nao_iniciado",
     };
 
+    if (taskData.is_online_meeting && participantesSelecionados.length === 0) {
+      toast.error("Selecione pelo menos um participante para a reunião online.");
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from("tarefas")
@@ -158,11 +163,14 @@ function TarefasProjeto() {
       if (error) throw error;
 
       if (isOnlineMeeting === "sim" && participantesSelecionados.length > 0) {
-        const participantData = participantesSelecionados.map(pid => ({
-          task_id: data.id,
-          participant_id: pid,
-          participant_type: "Vinculado",
-        }));
+        const participantData = participantesSelecionados.map(pid => {
+          const p = participantesProjeto.find(opt => opt.value === pid);
+          return {
+            task_id: data.id,
+            participant_id: pid,
+            participant_type: p?.type || "Vinculado",
+          };
+        });
         
         const { error: pError } = await supabase
           .from("task_meeting_participants")
@@ -222,7 +230,23 @@ function TarefasProjeto() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="resp">Responsável</Label>
-                  <Input id="resp" name="resp" defaultValue="Camila Andrade" />
+                  <Select name="resp" required disabled={participantesProjeto.length === 0}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={participantesProjeto.length === 0 ? "Nenhum participante vinculado" : "Selecione o responsável"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {participantesProjeto.map(p => (
+                        <SelectItem key={p.value} value={p.value}>
+                          {p.label} <span className="text-[10px] opacity-50 ml-1">({p.type})</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {participantesProjeto.length === 0 && (
+                    <p className="text-[10px] text-destructive mt-1">
+                      Não existem assessores ou investidores vinculados a este projeto. Cadastre ou vincule um participante antes de criar uma tarefa.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Prazo</Label>
@@ -312,8 +336,13 @@ function TarefasProjeto() {
                         options={participantesProjeto}
                         selected={participantesSelecionados}
                         onChange={setParticipantesSelecionados}
-                        placeholder="Buscar participantes..."
+                        placeholder={participantesProjeto.length === 0 ? "Nenhum participante disponível" : "Buscar participantes..."}
                       />
+                      {isOnlineMeeting === "sim" && participantesSelecionados.length === 0 && (
+                        <p className="text-[10px] text-destructive mt-1">
+                          Selecione pelo menos um participante para a reunião.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -417,7 +446,18 @@ function TarefasProjeto() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="edit-resp">Responsável</Label>
-                  <Input id="edit-resp" name="resp" defaultValue={editingTask.responsavel} />
+                  <Select name="resp" defaultValue={editingTask.responsavel || undefined} required disabled={participantesProjeto.length === 0}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o responsável" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {participantesProjeto.map(p => (
+                        <SelectItem key={p.value} value={p.value}>
+                          {p.label} <span className="text-[10px] opacity-50 ml-1">({p.type})</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Prazo</Label>
