@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, AlertCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -118,8 +120,32 @@ export function InvestorRegistrationModal({
     setFormData({ ...formData, celulares: newCelulares });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if document already exists in the database
+    if (formData.documento) {
+      try {
+        const { data: existingPerson, error } = await supabase
+          .from("pessoas")
+          .select("id")
+          .eq("documento", formData.documento)
+          .maybeSingle();
+          
+        if (error) throw error;
+        
+        if (existingPerson) {
+          toast.error("Investidor já Cadastrado", {
+            description: "Um registro com este CPF ou CNPJ já existe na base de dados.",
+            icon: <AlertCircle className="h-4 w-4" />,
+          });
+          return;
+        }
+      } catch (err) {
+        console.error("Erro ao verificar documento:", err);
+      }
+    }
+
     onSave(formData);
     onOpenChange(false);
     // Reset form
@@ -148,7 +174,7 @@ export function InvestorRegistrationModal({
         <DialogHeader>
           <DialogTitle>Cadastro de {type}</DialogTitle>
           <DialogDescription>
-            Insira os dados do novo {type.toLowerCase()} para adicioná-lo ao sistema.
+            No cadastro de investidor, utilize o CPF ou CNPJ como ID principal, e sempre que um usuário tiver a intenção de cadastrar um CPF ou CNPJ que já esta na base de dados, abrir um pop-up de aviso com a informação de "Investidor já Cadastrado"
           </DialogDescription>
         </DialogHeader>
 

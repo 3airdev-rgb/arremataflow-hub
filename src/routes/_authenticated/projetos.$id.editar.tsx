@@ -126,8 +126,50 @@ function EditarProjeto() {
   const leiloeirosDisponiveis = usuarios.filter(u => u.tipo === "Leiloeiro");
 
   async function salvarPessoa(data: UnifiedEntityData, tipo: "Investidor" | "Assessor" | "Leiloeiro") {
-    // In edit mode, actual persistence happens in onSubmit for newly added entities with temp- IDs
-    setUsuarios(prev => [...prev, { nome: data.nome, tipo, perfil: tipo }]);
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (!userId) return;
+
+    // Check for duplicate document
+    if (data.documento) {
+      const { data: existing } = await supabase
+        .from("pessoas")
+        .select("id")
+        .eq("documento", data.documento)
+        .maybeSingle();
+      
+      if (existing) {
+        toast.error("Investidor já Cadastrado", {
+          description: "Um registro com este CPF ou CNPJ já existe na base de dados."
+        });
+        return;
+      }
+    }
+
+    const { data: newPessoa, error } = await supabase.from("pessoas").insert({
+      user_id: userId,
+      tipo,
+      nome: data.nome,
+      documento: data.documento || null,
+      email: data.email || null,
+      celulares: data.celulares ?? [],
+      data_nascimento: data.dataNascimento || null,
+      estado_civil: data.estadoCivil || null,
+      endereco: data.endereco || null,
+      banco: data.banco || null,
+      agencia: data.agencia || null,
+      conta: data.conta || null,
+      website: data.website || null,
+      cidade: data.cidade || null,
+      estado: data.estado || null,
+    }).select("*").single();
+
+    if (error) {
+      toast.error(`Não foi possível salvar ${tipo.toLowerCase()}: ${error.message}`);
+    } else {
+      toast.success(`${tipo} cadastrado com sucesso!`);
+      setUsuarios(prev => [...prev, newPessoa]);
+    }
   }
 
   if (loading || !projeto) return <div className="p-8">Carregando...</div>;
