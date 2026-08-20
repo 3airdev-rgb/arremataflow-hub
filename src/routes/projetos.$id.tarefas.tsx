@@ -527,6 +527,72 @@ function TarefasProjeto() {
                 </div>
               </div>
 
+               <div className="space-y-3 pt-2 border-t border-border">
+                <Label>Esta tarefa é uma reunião online?</Label>
+                <RadioGroup 
+                  value={isOnlineMeeting} 
+                  className="flex gap-4"
+                  onValueChange={setIsOnlineMeeting}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="sim" id="edit-r-sim" />
+                    <Label htmlFor="edit-r-sim" className="font-normal">Sim</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="nao" id="edit-r-nao" />
+                    <Label htmlFor="edit-r-nao" className="font-normal">Não</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {isOnlineMeeting === "sim" && (
+                <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border animate-in fade-in zoom-in duration-200">
+                  <h4 className="font-medium text-sm flex items-center gap-2">
+                    <Video className="size-4 text-primary" /> Informações da Reunião
+                  </h4>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-meeting_url" className="flex items-center gap-1">
+                      <LinkIcon className="size-3" /> Link da Reunião
+                    </Label>
+                    <Input 
+                      id="edit-meeting_url" 
+                      name="meeting_url" 
+                      type="url" 
+                      defaultValue={editingTask.meeting_url || ""}
+                      placeholder="https://meet.google.com/..." 
+                      required={isOnlineMeeting === "sim"}
+                    />
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-meeting_time" className="flex items-center gap-1">
+                        <Clock className="size-3" /> Horário
+                      </Label>
+                      <Input 
+                        id="edit-meeting_time" 
+                        name="meeting_time" 
+                        type="time" 
+                        defaultValue={editingTask.meeting_time || ""}
+                        required={isOnlineMeeting === "sim"}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1">
+                        <Users className="size-3" /> Participantes
+                      </Label>
+                      <MultiSelect
+                        options={participantesProjeto}
+                        selected={participantesSelecionados}
+                        onChange={setParticipantesSelecionados}
+                        placeholder={participantesProjeto.length === 0 ? "Nenhum participante disponível" : "Buscar participantes..."}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="edit-status">Status</Label>
                 <Select name="status" defaultValue={editingTask.status}>
