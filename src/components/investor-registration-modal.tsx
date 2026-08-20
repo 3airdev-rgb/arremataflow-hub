@@ -174,7 +174,7 @@ export function InvestorRegistrationModal({
         <DialogHeader>
           <DialogTitle>Cadastro de {type}</DialogTitle>
           <DialogDescription>
-            No cadastro de investidor, utilize o CPF ou CNPJ como ID principal, e sempre que um usuário tiver a intenção de cadastrar um CPF ou CNPJ que já esta na base de dados, abrir um pop-up de aviso com a informação de "Investidor já Cadastrado"
+            language selector
           </DialogDescription>
         </DialogHeader>
 
