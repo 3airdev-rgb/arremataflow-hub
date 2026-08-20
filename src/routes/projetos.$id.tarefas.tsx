@@ -362,7 +362,7 @@ function TarefasProjeto() {
     >
       <Dialog
         open={editOpen}
-        onOpenChange={(val) => {
+        onOpenChange={async (val) => {
           setEditOpen(val);
           if (val && editingTask) {
             const parts = editingTask.prazo?.split("/");
@@ -375,6 +375,22 @@ function TarefasProjeto() {
             } else {
               setEditDataSelecionada(undefined);
             }
+
+            // Carregar participantes vinculados à tarefa
+            setIsOnlineMeeting(editingTask.is_online_meeting ? "sim" : "nao");
+            const { data: pData } = await supabase
+              .from("task_meeting_participants")
+              .select("participant_id")
+              .eq("task_id", editingTask.id);
+            
+            if (pData) {
+              setParticipantesSelecionados(pData.map(p => p.participant_id).filter(Boolean) as string[]);
+            } else {
+              setParticipantesSelecionados([]);
+            }
+          } else if (!val) {
+            setIsOnlineMeeting("nao");
+            setParticipantesSelecionados([]);
           }
         }}
       >
@@ -402,13 +418,34 @@ function TarefasProjeto() {
                   meeting_time: fd.get("is_online_meeting") === "sim" ? String(fd.get("meeting_time")) : null,
                 };
 
-                try {
+                 try {
                   const { error } = await supabase
                     .from("tarefas")
                     .update(taskData)
                     .eq("id", editingTask.id);
 
                   if (error) throw error;
+
+                  // Atualizar participantes da reunião
+                  await supabase
+                    .from("task_meeting_participants")
+                    .delete()
+                    .eq("task_id", editingTask.id);
+
+                  if (taskData.is_online_meeting && participantesSelecionados.length > 0) {
+                    const participantData = participantesSelecionados.map(pid => {
+                      const p = participantesProjeto.find(opt => opt.value === pid);
+                      return {
+                        task_id: editingTask.id,
+                        participant_id: pid,
+                        participant_type: p?.type || "Vinculado",
+                      };
+                    });
+                    
+                    await supabase
+                      .from("task_meeting_participants")
+                      .insert(participantData);
+                  }
                   
                   toast.success("Tarefa atualizada!");
                   setEditOpen(false);
