@@ -331,7 +331,154 @@ function TarefasProjeto() {
         </Dialog>
       }
     >
-      {/* Edit Dialog Logic skipped for brevity in this replace, will ensure it works */}
+      <Dialog
+        open={editOpen}
+        onOpenChange={(val) => {
+          setEditOpen(val);
+          if (val && editingTask) {
+            const parts = editingTask.prazo?.split("/");
+            if (parts && parts.length === 3) {
+              const year = parts[2] ? parseInt(parts[2]) : 2026;
+              const month = parts[1] ? parseInt(parts[1]) - 1 : 0;
+              const day = parts[0] ? parseInt(parts[0]) : 1;
+              const d = new Date(year, month, day);
+              setEditDataSelecionada(d);
+            } else {
+              setEditDataSelecionada(undefined);
+            }
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl overflow-y-auto max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Editar tarefa</DialogTitle>
+            <DialogDescription>Altere as informações da tarefa selecionada.</DialogDescription>
+          </DialogHeader>
+          {editingTask && (
+            <form
+              className="space-y-4"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                
+                const taskData = {
+                  titulo: String(fd.get("titulo")),
+                  responsavel: String(fd.get("resp")),
+                  prazo: editDataSelecionada ? format(editDataSelecionada, "dd/MM/yyyy") : editingTask.prazo,
+                  category: String(fd.get("category")),
+                  status: fd.get("status") as StatusKey,
+                  descricao: String(fd.get("desc")),
+                  is_online_meeting: fd.get("is_online_meeting") === "sim",
+                  meeting_url: fd.get("is_online_meeting") === "sim" ? String(fd.get("meeting_url")) : null,
+                  meeting_time: fd.get("is_online_meeting") === "sim" ? String(fd.get("meeting_time")) : null,
+                };
+
+                try {
+                  const { error } = await supabase
+                    .from("tarefas")
+                    .update(taskData)
+                    .eq("id", editingTask.id);
+
+                  if (error) throw error;
+                  
+                  toast.success("Tarefa atualizada!");
+                  setEditOpen(false);
+                  loadData();
+                } catch (error) {
+                  console.error("Erro ao atualizar tarefa:", error);
+                  toast.error("Erro ao atualizar tarefa");
+                }
+              }}
+            >
+              <div className="space-y-2">
+                <Label htmlFor="edit-category">Categoria</Label>
+                <Select name="category" defaultValue={editingTask.category}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIAS.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-titulo">Título</Label>
+                <Input
+                  id="edit-titulo"
+                  name="titulo"
+                  defaultValue={editingTask.titulo}
+                  required
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-resp">Responsável</Label>
+                  <Input id="edit-resp" name="resp" defaultValue={editingTask.responsavel} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Prazo</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !editDataSelecionada && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {editDataSelecionada ? (
+                          format(editDataSelecionada, "dd/MM/yyyy")
+                        ) : (
+                          <span>Selecione uma data</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={editDataSelecionada}
+                        onSelect={setEditDataSelecionada}
+                        locale={ptBR}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-status">Status</Label>
+                <Select name="status" defaultValue={editingTask.status}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(statusLabels) as StatusKey[]).map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {statusLabels[s]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-desc">Descrição</Label>
+                <Textarea id="edit-desc" name="desc" defaultValue={editingTask.descricao} rows={3} />
+              </div>
+
+              <DialogFooter>
+                <Button type="submit">Salvar alterações</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
       
       <div className="surface-card">
         <div className="flex flex-wrap items-center gap-3 border-b border-border p-4">
