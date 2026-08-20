@@ -50,6 +50,14 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
   // Load data
   useEffect(() => {
     async function loadData() {
+      // Don't attempt to load from Supabase if the ID is not a valid UUID (e.g. mock IDs like "1", "2", "3")
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projetoId);
+      
+      if (!isUuid) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const { data: projData, error: projError } = await supabase
           .from("projetos")
@@ -104,6 +112,15 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
   const handleSave = async () => {
     setSalvando(true);
     try {
+      // Check if project is mock
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projetoId);
+      
+      if (!isUuid) {
+        toast.info("A persistência no banco de dados não está disponível para projetos de demonstração.");
+        setSalvando(false);
+        return;
+      }
+
       // Update projects table
       const { error: projError } = await supabase
         .from("projetos")
