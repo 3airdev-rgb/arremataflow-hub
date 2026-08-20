@@ -30,6 +30,14 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
 
   useEffect(() => {
     async function loadData() {
+      // Don't attempt to load from Supabase if the ID is not a valid UUID (e.g. mock IDs like "1", "2", "3")
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projetoId);
+      
+      if (!isUuid) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const { data, error } = await supabase
           .from("projetos")
@@ -63,6 +71,14 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
   const handleSave = async () => {
     setSalvando(true);
     try {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projetoId);
+      
+      if (!isUuid) {
+        toast.info("A persistência no banco de dados não está disponível para projetos de demonstração.");
+        setSalvando(false);
+        return;
+      }
+
       const { error } = await supabase
         .from("projetos")
         .update({
