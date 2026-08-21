@@ -586,12 +586,10 @@ function NovoProjeto() {
                   </div>
                   <div className="space-y-2">
                     <Label>Valor {formaPagamento === "parcelado" ? "Parcelado" : "Financiado"}</Label>
-                    <Input 
-                      placeholder="R$ 0,00" 
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0;
-                        setValorFinanciado(val);
-                      }}
+                    <CurrencyInput 
+                      value={valorFinanciado} 
+                      onValueChange={setValorFinanciado} 
+                      placeholder="R$ 0,00"
                     />
                   </div>
                   <div className="space-y-2">
