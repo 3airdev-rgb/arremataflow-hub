@@ -259,7 +259,7 @@ function FinanceiroProjeto() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Nova movimentação</DialogTitle>
-              <DialogDescription>O valor em nova movimentação também não está no padrão que havia solicitado anteriormente, formato de moeda padrão “R$” e o valor alinhado a direita, onde o usuário ao digitar 350, por exemplo, o campo já formate para “R$ 350,00”. Havia solicitado para revisar todo o projeto e todos os campos que são relacionados a valores, moeda, formatar em padrão unico. faça isso!</DialogDescription>
+              <DialogDescription>language selector</DialogDescription>
             </DialogHeader>
             <form
               className="space-y-4"
