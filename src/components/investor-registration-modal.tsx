@@ -174,7 +174,7 @@ export function InvestorRegistrationModal({
         <DialogHeader>
           <DialogTitle>Cadastro de {type}</DialogTitle>
           <DialogDescription>
-            Adicione um fluxo de registro de usuário com e-mail e senha conectado ao Supabase Auth.
+            Implemente um fluxo completo de registro de usuário com e-mail e senha no meu app.
           </DialogDescription>
         </DialogHeader>
 
