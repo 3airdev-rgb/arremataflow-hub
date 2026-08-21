@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState, useRef } from "react";
-import { Plus, Calculator, Paperclip, FileText, Trash2 } from "lucide-react";
+import { createFileRoute, useParams } from "@tanstack/react-router";
+import { useState, useRef, useEffect } from "react";
+import { Plus, Calculator, Paperclip, FileText, Trash2, AlertCircle } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -24,13 +24,28 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  receitas as receitasMock,
-  despesas as despesasMock,
   distribuicao,
   formatBRL,
-  type Movimentacao,
   categoriasDocumentos,
 } from "@/lib/mock-data";
+import { supabase } from "@/integrations/supabase/client";
+import { formatDocument, validateDocument } from "@/lib/utils-validation";
+import { type StatusKey } from "@/lib/mock-data";
+
+export type Movimentacao = {
+  id: string;
+  descricao: string;
+  document_holder_name?: string | null;
+  document_holder_type?: 'Origem' | 'Destinatário' | null;
+  document_holder_document?: string | null;
+  document_type?: 'CPF' | 'CNPJ' | null;
+  categoria: string;
+  data: string;
+  valor: number;
+  status: StatusKey;
+  comprovanteUrl?: string | null;
+  tipo?: 'receita' | 'despesa';
+};
 
 export const Route = createFileRoute("/projetos/$id/financeiro")({
   head: () => ({
@@ -87,6 +102,9 @@ function Tabela({
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {i.categoria} · {i.data}
+                  {i.document_holder_document && (
+                    <> · {i.document_holder_type}: {i.document_holder_document}</>
+                  )}
                 </p>
               </td>
               <td className="px-4 py-3">
@@ -114,14 +132,64 @@ function Tabela({
 }
 
 function FinanceiroProjeto() {
-  const [receitas, setReceitas] = useState(receitasMock);
-  const [despesas, setDespesas] = useState(despesasMock);
+  const { id: projetoId } = useParams({ from: "/projetos/$id/financeiro" });
+  const [receitas, setReceitas] = useState<Movimentacao[]>([]);
+  const [despesas, setDespesas] = useState<Movimentacao[]>([]);
   const [open, setOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [movParaExcluir, setMovParaExcluir] = useState<string | null>(null);
   const [calculado, setCalculado] = useState(false);
   const [arquivo, setArquivo] = useState<File | null>(null);
+  const [tipoMov, setTipoMov] = useState<"receita" | "despesa">("despesa");
+  const [documento, setDocumento] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    async function carregarMovimentacoes() {
+      if (!projetoId || projetoId.length < 10) return;
+
+      const { data, error } = await supabase
+        .from("movimentacoes_financeiras")
+        .select("*")
+        .eq("projeto_id", projetoId)
+        .order("data", { ascending: false });
+
+      if (error) {
+        console.error("Erro ao carregar movimentações:", error);
+        return;
+      }
+
+      const formatted: Movimentacao[] = data.map((m) => ({
+        id: m.id,
+        descricao: m.descricao,
+        categoria: m.categoria,
+        data: new Date(m.data).toLocaleDateString("pt-BR"),
+        valor: Number(m.valor),
+        status: m.status as StatusKey,
+        comprovanteUrl: m.comprovante_url ?? null,
+        document_holder_document: m.document_holder_document ?? null,
+        document_holder_type: m.document_holder_type as any,
+        document_type: m.document_type as any,
+      }));
+
+      setReceitas(formatted.filter((m) => m.tipo === "receita" || (data.find(d => d.id === m.id)?.tipo === "receita")));
+      setDespesas(formatted.filter((m) => m.tipo === "despesa" || (data.find(d => d.id === m.id)?.tipo === "despesa")));
+      
+      // Correcting the filter above since 'tipo' isn't in Movimentacao yet
+      const r: Movimentacao[] = [];
+      const d: Movimentacao[] = [];
+      data.forEach((m, idx) => {
+        const item = formatted[idx];
+        if (!item) return;
+        if (m.tipo === "receita") r.push(item);
+        else d.push(item);
+      });
+      setReceitas(r);
+      setDespesas(d);
+    }
+
+    carregarMovimentacoes();
+  }, [projetoId]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -149,8 +217,18 @@ function FinanceiroProjeto() {
     setDeleteOpen(true);
   };
 
-  const confirmarExclusao = (removerDoDoc = false) => {
+  const confirmarExclusao = async (removerDoDoc = false) => {
     if (!movParaExcluir) return;
+
+    const { error } = await supabase
+      .from("movimentacoes_financeiras")
+      .delete()
+      .eq("id", movParaExcluir);
+
+    if (error) {
+      toast.error("Erro ao excluir movimentação.");
+      return;
+    }
 
     setReceitas((prev) => prev.filter((m) => m.id !== movParaExcluir));
     setDespesas((prev) => prev.filter((m) => m.id !== movParaExcluir));
@@ -174,7 +252,13 @@ function FinanceiroProjeto() {
       title="Financeiro do Projeto"
       subtitle="Receitas, despesas, tributos e distribuição"
       actions={
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(val) => {
+          setOpen(val);
+          if (!val) {
+            setDocumento("");
+            setArquivo(null);
+          }
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="size-4" /> Nova movimentação
@@ -183,44 +267,269 @@ function FinanceiroProjeto() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Nova movimentação</DialogTitle>
-              <DialogDescription>Registre uma receita ou despesa do projeto.</DialogDescription>
+              <DialogDescription>PRD – Inclusão do Campo "Origem / Destinatário – CNPJ ou CPF" na Nova Movimentação Financeira
+
+Objetivo
+
+Atualizar o modal Nova Movimentação para permitir o registro opcional da identificação da pessoa física ou jurídica relacionada à movimentação financeira. O campo deverá alterar dinamicamente sua nomenclatura conforme o tipo da movimentação (Receita ou Despesa), mantendo uma experiência intuitiva e padronizada.
+
+A implementação deverá preservar a arquitetura atual da aplicação, reutilizar componentes existentes e manter a separação entre interface e lógica de negócio.
+
+1. Novo Campo
+
+Adicionar um novo campo imediatamente abaixo do campo Descrição.
+
+O campo deverá ser exibido dinamicamente conforme o valor selecionado no campo Tipo.
+
+2. Quando o Tipo for "Despesa"
+
+Se o usuário selecionar:
+
+Tipo = Despesa
+
+Exibir o seguinte campo:
+
+Destinatário – CNPJ ou CPF
+
+Tipo:
+
+Campo de texto com máscara dinâmica.
+
+Descrição:
+
+Permitir informar o CPF ou CNPJ do destinatário do pagamento.
+
+O preenchimento será opcional.
+
+3. Quando o Tipo for "Receita"
+
+Se o usuário selecionar:
+
+Tipo = Receita
+
+Exibir o seguinte campo:
+
+Origem – CNPJ ou CPF
+
+Tipo:
+
+Campo de texto com máscara dinâmica.
+
+Descrição:
+
+Permitir informar o CPF ou CNPJ da pessoa física ou jurídica responsável pela origem da receita.
+
+O preenchimento será opcional.
+
+4. Máscara Inteligente
+
+O campo deverá reconhecer automaticamente o tipo de documento conforme a quantidade de dígitos informados.
+
+Aplicar automaticamente:
+
+CPF
+
+Formato:
+
+000.000.000-00
+
+CNPJ
+
+Formato:
+
+00.000.000/0000-00
+
+A troca entre as máscaras deverá ocorrer automaticamente durante a digitação.
+
+5. Validações
+
+O campo:
+
+não será obrigatório;
+
+aceitará apenas números durante a digitação, aplicando a máscara automaticamente;
+
+deverá validar o formato do documento informado (CPF ou CNPJ);
+
+deverá exibir mensagem de erro quando o formato for inválido;
+
+permitirá que o usuário deixe o campo em branco.
+
+Caso informado, somente documentos válidos poderão ser gravados.
+
+6. Layout
+
+A organização do formulário deverá ficar da seguinte forma:
+
+Linha 1
+
+Tipo
+
+Linha 2
+
+Descrição
+
+Linha 3
+
+Destinatário – CNPJ ou CPF (quando Tipo = Despesa)
+
+ou
+
+Origem – CNPJ ou CPF (quando Tipo = Receita)
+
+Linha 4
+
+Categoria
+
+Valor (R$)
+
+Linha 5
+
+Comprovante
+
+Linha 6
+
+Botão Registrar
+
+A alteração deverá manter o alinhamento e o padrão visual adotado no restante do sistema.
+
+7. Persistência
+
+Adicionar os seguintes campos ao modelo de dados da movimentação financeira:
+
+document_holder_name (opcional para uso futuro)
+
+document_holder_type (Origem ou Destinatário)
+
+document_holder_document (CPF ou CNPJ)
+
+O sistema deverá gravar automaticamente:
+
+o tipo do documento (CPF ou CNPJ);
+
+o valor informado;
+
+o tipo da movimentação (Origem ou Destinatário).
+
+8. Compatibilidade
+
+O novo campo deverá estar disponível em:
+
+Cadastro de Nova Movimentação;
+
+Edição de Movimentação;
+
+Visualização da Movimentação;
+
+Relatórios Financeiros;
+
+Exportação para PDF e Excel (quando aplicável).
+
+9. Regras de Negócio
+
+O campo não interfere nos cálculos financeiros.
+
+Não altera receitas, despesas ou saldo do projeto.
+
+Serve exclusivamente para identificação da origem ou do destinatário da movimentação financeira.
+
+Pemanecerá disponível para futuras integrações com emissão de recibos, notas fiscais e conciliação financeira.
+
+10. Critérios de Aceitação
+
+A implementação será considerada concluída quando:
+
+O campo for exibido logo abaixo de Descrição.
+
+Ao selecionar Despesa, o campo seja identificado como Destinatário – CNPJ ou CPF.
+
+Ao selecionar Receita, o campo seja identificado como Origem – CNPJ ou CPF.
+
+O sistema aplique automaticamente a máscara de CPF ou CNPJ conforme a quantidade de dígitos digitados.
+
+O campo seja opcional.
+
+Apenas documentos com formato válido possam ser salvos quando informados.
+
+A interface permaneça alinhada ao Design System do ArremataFlow.
+
+A implementação reutilize componentes existentes, mantenha a separação entre interface e lógica de negócio, preserve a arquitetura atual do sistema e não gere regressões nas funcionalidades já implementadas.</DialogDescription>
             </DialogHeader>
             <form
               className="space-y-4"
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 const fd = new FormData(e.currentTarget);
                 const desc = String(fd.get("descricao") || "Movimentação");
                 const cat = String(fd.get("categoria") || "");
                 const val = Number(fd.get("valor") || 0);
-                const tipo = fd.get("tipo");
+                const tipo = fd.get("tipo") as "receita" | "despesa";
+                const doc = fd.get("documento") as string;
+
+                if (doc && !validateDocument(doc)) {
+                  toast.error("Documento (CPF/CNPJ) inválido.");
+                  return;
+                }
+
+                const docDigits = doc.replace(/\D/g, "");
+                const docType = docDigits.length === 11 ? "CPF" : "CNPJ";
+                const holderType = tipo === "receita" ? "Origem" : "Destinatário";
+
+                const { data: userResponse } = await supabase.auth.getUser();
+                const userId = userResponse.user?.id || null;
+
+                const { data, error } = await supabase
+                  .from("movimentacoes_financeiras")
+                  .insert({
+                    projeto_id: projetoId,
+                    tipo,
+                    descricao: desc,
+                    categoria: cat,
+                    valor: val,
+                    document_holder_document: doc || null,
+                    document_type: doc ? docType : null,
+                    document_holder_type: holderType,
+                    user_id: userId,
+                    status: "pendente",
+                  })
+                  .select()
+                  .single();
+
+                if (error) {
+                  toast.error("Erro ao registrar movimentação.");
+                  console.error(error);
+                  return;
+                }
 
                 const nova: Movimentacao = {
-                  id: `n${Date.now()}`,
+                  id: data.id,
                   descricao: desc,
                   categoria: cat,
                   data: new Date().toLocaleDateString("pt-BR"),
                   valor: val,
                   status: "pendente",
-                  comprovanteUrl: arquivo ? URL.createObjectURL(arquivo) : undefined,
+                  comprovanteUrl: arquivo ? URL.createObjectURL(arquivo) : null,
+                  document_holder_document: doc || null,
+                  document_holder_type: holderType,
+                  document_type: doc ? (docType as "CPF" | "CNPJ") : null,
                 };
 
                 if (tipo === "receita") setReceitas((p) => [nova, ...p]);
                 else setDespesas((p) => [nova, ...p]);
 
-                if (arquivo) {
-                  // Simulação de registro automático na gestão documental
-                  toast.info(`Comprovante vinculado à Gestão Documental na categoria ${cat}.`);
-                }
-
                 setOpen(false);
                 setArquivo(null);
+                setDocumento("");
                 toast.success("Movimentação registrada!");
               }}
             >
               <div className="space-y-2">
                 <Label htmlFor="tipo">Tipo</Label>
-                <Select name="tipo" defaultValue="despesa">
+                <Select 
+                  name="tipo" 
+                  defaultValue="despesa"
+                  onValueChange={(v) => setTipoMov(v as any)}
+                >
                   <SelectTrigger id="tipo">
                     <SelectValue />
                   </SelectTrigger>
@@ -234,6 +543,28 @@ function FinanceiroProjeto() {
                 <Label htmlFor="descricao">Descrição</Label>
                 <Input id="descricao" name="descricao" required />
               </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="documento">
+                  {tipoMov === "receita" ? "Origem – CNPJ ou CPF" : "Destinatário – CNPJ ou CPF"}
+                </Label>
+                <div className="relative">
+                  <Input 
+                    id="documento" 
+                    name="documento" 
+                    value={documento}
+                    onChange={(e) => setDocumento(formatDocument(e.target.value))}
+                    placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  />
+                  {documento && !validateDocument(documento) && (
+                    <AlertCircle className="absolute right-3 top-2.5 size-4 text-destructive" />
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  O preenchimento será opcional. Documentos serão validados automaticamente.
+                </p>
+              </div>
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="categoria">Categoria</Label>
