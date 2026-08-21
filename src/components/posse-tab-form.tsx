@@ -223,13 +223,10 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
           <div className="grid gap-4">
             <div className="space-y-2">
               <Label>Custas Processuais</Label>
-              <div className="relative">
-                <Input 
-                  className="text-right"
-                  value={formatCurrency(formData.legal_costs)} 
-                  onChange={(e) => setFormData(prev => ({ ...prev, legal_costs: parseCurrency(e.target.value) }))}
-                />
-              </div>
+              <CurrencyInput 
+                value={formData.legal_costs} 
+                onValueChange={(val) => setFormData(prev => ({ ...prev, legal_costs: val }))}
+              />
             </div>
             
             <div className="space-y-2">
