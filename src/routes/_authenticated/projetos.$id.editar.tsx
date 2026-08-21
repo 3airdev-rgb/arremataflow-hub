@@ -513,7 +513,7 @@ function EditarProjeto() {
                   <Input name="credor" defaultValue={projeto.credor} placeholder="Credor" />
                   <div className="space-y-1">
                     <Label className="text-[10px]">Valor</Label>
-                    <Input defaultValue={valorFinanciado} onChange={(e) => setValorFinanciado(parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0)} />
+                    <CurrencyInput value={valorFinanciado} onValueChange={setValorFinanciado} />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px]">Parcelas</Label>
