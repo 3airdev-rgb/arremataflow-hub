@@ -30,6 +30,7 @@ import {
 } from "@/lib/mock-data";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDocument, validateDocument } from "@/lib/utils-validation";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { type StatusKey } from "@/lib/mock-data";
 
 export type Movimentacao = {
