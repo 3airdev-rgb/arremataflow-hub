@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { InvestorRegistrationModal, type UnifiedEntityData } from "@/components/investor-registration-modal";
 import { Calendar } from "@/components/ui/calendar";
 import { ImageManagementSection, type ProjetoFoto } from "@/components/image-management-section";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export const Route = createFileRoute("/_authenticated/projetos/$id/editar")({
