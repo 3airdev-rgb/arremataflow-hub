@@ -274,248 +274,248 @@ function FinanceiroProjeto() {
                 <Plus className="size-4" /> Nova movimentação
               </Button>
             </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Nova movimentação</DialogTitle>
-              <DialogDescription>
-                For the code present, I get the error below.
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>Nova movimentação</DialogTitle>
+                <DialogDescription className="whitespace-pre-wrap font-mono text-[10px]">
+                  {`For the code present, I get the error below.
 
-                Please think step-by-step in order to resolve it.
-                {"```"}
-                # Error number 1:
-                #################
+Please think step-by-step in order to resolve it.
+\`\`\`
+# Error number 1:
+#################
 
-                The app returned 500 while handling GET /projetos/3/financeiro. The error was handled by a route or error boundary, so no stack was captured — check the failing loader/route code and the dev server output.
+The app returned 500 while handling GET /projetos/3/financeiro. The error was handled by a route or error boundary, so no stack was captured — check the failing loader/route code and the dev server output.
 
-                {"{"}
-                  "timestamp": 1787320228104,
-                  "error_type": "RUNTIME_ERROR",
-                  "filename": "Unknown file",
-                  "lineno": 0,
-                  "colno": 0,
-                  "stack": "Unavailable",
-                  "has_blank_screen": true
-                {"}"}
+{
+  "timestamp": 1787320228104,
+  "error_type": "RUNTIME_ERROR",
+  "filename": "Unknown file",
+  "lineno": 0,
+  "colno": 0,
+  "stack": "Unavailable",
+  "has_blank_screen": true
+}
 
-                # Error number 2:
-                #################
+# Error number 2:
+#################
 
-                The app returned 500 while handling GET /. The error was handled by a route or error boundary, so no stack was captured — check the failing loader/route code and the dev server output.
+The app returned 500 while handling GET /. The error was handled by a route or error boundary, so no stack was captured — check the failing loader/route code and the dev server output.
 
-                {"{"}
-                  "timestamp": 1787320228104,
-                  "error_type": "RUNTIME_ERROR",
-                  "filename": "Unknown file",
-                  "lineno": 0,
-                  "colno": 0,
-                  "stack": "Unavailable",
-                  "has_blank_screen": true
-                {"}"}
+{
+  "timestamp": 1787320228104,
+  "error_type": "RUNTIME_ERROR",
+  "filename": "Unknown file",
+  "lineno": 0,
+  "colno": 0,
+  "stack": "Unavailable",
+  "has_blank_screen": true
+}
 
-                # Error number 3:
-                #################
+# Error number 3:
+#################
 
-                Error: Transform failed with 1 error:
+Error: Transform failed with 1 error:
 
-                [PARSE_ERROR] Unexpected token. Did you mean {"{}"}'{"}"}' or &rbrace;?
-                     ╭─[ src/routes/projetos.$id.financeiro.tsx:461:7 ]
-                     │
-                 461 │       {"}"}
-                     │       │ 
-                     │       ╰─ 
-                ─────╯
+[PARSE_ERROR] Unexpected token. Did you mean {'}'} or &rbrace;?
+     ╭─[ src/routes/projetos.$id.financeiro.tsx:461:7 ]
+     │
+ 461 │       }
+     │       │ 
+     │       ╰─ 
+─────╯
 
 
-                {"{"}
-                  "timestamp": 1787320233922,
-                  "error_type": "RUNTIME_ERROR",
-                  "filename": "Unknown file",
-                  "lineno": 0,
-                  "colno": 0,
-                  "stack": "Error: Transform failed with 1 error:\n\n\u001b[31m[PARSE_ERROR] \u001b[0mUnexpected token. Did you mean `{'}'}` or `&rbrace;`?\n     \u001b[38;5;246m╭\u001b[0m\u001b[38;5;246m─\u001b[0m\u001b[38;5;246m[\u001b[0m src/routes/projetos.$id.financeiro.tsx:461:7 \u001b[38;5;246m]\u001b[0m\n     \u001b[38;5;246m│\u001b[0m\n \u001b[38;5;246m461 │\u001b[0m \u001b[38;5;249m \u001b[0m\u001b[38;5;249m \u001b[0m\u001b[38;5;249m \u001b[0m\u001b[38;5;249m \u001b[0m\u001b[38;5;249m \u001b[0m\u001b[38;5;249m \u001b[0m\u001b[38;5;249m}\u001b[0m\n \u001b[38;5;240m    │\u001b[0m       │ \n \u001b[38;5;240m    │\u001b[0m       ╰─ \n\u001b[38;5;246m─────╯\u001b[0m\n\n    at transformWithOxc (file:///dev-server/node_modules/vite/dist/node/chunks/node.js:4090:19)\n    at TransformPluginContext.transform (file:///dev-server/node_modules/vite/dist/node/chunks/node.js:4161:26)\n    at EnvironmentPluginContainer.transform (file:///dev-server/node_modules/vite/dist/node/chunks/node.js:30796:51)\n    at async loadAndTransform (file:///dev-server/node_modules/vite/dist/node/chunks/node.js:20594:26)",
-                  "has_blank_screen": true
-                {"}"}
-                {"```"}
-              </DialogDescription>
-            </DialogHeader>
-            <form
-              className="space-y-4"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const fd = new FormData(e.currentTarget);
-                const desc = String(fd.get("descricao") || "Movimentação");
-                const cat = String(fd.get("categoria") || "");
-                const val = valorMov;
-                const tipo = fd.get("tipo") as "receita" | "despesa";
-                const doc = fd.get("documento") as string;
+{
+  "timestamp": 1787320233922,
+  "error_type": "RUNTIME_ERROR",
+  "filename": "Unknown file",
+  "lineno": 0,
+  "colno": 0,
+  "stack": "Error: Transform failed with 1 error:\\n\\n\\u001b[31m[PARSE_ERROR] \\u001b[0mUnexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?\\n     \\u001b[38;5;246m╭\\u001b[0m\\u001b[38;5;246m─\\u001b[0m\\u001b[38;5;246m[\\u001b[0m src/routes/projetos.$id.financeiro.tsx:461:7 \\u001b[38;5;246m]\\u001b[0m\\n     \\u001b[38;5;246m│\\u001b[0m\\n \\u001b[38;5;246m461 │\\u001b[0m \\u001b[38;5;249m \\u001b[0m\\u001b[38;5;249m \\u001b[0m\\u001b[38;5;249m \\u001b[0m\\u001b[38;5;249m \\u001b[0m\\u001b[38;5;249m \\u001b[0m\\u001b[38;5;249m \\u001b[0m\\u001b[38;5;249m}\\u001b[0m\\n \\u001b[38;5;240m    │\\u001b[0m       │ \\n \\u001b[38;5;240m    │\\u001b[0m       ╰─ \\n\\u001b[38;5;246m─────╯\\u001b[0m\\n\\n    at transformWithOxc (file:///dev-server/node_modules/vite/dist/node/chunks/node.js:4090:19)\\n    at TransformPluginContext.transform (file:///dev-server/node_modules/vite/dist/node/chunks/node.js:4161:26)\\n    at EnvironmentPluginContainer.transform (file:///dev-server/node_modules/vite/dist/node/chunks/node.js:30796:51)\\n    at async loadAndTransform (file:///dev-server/node_modules/vite/dist/node/chunks/node.js:20594:26)",
+  "has_blank_screen": true
+}
+\`\`\``}
+                </DialogDescription>
+              </DialogHeader>
+              <form
+                className="space-y-4"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const fd = new FormData(e.currentTarget);
+                  const desc = String(fd.get("descricao") || "Movimentação");
+                  const cat = String(fd.get("categoria") || "");
+                  const val = valorMov;
+                  const tipo = fd.get("tipo") as "receita" | "despesa";
+                  const doc = fd.get("documento") as string;
 
-                if (doc && !validateDocument(doc)) {
-                  toast.error("Documento (CPF/CNPJ) inválido.");
-                  return;
-                }
+                  if (doc && !validateDocument(doc)) {
+                    toast.error("Documento (CPF/CNPJ) inválido.");
+                    return;
+                  }
 
-                const docDigits = doc.replace(/\D/g, "");
-                const docType = docDigits.length === 11 ? "CPF" : "CNPJ";
-                const holderType = tipo === "receita" ? "Origem" : "Destinatário";
+                  const docDigits = doc.replace(/\D/g, "");
+                  const docType = docDigits.length === 11 ? "CPF" : "CNPJ";
+                  const holderType = tipo === "receita" ? "Origem" : "Destinatário";
 
-                const { data: userResponse } = await supabase.auth.getUser();
-                const userId = userResponse.user?.id || null;
+                  const { data: userResponse } = await supabase.auth.getUser();
+                  const userId = userResponse.user?.id || null;
 
-                const { data, error } = await supabase
-                  .from("movimentacoes_financeiras")
-                  .insert({
-                    projeto_id: projetoId,
-                    tipo,
+                  const { data, error } = await supabase
+                    .from("movimentacoes_financeiras")
+                    .insert({
+                      projeto_id: projetoId,
+                      tipo,
+                      descricao: desc,
+                      categoria: cat,
+                      valor: val,
+                      document_holder_document: doc || null,
+                      document_type: doc ? docType : null,
+                      document_holder_type: holderType,
+                      user_id: userId,
+                      status: "pendente",
+                    })
+                    .select()
+                    .single();
+
+                  if (error) {
+                    toast.error("Erro ao registrar movimentação.");
+                    console.error(error);
+                    return;
+                  }
+
+                  const nova: Movimentacao = {
+                    id: data.id,
                     descricao: desc,
                     categoria: cat,
+                    data: new Date().toLocaleDateString("pt-BR"),
                     valor: val,
-                    document_holder_document: doc || null,
-                    document_type: doc ? docType : null,
-                    document_holder_type: holderType,
-                    user_id: userId,
                     status: "pendente",
-                  })
-                  .select()
-                  .single();
+                    comprovanteUrl: arquivo ? URL.createObjectURL(arquivo) : null,
+                    document_holder_document: doc || null,
+                    document_holder_type: holderType,
+                    document_type: doc ? (docType as "CPF" | "CNPJ") : null,
+                    tipo: tipo,
+                  };
 
-                if (error) {
-                  toast.error("Erro ao registrar movimentação.");
-                  console.error(error);
-                  return;
-                }
+                  if (tipo === "receita") setReceitas((p) => [nova, ...p]);
+                  else setDespesas((p) => [nova, ...p]);
 
-                const nova: Movimentacao = {
-                  id: data.id,
-                  descricao: desc,
-                  categoria: cat,
-                  data: new Date().toLocaleDateString("pt-BR"),
-                  valor: val,
-                  status: "pendente",
-                  comprovanteUrl: arquivo ? URL.createObjectURL(arquivo) : null,
-                  document_holder_document: doc || null,
-                  document_holder_type: holderType,
-                  document_type: doc ? (docType as "CPF" | "CNPJ") : null,
-                  tipo: tipo,
-                };
-
-                if (tipo === "receita") setReceitas((p) => [nova, ...p]);
-                else setDespesas((p) => [nova, ...p]);
-
-                setOpen(false);
-                setArquivo(null);
-                setDocumento("");
-                setValorMov(0);
-                toast.success("Movimentação registrada!");
-              }}
-            >
-              <div className="space-y-2">
-                <Label htmlFor="tipo">Tipo</Label>
-                <Select 
-                  name="tipo" 
-                  defaultValue="despesa"
-                  onValueChange={(v) => setTipoMov(v as any)}
-                >
-                  <SelectTrigger id="tipo">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="receita">Receita</SelectItem>
-                    <SelectItem value="despesa">Despesa</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="descricao">Descrição</Label>
-                <Input id="descricao" name="descricao" required />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="documento">
-                  {tipoMov === "receita" ? "Origem – CNPJ ou CPF" : "Destinatário – CNPJ ou CPF"}
-                </Label>
-                <div className="relative">
-                  <Input 
-                    id="documento" 
-                    name="documento" 
-                    value={documento}
-                    onChange={(e) => setDocumento(formatDocument(e.target.value))}
-                    placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                  />
-                  {documento && !validateDocument(documento) && (
-                    <AlertCircle className="absolute right-3 top-2.5 size-4 text-destructive" />
-                  )}
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  O preenchimento será opcional. Documentos serão validados automaticamente.
-                </p>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
+                  setOpen(false);
+                  setArquivo(null);
+                  setDocumento("");
+                  setValorMov(0);
+                  toast.success("Movimentação registrada!");
+                }}
+              >
                 <div className="space-y-2">
-                  <Label htmlFor="categoria">Categoria</Label>
-                  <Select name="categoria" required>
-                    <SelectTrigger id="categoria">
-                      <SelectValue placeholder="Selecione..." />
+                  <Label htmlFor="tipo">Tipo</Label>
+                  <Select 
+                    name="tipo" 
+                    defaultValue="despesa"
+                    onValueChange={(v) => setTipoMov(v as any)}
+                  >
+                    <SelectTrigger id="tipo">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {categoriasDocumentos.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="receita">Receita</SelectItem>
+                      <SelectItem value="despesa">Despesa</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="valor">Valor (R$)</Label>
-                  <CurrencyInput 
-                    id="valor" 
-                    value={valorMov} 
-                    onValueChange={setValorMov} 
-                    required 
-                  />
+                  <Label htmlFor="descricao">Descrição</Label>
+                  <Input id="descricao" name="descricao" required />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Comprovante</Label>
-                <div className="flex items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full justify-start gap-2"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Paperclip className="size-4" />
-                    {arquivo ? arquivo.name : "Anexar comprovante"}
-                  </Button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept=".pdf,.jpg,.jpeg,.png,.webp"
-                    onChange={handleFileChange}
-                  />
-                  {arquivo && (
+                
+                <div className="space-y-2">
+                  <Label htmlFor="documento">
+                    {tipoMov === "receita" ? "Origem – CNPJ ou CPF" : "Destinatário – CNPJ ou CPF"}
+                  </Label>
+                  <div className="relative">
+                    <Input 
+                      id="documento" 
+                      name="documento" 
+                      value={documento}
+                      onChange={(e) => setDocumento(formatDocument(e.target.value))}
+                      placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                    />
+                    {documento && !validateDocument(documento) && (
+                      <AlertCircle className="absolute right-3 top-2.5 size-4 text-destructive" />
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    O preenchimento será opcional. Documentos serão validados automaticamente.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="categoria">Categoria</Label>
+                    <Select name="categoria" required>
+                      <SelectTrigger id="categoria">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categoriasDocumentos.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="valor">Valor (R$)</Label>
+                    <CurrencyInput 
+                      id="valor" 
+                      value={valorMov} 
+                      onValueChange={setValorMov} 
+                      required 
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Comprovante</Label>
+                  <div className="flex items-center gap-3">
                     <Button
                       type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive"
-                      onClick={() => setArquivo(null)}
+                      variant="outline"
+                      className="w-full justify-start gap-2"
+                      onClick={() => fileInputRef.current?.click()}
                     >
-                      <Trash2 className="size-4" />
+                      <Paperclip className="size-4" />
+                      {arquivo ? arquivo.name : "Anexar comprovante"}
                     </Button>
-                  )}
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp"
+                      onChange={handleFileChange}
+                    />
+                    {arquivo && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive"
+                        onClick={() => setArquivo(null)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    PDF, JPG, PNG ou WEBP até 2MB.
+                  </p>
                 </div>
-                <p className="text-[10px] text-muted-foreground">
-                  PDF, JPG, PNG ou WEBP até 2MB.
-                </p>
-              </div>
-              <DialogFooter>
-                <Button type="submit">Registrar</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
+                <DialogFooter>
+                  <Button type="submit">Registrar</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
           </Dialog>
         </div>
       }
