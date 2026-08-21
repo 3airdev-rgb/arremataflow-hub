@@ -165,9 +165,9 @@ function FinanceiroProjeto() {
         categoria: m.categoria,
         data: new Date(m.data).toLocaleDateString("pt-BR"),
         valor: Number(m.valor),
-        status: m.status as any,
-        comprovanteUrl: m.comprovante_url || undefined,
-        document_holder_document: m.document_holder_document || undefined,
+        status: m.status as StatusKey,
+        comprovanteUrl: m.comprovante_url ?? null,
+        document_holder_document: m.document_holder_document ?? null,
         document_holder_type: m.document_holder_type as any,
         document_type: m.document_type as any,
       }));
