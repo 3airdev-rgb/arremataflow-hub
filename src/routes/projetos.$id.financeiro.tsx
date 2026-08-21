@@ -1,6 +1,6 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { Plus, Calculator, Paperclip, FileText, Trash2, AlertCircle } from "lucide-react";
+import { Plus, Calculator, Paperclip, FileText, Trash2, AlertCircle, DollarSign } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ import {
 } from "@/lib/mock-data";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDocument, validateDocument } from "@/lib/utils-validation";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { type StatusKey } from "@/lib/mock-data";
 
 export type Movimentacao = {
@@ -142,6 +143,7 @@ function FinanceiroProjeto() {
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [tipoMov, setTipoMov] = useState<"receita" | "despesa">("despesa");
   const [documento, setDocumento] = useState("");
+  const [valorMov, setValorMov] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -246,6 +248,7 @@ function FinanceiroProjeto() {
           if (!val) {
             setDocumento("");
             setArquivo(null);
+            setValorMov(0);
           }
         }}>
           <DialogTrigger asChild>
@@ -256,7 +259,7 @@ function FinanceiroProjeto() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Nova movimentação</DialogTitle>
-              <DialogDescription>veja o que aparece ao clicar em "nova movimentação" esta aparecendo a descrição. tem que corrigir este erro</DialogDescription>
+              <DialogDescription>O valor em nova movimentação também não está no padrão que havia solicitado anteriormente, formato de moeda padrão “R$” e o valor alinhado a direita, onde o usuário ao digitar 350, por exemplo, o campo já formate para “R$ 350,00”. Havia solicitado para revisar todo o projeto e todos os campos que são relacionados a valores, moeda, formatar em padrão unico. faça isso!</DialogDescription>
             </DialogHeader>
             <form
               className="space-y-4"
@@ -265,7 +268,7 @@ function FinanceiroProjeto() {
                 const fd = new FormData(e.currentTarget);
                 const desc = String(fd.get("descricao") || "Movimentação");
                 const cat = String(fd.get("categoria") || "");
-                const val = Number(fd.get("valor") || 0);
+                const val = valorMov;
                 const tipo = fd.get("tipo") as "receita" | "despesa";
                 const doc = fd.get("documento") as string;
 
@@ -324,6 +327,7 @@ function FinanceiroProjeto() {
                 setOpen(false);
                 setArquivo(null);
                 setDocumento("");
+                setValorMov(0);
                 toast.success("Movimentação registrada!");
               }}
             >
@@ -387,7 +391,12 @@ function FinanceiroProjeto() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="valor">Valor (R$)</Label>
-                  <Input id="valor" name="valor" type="number" step="0.01" required />
+                  <CurrencyInput 
+                    id="valor" 
+                    value={valorMov} 
+                    onValueChange={setValorMov} 
+                    required 
+                  />
                 </div>
               </div>
               <div className="space-y-2">

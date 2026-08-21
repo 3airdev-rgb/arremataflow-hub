@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Plus, Trash2, FileText, CalendarIcon, Info, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -308,16 +309,10 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
             </div>
             <div className="space-y-2">
               <Label>Valor do IPTU</Label>
-              <div className="relative">
-                <Input 
-                  className="text-right"
-                  value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.iptu_valor)} 
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, "");
-                    setFormData(prev => ({ ...prev, iptu_valor: Number(val) / 100 }));
-                  }}
-                />
-              </div>
+              <CurrencyInput 
+                value={formData.iptu_valor} 
+                onValueChange={(val) => setFormData(prev => ({ ...prev, iptu_valor: val }))}
+              />
             </div>
             <div className="space-y-2">
               <Label>Transferência Cadastral</Label>
@@ -339,16 +334,11 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
             <div className="space-y-2">
               <Label>Valor do ITBI</Label>
               <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Input 
-                    className="text-right"
-                    value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.itbi_valor)} 
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, "");
-                      setFormData(prev => ({ ...prev, itbi_valor: Number(val) / 100 }));
-                    }}
-                  />
-                </div>
+                <CurrencyInput 
+                  className="flex-1"
+                  value={formData.itbi_valor} 
+                  onValueChange={(val) => setFormData(prev => ({ ...prev, itbi_valor: val }))}
+                />
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -387,16 +377,11 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
               <div className="space-y-2">
                 <Label>Débitos Anteriores</Label>
                 <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Input 
-                      className="text-right"
-                      value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.condominio_debitos_anteriores)} 
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, "");
-                        setFormData(prev => ({ ...prev, condominio_debitos_anteriores: Number(val) / 100 }));
-                      }}
-                    />
-                  </div>
+                  <CurrencyInput 
+                    className="flex-1"
+                    value={formData.condominio_debitos_anteriores} 
+                    onValueChange={(val) => setFormData(prev => ({ ...prev, condominio_debitos_anteriores: val }))}
+                  />
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -450,16 +435,10 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
               </div>
               <div className="space-y-2">
                 <Label>Taxa Mensal</Label>
-                <div className="relative">
-                  <Input 
-                    className="text-right"
-                    value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.condominio_taxa_mensal)} 
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, "");
-                      setFormData(prev => ({ ...prev, condominio_taxa_mensal: Number(val) / 100 }));
-                    }}
-                  />
-                </div>
+                <CurrencyInput 
+                  value={formData.condominio_taxa_mensal} 
+                  onValueChange={(val) => setFormData(prev => ({ ...prev, condominio_taxa_mensal: val }))}
+                />
               </div>
             </div>
           ) : (

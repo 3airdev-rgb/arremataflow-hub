@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { InvestorRegistrationModal, type UnifiedEntityData } from "@/components/investor-registration-modal";
 import { Calendar } from "@/components/ui/calendar";
 import { ImageManagementSection, type ProjetoFoto } from "@/components/image-management-section";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export const Route = createFileRoute("/_authenticated/projetos/$id/editar")({
@@ -419,10 +420,10 @@ function EditarProjeto() {
             </div>
             <div className="space-y-2">
               <Label>Valor de aquisição</Label>
-              <Input 
-                placeholder="R$ 0,00" 
-                defaultValue={valorAquisicao}
-                onChange={(e) => setValorAquisicao(parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0)}
+              <CurrencyInput 
+                value={valorAquisicao} 
+                onValueChange={setValorAquisicao} 
+                placeholder="R$ 0,00"
               />
             </div>
             <div className="space-y-2">
@@ -512,7 +513,7 @@ function EditarProjeto() {
                   <Input name="credor" defaultValue={projeto.credor} placeholder="Credor" />
                   <div className="space-y-1">
                     <Label className="text-[10px]">Valor</Label>
-                    <Input defaultValue={valorFinanciado} onChange={(e) => setValorFinanciado(parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0)} />
+                    <CurrencyInput value={valorFinanciado} onValueChange={setValorFinanciado} />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px]">Parcelas</Label>

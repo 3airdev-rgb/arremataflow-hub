@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { projetos, usuarios, formatBRL } from "@/lib/mock-data";
 import { InvestorRegistrationModal, type UnifiedEntityData } from "@/components/investor-registration-modal";
 import { ImageManagementSection, type ProjetoFoto } from "@/components/image-management-section";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/projetos/novo")({
@@ -448,13 +449,11 @@ function NovoProjeto() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="valor">Valor de aquisição</Label>
-              <Input 
+              <CurrencyInput 
                 id="valor" 
-                placeholder="R$ 0,00" 
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0;
-                  setValorAquisicao(val);
-                }}
+                value={valorAquisicao} 
+                onValueChange={setValorAquisicao} 
+                placeholder="R$ 0,00"
               />
             </div>
             <div className="space-y-2">
@@ -587,12 +586,10 @@ function NovoProjeto() {
                   </div>
                   <div className="space-y-2">
                     <Label>Valor {formaPagamento === "parcelado" ? "Parcelado" : "Financiado"}</Label>
-                    <Input 
-                      placeholder="R$ 0,00" 
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0;
-                        setValorFinanciado(val);
-                      }}
+                    <CurrencyInput 
+                      value={valorFinanciado} 
+                      onValueChange={setValorFinanciado} 
+                      placeholder="R$ 0,00"
                     />
                   </div>
                   <div className="space-y-2">
@@ -670,13 +667,11 @@ function NovoProjeto() {
                 {temMinimo === "sim" && (
                   <div className="space-y-2">
                     <Label htmlFor="val-min">Valor Mínimo de Honorários</Label>
-                    <Input 
+                    <CurrencyInput 
                       id="val-min" 
+                      value={valorMinimo} 
+                      onValueChange={setValorMinimo} 
                       placeholder="R$ 0,00"
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0;
-                        setValorMinimo(val);
-                      }}
                     />
                   </div>
                 )}

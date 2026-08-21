@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Save, FileText, CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -13,16 +14,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/mock-data";
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value);
-};
-
-const parseCurrency = (value: string) => {
-  return Number(value.replace(/\D/g, "")) / 100;
-};
+// formatCurrency and parseCurrency removed in favor of CurrencyInput component
 
 export function PosseTab({ projetoId }: { projetoId: string }) {
   const [loading, setLoading] = useState(true);
@@ -231,46 +223,34 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
           <div className="grid gap-4">
             <div className="space-y-2">
               <Label>Custas Processuais</Label>
-              <div className="relative">
-                <Input 
-                  className="text-right"
-                  value={formatCurrency(formData.legal_costs)} 
-                  onChange={(e) => setFormData(prev => ({ ...prev, legal_costs: parseCurrency(e.target.value) }))}
-                />
-              </div>
+              <CurrencyInput 
+                value={formData.legal_costs} 
+                onValueChange={(val) => setFormData(prev => ({ ...prev, legal_costs: val }))}
+              />
             </div>
             
             <div className="space-y-2">
               <Label>Oficial de Justiça</Label>
-              <div className="relative">
-                <Input 
-                  className="text-right"
-                  value={formatCurrency(formData.bailiff_costs)} 
-                  onChange={(e) => setFormData(prev => ({ ...prev, bailiff_costs: parseCurrency(e.target.value) }))}
-                />
-              </div>
+              <CurrencyInput 
+                value={formData.bailiff_costs} 
+                onValueChange={(val) => setFormData(prev => ({ ...prev, bailiff_costs: val }))}
+              />
             </div>
 
             <div className="space-y-2">
               <Label>Chaveiro e Segurança</Label>
-              <div className="relative">
-                <Input 
-                  className="text-right"
-                  value={formatCurrency(formData.locksmith_security_costs)} 
-                  onChange={(e) => setFormData(prev => ({ ...prev, locksmith_security_costs: parseCurrency(e.target.value) }))}
-                />
-              </div>
+              <CurrencyInput 
+                value={formData.locksmith_security_costs} 
+                onValueChange={(val) => setFormData(prev => ({ ...prev, locksmith_security_costs: val }))}
+              />
             </div>
 
             <div className="space-y-2">
               <Label>Indenização / Acordo</Label>
-              <div className="relative">
-                <Input 
-                  className="text-right"
-                  value={formatCurrency(formData.settlement_costs)} 
-                  onChange={(e) => setFormData(prev => ({ ...prev, settlement_costs: parseCurrency(e.target.value) }))}
-                />
-              </div>
+              <CurrencyInput 
+                value={formData.settlement_costs} 
+                onValueChange={(val) => setFormData(prev => ({ ...prev, settlement_costs: val }))}
+              />
             </div>
           </div>
         </div>
