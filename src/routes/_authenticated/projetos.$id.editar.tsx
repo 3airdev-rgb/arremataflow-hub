@@ -420,10 +420,10 @@ function EditarProjeto() {
             </div>
             <div className="space-y-2">
               <Label>Valor de aquisição</Label>
-              <Input 
-                placeholder="R$ 0,00" 
-                defaultValue={valorAquisicao}
-                onChange={(e) => setValorAquisicao(parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0)}
+              <CurrencyInput 
+                value={valorAquisicao} 
+                onValueChange={setValorAquisicao} 
+                placeholder="R$ 0,00"
               />
             </div>
             <div className="space-y-2">
