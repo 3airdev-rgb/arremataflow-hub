@@ -180,6 +180,7 @@ function FinanceiroProjeto() {
       const d: Movimentacao[] = [];
       data.forEach((m, idx) => {
         const item = formatted[idx];
+        if (!item) return;
         if (m.tipo === "receita") r.push(item);
         else d.push(item);
       });
