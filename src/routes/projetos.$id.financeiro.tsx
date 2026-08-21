@@ -391,7 +391,12 @@ function FinanceiroProjeto() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="valor">Valor (R$)</Label>
-                  <Input id="valor" name="valor" type="number" step="0.01" required />
+                  <CurrencyInput 
+                    id="valor" 
+                    value={valorMov} 
+                    onValueChange={setValorMov} 
+                    required 
+                  />
                 </div>
               </div>
               <div className="space-y-2">
