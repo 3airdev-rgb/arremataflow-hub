@@ -327,6 +327,7 @@ function FinanceiroProjeto() {
                 setOpen(false);
                 setArquivo(null);
                 setDocumento("");
+                setValorMov(0);
                 toast.success("Movimentação registrada!");
               }}
             >
