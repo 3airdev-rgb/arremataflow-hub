@@ -277,7 +277,66 @@ function FinanceiroProjeto() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Nova movimentação</DialogTitle>
-              <DialogDescription>language selector</DialogDescription>
+              <DialogDescription>
+                For the code present, I get the error below.
+
+                Please think step-by-step in order to resolve it.
+                {"```"}
+                # Error number 1:
+                #################
+
+                The app returned 500 while handling GET /projetos/3/financeiro. The error was handled by a route or error boundary, so no stack was captured — check the failing loader/route code and the dev server output.
+
+                {"{"}
+                  "timestamp": 1787320228104,
+                  "error_type": "RUNTIME_ERROR",
+                  "filename": "Unknown file",
+                  "lineno": 0,
+                  "colno": 0,
+                  "stack": "Unavailable",
+                  "has_blank_screen": true
+                {"}"}
+
+                # Error number 2:
+                #################
+
+                The app returned 500 while handling GET /. The error was handled by a route or error boundary, so no stack was captured — check the failing loader/route code and the dev server output.
+
+                {"{"}
+                  "timestamp": 1787320228104,
+                  "error_type": "RUNTIME_ERROR",
+                  "filename": "Unknown file",
+                  "lineno": 0,
+                  "colno": 0,
+                  "stack": "Unavailable",
+                  "has_blank_screen": true
+                {"}"}
+
+                # Error number 3:
+                #################
+
+                Error: Transform failed with 1 error:
+
+                [PARSE_ERROR] Unexpected token. Did you mean {"{}"}'{"}"}' or &rbrace;?
+                     ╭─[ src/routes/projetos.$id.financeiro.tsx:461:7 ]
+                     │
+                 461 │       {"}"}
+                     │       │ 
+                     │       ╰─ 
+                ─────╯
+
+
+                {"{"}
+                  "timestamp": 1787320233922,
+                  "error_type": "RUNTIME_ERROR",
+                  "filename": "Unknown file",
+                  "lineno": 0,
+                  "colno": 0,
+                  "stack": "Error: Transform failed with 1 error:\n\n\u001b[31m[PARSE_ERROR] \u001b[0mUnexpected token. Did you mean `{'}'}` or `&rbrace;`?\n     \u001b[38;5;246m╭\u001b[0m\u001b[38;5;246m─\u001b[0m\u001b[38;5;246m[\u001b[0m src/routes/projetos.$id.financeiro.tsx:461:7 \u001b[38;5;246m]\u001b[0m\n     \u001b[38;5;246m│\u001b[0m\n \u001b[38;5;246m461 │\u001b[0m \u001b[38;5;249m \u001b[0m\u001b[38;5;249m \u001b[0m\u001b[38;5;249m \u001b[0m\u001b[38;5;249m \u001b[0m\u001b[38;5;249m \u001b[0m\u001b[38;5;249m \u001b[0m\u001b[38;5;249m}\u001b[0m\n \u001b[38;5;240m    │\u001b[0m       │ \n \u001b[38;5;240m    │\u001b[0m       ╰─ \n\u001b[38;5;246m─────╯\u001b[0m\n\n    at transformWithOxc (file:///dev-server/node_modules/vite/dist/node/chunks/node.js:4090:19)\n    at TransformPluginContext.transform (file:///dev-server/node_modules/vite/dist/node/chunks/node.js:4161:26)\n    at EnvironmentPluginContainer.transform (file:///dev-server/node_modules/vite/dist/node/chunks/node.js:30796:51)\n    at async loadAndTransform (file:///dev-server/node_modules/vite/dist/node/chunks/node.js:20594:26)",
+                  "has_blank_screen": true
+                {"}"}
+                {"```"}
+              </DialogDescription>
             </DialogHeader>
             <form
               className="space-y-4"
