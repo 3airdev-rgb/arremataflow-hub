@@ -143,7 +143,8 @@ function DocumentosProjeto() {
               </DialogFooter>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       }
     >
       <div className="grid gap-5 lg:grid-cols-[240px_1fr]">
