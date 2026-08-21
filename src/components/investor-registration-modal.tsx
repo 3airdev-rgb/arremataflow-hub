@@ -174,7 +174,7 @@ export function InvestorRegistrationModal({
         <DialogHeader>
           <DialogTitle>Cadastro de {type}</DialogTitle>
           <DialogDescription>
-            Ative Supabase para este projeto.
+            Ative a persistência de dados no Supabase para salvar e carregar informações do app em vez de usar dados mock.
           </DialogDescription>
         </DialogHeader>
 
