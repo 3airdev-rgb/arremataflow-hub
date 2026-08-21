@@ -309,16 +309,10 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
             </div>
             <div className="space-y-2">
               <Label>Valor do IPTU</Label>
-              <div className="relative">
-                <Input 
-                  className="text-right"
-                  value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.iptu_valor)} 
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, "");
-                    setFormData(prev => ({ ...prev, iptu_valor: Number(val) / 100 }));
-                  }}
-                />
-              </div>
+              <CurrencyInput 
+                value={formData.iptu_valor} 
+                onValueChange={(val) => setFormData(prev => ({ ...prev, iptu_valor: val }))}
+              />
             </div>
             <div className="space-y-2">
               <Label>Transferência Cadastral</Label>
