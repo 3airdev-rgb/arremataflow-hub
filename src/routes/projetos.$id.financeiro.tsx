@@ -100,6 +100,9 @@ function Tabela({
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {i.categoria} · {i.data}
+                  {i.document_holder_document && (
+                    <> · {i.document_holder_type}: {i.document_holder_document}</>
+                  )}
                 </p>
               </td>
               <td className="px-4 py-3">
@@ -127,14 +130,63 @@ function Tabela({
 }
 
 function FinanceiroProjeto() {
-  const [receitas, setReceitas] = useState(receitasMock);
-  const [despesas, setDespesas] = useState(despesasMock);
+  const { id: projetoId } = useParams({ from: "/projetos/$id/financeiro" });
+  const [receitas, setReceitas] = useState<Movimentacao[]>([]);
+  const [despesas, setDespesas] = useState<Movimentacao[]>([]);
   const [open, setOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [movParaExcluir, setMovParaExcluir] = useState<string | null>(null);
   const [calculado, setCalculado] = useState(false);
   const [arquivo, setArquivo] = useState<File | null>(null);
+  const [tipoMov, setTipoMov] = useState<"receita" | "despesa">("despesa");
+  const [documento, setDocumento] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    async function carregarMovimentacoes() {
+      if (!projetoId || projetoId.length < 10) return;
+
+      const { data, error } = await supabase
+        .from("movimentacoes_financeiras")
+        .select("*")
+        .eq("projeto_id", projetoId)
+        .order("data", { ascending: false });
+
+      if (error) {
+        console.error("Erro ao carregar movimentações:", error);
+        return;
+      }
+
+      const formatted: Movimentacao[] = data.map((m) => ({
+        id: m.id,
+        descricao: m.descricao,
+        categoria: m.categoria,
+        data: new Date(m.data).toLocaleDateString("pt-BR"),
+        valor: Number(m.valor),
+        status: m.status as any,
+        comprovanteUrl: m.comprovante_url || undefined,
+        document_holder_document: m.document_holder_document || undefined,
+        document_holder_type: m.document_holder_type as any,
+        document_type: m.document_type as any,
+      }));
+
+      setReceitas(formatted.filter((m) => m.tipo === "receita" || (data.find(d => d.id === m.id)?.tipo === "receita")));
+      setDespesas(formatted.filter((m) => m.tipo === "despesa" || (data.find(d => d.id === m.id)?.tipo === "despesa")));
+      
+      // Correcting the filter above since 'tipo' isn't in Movimentacao yet
+      const r: Movimentacao[] = [];
+      const d: Movimentacao[] = [];
+      data.forEach((m, idx) => {
+        const item = formatted[idx];
+        if (m.tipo === "receita") r.push(item);
+        else d.push(item);
+      });
+      setReceitas(r);
+      setDespesas(d);
+    }
+
+    carregarMovimentacoes();
+  }, [projetoId]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -162,8 +214,18 @@ function FinanceiroProjeto() {
     setDeleteOpen(true);
   };
 
-  const confirmarExclusao = (removerDoDoc = false) => {
+  const confirmarExclusao = async (removerDoDoc = false) => {
     if (!movParaExcluir) return;
+
+    const { error } = await supabase
+      .from("movimentacoes_financeiras")
+      .delete()
+      .eq("id", movParaExcluir);
+
+    if (error) {
+      toast.error("Erro ao excluir movimentação.");
+      return;
+    }
 
     setReceitas((prev) => prev.filter((m) => m.id !== movParaExcluir));
     setDespesas((prev) => prev.filter((m) => m.id !== movParaExcluir));
@@ -187,7 +249,13 @@ function FinanceiroProjeto() {
       title="Financeiro do Projeto"
       subtitle="Receitas, despesas, tributos e distribuição"
       actions={
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(val) => {
+          setOpen(val);
+          if (!val) {
+            setDocumento("");
+            setArquivo(null);
+          }
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="size-4" /> Nova movimentação
@@ -200,40 +268,78 @@ function FinanceiroProjeto() {
             </DialogHeader>
             <form
               className="space-y-4"
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 const fd = new FormData(e.currentTarget);
                 const desc = String(fd.get("descricao") || "Movimentação");
                 const cat = String(fd.get("categoria") || "");
                 const val = Number(fd.get("valor") || 0);
-                const tipo = fd.get("tipo");
+                const tipo = fd.get("tipo") as "receita" | "despesa";
+                const doc = fd.get("documento") as string;
+
+                if (doc && !validateDocument(doc)) {
+                  toast.error("Documento (CPF/CNPJ) inválido.");
+                  return;
+                }
+
+                const docDigits = doc.replace(/\D/g, "");
+                const docType = docDigits.length === 11 ? "CPF" : "CNPJ";
+                const holderType = tipo === "receita" ? "Origem" : "Destinatário";
+
+                const { data: user } = await supabase.auth.getUser();
+
+                const { data, error } = await supabase
+                  .from("movimentacoes_financeiras")
+                  .insert({
+                    projeto_id: projetoId,
+                    tipo,
+                    descricao: desc,
+                    categoria: cat,
+                    valor: val,
+                    document_holder_document: doc || null,
+                    document_type: doc ? docType : null,
+                    document_holder_type: holderType,
+                    user_id: user.user?.id,
+                    status: "pendente",
+                  })
+                  .select()
+                  .single();
+
+                if (error) {
+                  toast.error("Erro ao registrar movimentação.");
+                  console.error(error);
+                  return;
+                }
 
                 const nova: Movimentacao = {
-                  id: `n${Date.now()}`,
+                  id: data.id,
                   descricao: desc,
                   categoria: cat,
                   data: new Date().toLocaleDateString("pt-BR"),
                   valor: val,
                   status: "pendente",
                   comprovanteUrl: arquivo ? URL.createObjectURL(arquivo) : undefined,
+                  document_holder_document: doc || undefined,
+                  document_holder_type: holderType,
+                  document_type: doc ? docType : undefined,
                 };
 
                 if (tipo === "receita") setReceitas((p) => [nova, ...p]);
                 else setDespesas((p) => [nova, ...p]);
 
-                if (arquivo) {
-                  // Simulação de registro automático na gestão documental
-                  toast.info(`Comprovante vinculado à Gestão Documental na categoria ${cat}.`);
-                }
-
                 setOpen(false);
                 setArquivo(null);
+                setDocumento("");
                 toast.success("Movimentação registrada!");
               }}
             >
               <div className="space-y-2">
                 <Label htmlFor="tipo">Tipo</Label>
-                <Select name="tipo" defaultValue="despesa">
+                <Select 
+                  name="tipo" 
+                  defaultValue="despesa"
+                  onValueChange={(v) => setTipoMov(v as any)}
+                >
                   <SelectTrigger id="tipo">
                     <SelectValue />
                   </SelectTrigger>
@@ -247,6 +353,28 @@ function FinanceiroProjeto() {
                 <Label htmlFor="descricao">Descrição</Label>
                 <Input id="descricao" name="descricao" required />
               </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="documento">
+                  {tipoMov === "receita" ? "Origem – CNPJ ou CPF" : "Destinatário – CNPJ ou CPF"}
+                </Label>
+                <div className="relative">
+                  <Input 
+                    id="documento" 
+                    name="documento" 
+                    value={documento}
+                    onChange={(e) => setDocumento(formatDocument(e.target.value))}
+                    placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  />
+                  {documento && !validateDocument(documento) && (
+                    <AlertCircle className="absolute right-3 top-2.5 size-4 text-destructive" />
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  O preenchimento será opcional. Documentos serão validados automaticamente.
+                </p>
+              </div>
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="categoria">Categoria</Label>
