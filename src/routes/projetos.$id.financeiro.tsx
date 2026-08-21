@@ -1,6 +1,6 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { Plus, Calculator, Paperclip, FileText, Trash2, AlertCircle } from "lucide-react";
+import { Plus, Calculator, Paperclip, FileText, Trash2, AlertCircle, DollarSign } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
