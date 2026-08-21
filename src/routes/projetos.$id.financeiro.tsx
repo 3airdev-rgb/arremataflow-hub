@@ -326,6 +326,7 @@ function FinanceiroProjeto() {
                   document_holder_document: doc || null,
                   document_holder_type: holderType,
                   document_type: doc ? (docType as "CPF" | "CNPJ") : null,
+                  tipo: tipo,
                 };
 
                 if (tipo === "receita") setReceitas((p) => [nova, ...p]);
