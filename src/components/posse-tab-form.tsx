@@ -13,6 +13,17 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/mock-data";
 
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
+};
+
+const parseCurrency = (value: string) => {
+  return Number(value.replace(/\D/g, "")) / 100;
+};
+
 export function PosseTab({ projetoId }: { projetoId: string }) {
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -221,14 +232,10 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
             <div className="space-y-2">
               <Label>Custas Processuais</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
                 <Input 
-                  type="number" 
-                  step="0.01"
-                  min="0"
-                  className="pl-9"
-                  value={formData.legal_costs} 
-                  onChange={(e) => setFormData(prev => ({ ...prev, legal_costs: Math.max(0, Number(e.target.value)) }))}
+                  className="text-right"
+                  value={formatCurrency(formData.legal_costs)} 
+                  onChange={(e) => setFormData(prev => ({ ...prev, legal_costs: parseCurrency(e.target.value) }))}
                 />
               </div>
             </div>
@@ -236,14 +243,10 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
             <div className="space-y-2">
               <Label>Oficial de Justiça</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
                 <Input 
-                  type="number" 
-                  step="0.01"
-                  min="0"
-                  className="pl-9"
-                  value={formData.bailiff_costs} 
-                  onChange={(e) => setFormData(prev => ({ ...prev, bailiff_costs: Math.max(0, Number(e.target.value)) }))}
+                  className="text-right"
+                  value={formatCurrency(formData.bailiff_costs)} 
+                  onChange={(e) => setFormData(prev => ({ ...prev, bailiff_costs: parseCurrency(e.target.value) }))}
                 />
               </div>
             </div>
@@ -251,14 +254,10 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
             <div className="space-y-2">
               <Label>Chaveiro e Segurança</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
                 <Input 
-                  type="number" 
-                  step="0.01"
-                  min="0"
-                  className="pl-9"
-                  value={formData.locksmith_security_costs} 
-                  onChange={(e) => setFormData(prev => ({ ...prev, locksmith_security_costs: Math.max(0, Number(e.target.value)) }))}
+                  className="text-right"
+                  value={formatCurrency(formData.locksmith_security_costs)} 
+                  onChange={(e) => setFormData(prev => ({ ...prev, locksmith_security_costs: parseCurrency(e.target.value) }))}
                 />
               </div>
             </div>
@@ -266,14 +265,10 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
             <div className="space-y-2">
               <Label>Indenização / Acordo</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
                 <Input 
-                  type="number" 
-                  step="0.01"
-                  min="0"
-                  className="pl-9"
-                  value={formData.settlement_costs} 
-                  onChange={(e) => setFormData(prev => ({ ...prev, settlement_costs: Math.max(0, Number(e.target.value)) }))}
+                  className="text-right"
+                  value={formatCurrency(formData.settlement_costs)} 
+                  onChange={(e) => setFormData(prev => ({ ...prev, settlement_costs: parseCurrency(e.target.value) }))}
                 />
               </div>
             </div>
