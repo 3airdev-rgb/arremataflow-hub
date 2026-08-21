@@ -14,16 +14,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/mock-data";
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value);
-};
-
-const parseCurrency = (value: string) => {
-  return Number(value.replace(/\D/g, "")) / 100;
-};
+// formatCurrency and parseCurrency removed in favor of CurrencyInput component
 
 export function PosseTab({ projetoId }: { projetoId: string }) {
   const [loading, setLoading] = useState(true);
