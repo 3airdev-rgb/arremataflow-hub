@@ -667,13 +667,11 @@ function NovoProjeto() {
                 {temMinimo === "sim" && (
                   <div className="space-y-2">
                     <Label htmlFor="val-min">Valor Mínimo de Honorários</Label>
-                    <Input 
+                    <CurrencyInput 
                       id="val-min" 
+                      value={valorMinimo} 
+                      onValueChange={setValorMinimo} 
                       placeholder="R$ 0,00"
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value.replace(/[^0-9]/g, "")) || 0;
-                        setValorMinimo(val);
-                      }}
                     />
                   </div>
                 )}
