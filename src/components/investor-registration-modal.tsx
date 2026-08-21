@@ -174,7 +174,7 @@ export function InvestorRegistrationModal({
         <DialogHeader>
           <DialogTitle>Cadastro de {type}</DialogTitle>
           <DialogDescription>
-            Conectar o login e a recuperação de senha do app ao Supabase Auth para persistir sessões e usuários.
+            Adicione um fluxo de registro de usuário com e-mail e senha conectado ao Supabase Auth.
           </DialogDescription>
         </DialogHeader>
 
