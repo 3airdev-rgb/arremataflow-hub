@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState, useRef } from "react";
-import { Plus, Calculator, Paperclip, FileText, Trash2 } from "lucide-react";
+import { createFileRoute, useParams } from "@tanstack/react-router";
+import { useState, useRef, useEffect } from "react";
+import { Plus, Calculator, Paperclip, FileText, Trash2, AlertCircle } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -24,13 +24,26 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  receitas as receitasMock,
-  despesas as despesasMock,
   distribuicao,
   formatBRL,
-  type Movimentacao,
   categoriasDocumentos,
 } from "@/lib/mock-data";
+import { supabase } from "@/integrations/supabase/client";
+import { formatDocument, validateDocument } from "@/lib/utils-validation";
+
+export type Movimentacao = {
+  id: string;
+  descricao: string;
+  document_holder_name?: string;
+  document_holder_type?: 'Origem' | 'Destinatário';
+  document_holder_document?: string;
+  document_type?: 'CPF' | 'CNPJ';
+  categoria: string;
+  data: string;
+  valor: number;
+  status: string;
+  comprovanteUrl?: string;
+};
 
 export const Route = createFileRoute("/projetos/$id/financeiro")({
   head: () => ({
