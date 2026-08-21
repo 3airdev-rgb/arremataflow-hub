@@ -288,7 +288,8 @@ function FinanceiroProjeto() {
                 const docType = docDigits.length === 11 ? "CPF" : "CNPJ";
                 const holderType = tipo === "receita" ? "Origem" : "Destinatário";
 
-                const { data: user } = await supabase.auth.getUser();
+                const { data: userResponse } = await supabase.auth.getUser();
+                const userId = userResponse.user?.id || null;
 
                 const { data, error } = await supabase
                   .from("movimentacoes_financeiras")
@@ -301,7 +302,7 @@ function FinanceiroProjeto() {
                     document_holder_document: doc || null,
                     document_type: doc ? docType : null,
                     document_holder_type: holderType,
-                    user_id: user.user?.id,
+                    user_id: userId,
                     status: "pendente",
                   })
                   .select()
