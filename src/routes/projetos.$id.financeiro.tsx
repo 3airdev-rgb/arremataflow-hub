@@ -143,6 +143,7 @@ function FinanceiroProjeto() {
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [tipoMov, setTipoMov] = useState<"receita" | "despesa">("despesa");
   const [documento, setDocumento] = useState("");
+  const [valorMov, setValorMov] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
