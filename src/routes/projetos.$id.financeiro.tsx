@@ -321,10 +321,10 @@ function FinanceiroProjeto() {
                   data: new Date().toLocaleDateString("pt-BR"),
                   valor: val,
                   status: "pendente",
-                  comprovanteUrl: arquivo ? URL.createObjectURL(arquivo) : undefined,
-                  document_holder_document: doc || undefined,
+                  comprovanteUrl: arquivo ? URL.createObjectURL(arquivo) : null,
+                  document_holder_document: doc || null,
                   document_holder_type: holderType,
-                  document_type: doc ? docType : undefined,
+                  document_type: doc ? (docType as "CPF" | "CNPJ") : null,
                 };
 
                 if (tipo === "receita") setReceitas((p) => [nova, ...p]);
