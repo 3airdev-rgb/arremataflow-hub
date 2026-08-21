@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Upload, FolderOpen, FileText, UploadCloud } from "lucide-react";
+import { Upload, FolderOpen, FileText, UploadCloud, ArrowLeft } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,9 +41,18 @@ export const Route = createFileRoute("/projetos/$id/documentos")({
 });
 
 function DocumentosProjeto() {
+  const { id } = Route.useParams();
   const [docs, setDocs] = useState(docsMock);
   const [cat, setCat] = useState<string>("Todas");
   const [open, setOpen] = useState(false);
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.href = `/projetos/${id}`;
+    }
+  };
 
   // Efeito para simular a sincronização com o financeiro
   // Em uma aplicação real, isso seria uma query no banco de dados
@@ -62,12 +71,22 @@ function DocumentosProjeto() {
       title="Gestão Documental"
       subtitle="Documentos do projeto organizados por categoria"
       actions={
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Upload className="size-4" /> Upload de documento
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="default"
+            onClick={handleBack}
+            className="gap-2"
+            aria-label="Voltar para a tela anterior"
+            title="Voltar para a tela anterior"
+          >
+            <ArrowLeft className="size-4" /> Voltar
+          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Upload className="size-4" /> Upload de documento
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Enviar documento</DialogTitle>
@@ -124,7 +143,8 @@ function DocumentosProjeto() {
               </DialogFooter>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       }
     >
       <div className="grid gap-5 lg:grid-cols-[240px_1fr]">
