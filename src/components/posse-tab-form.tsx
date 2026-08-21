@@ -231,35 +231,26 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
             
             <div className="space-y-2">
               <Label>Oficial de Justiça</Label>
-              <div className="relative">
-                <Input 
-                  className="text-right"
-                  value={formatCurrency(formData.bailiff_costs)} 
-                  onChange={(e) => setFormData(prev => ({ ...prev, bailiff_costs: parseCurrency(e.target.value) }))}
-                />
-              </div>
+              <CurrencyInput 
+                value={formData.bailiff_costs} 
+                onValueChange={(val) => setFormData(prev => ({ ...prev, bailiff_costs: val }))}
+              />
             </div>
 
             <div className="space-y-2">
               <Label>Chaveiro e Segurança</Label>
-              <div className="relative">
-                <Input 
-                  className="text-right"
-                  value={formatCurrency(formData.locksmith_security_costs)} 
-                  onChange={(e) => setFormData(prev => ({ ...prev, locksmith_security_costs: parseCurrency(e.target.value) }))}
-                />
-              </div>
+              <CurrencyInput 
+                value={formData.locksmith_security_costs} 
+                onValueChange={(val) => setFormData(prev => ({ ...prev, locksmith_security_costs: val }))}
+              />
             </div>
 
             <div className="space-y-2">
               <Label>Indenização / Acordo</Label>
-              <div className="relative">
-                <Input 
-                  className="text-right"
-                  value={formatCurrency(formData.settlement_costs)} 
-                  onChange={(e) => setFormData(prev => ({ ...prev, settlement_costs: parseCurrency(e.target.value) }))}
-                />
-              </div>
+              <CurrencyInput 
+                value={formData.settlement_costs} 
+                onValueChange={(val) => setFormData(prev => ({ ...prev, settlement_costs: val }))}
+              />
             </div>
           </div>
         </div>
