@@ -170,22 +170,11 @@ function FinanceiroProjeto() {
         document_holder_document: m.document_holder_document ?? null,
         document_holder_type: m.document_holder_type as any,
         document_type: m.document_type as any,
+        tipo: m.tipo as 'receita' | 'despesa',
       }));
 
-      setReceitas(formatted.filter((m) => m.tipo === "receita" || (data.find(d => d.id === m.id)?.tipo === "receita")));
-      setDespesas(formatted.filter((m) => m.tipo === "despesa" || (data.find(d => d.id === m.id)?.tipo === "despesa")));
-      
-      // Correcting the filter above since 'tipo' isn't in Movimentacao yet
-      const r: Movimentacao[] = [];
-      const d: Movimentacao[] = [];
-      data.forEach((m, idx) => {
-        const item = formatted[idx];
-        if (!item) return;
-        if (m.tipo === "receita") r.push(item);
-        else d.push(item);
-      });
-      setReceitas(r);
-      setDespesas(d);
+      setReceitas(formatted.filter((m) => m.tipo === "receita"));
+      setDespesas(formatted.filter((m) => m.tipo === "despesa"));
     }
 
     carregarMovimentacoes();
@@ -267,193 +256,7 @@ function FinanceiroProjeto() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Nova movimentação</DialogTitle>
-              <DialogDescription>PRD – Inclusão do Campo "Origem / Destinatário – CNPJ ou CPF" na Nova Movimentação Financeira
-
-Objetivo
-
-Atualizar o modal Nova Movimentação para permitir o registro opcional da identificação da pessoa física ou jurídica relacionada à movimentação financeira. O campo deverá alterar dinamicamente sua nomenclatura conforme o tipo da movimentação (Receita ou Despesa), mantendo uma experiência intuitiva e padronizada.
-
-A implementação deverá preservar a arquitetura atual da aplicação, reutilizar componentes existentes e manter a separação entre interface e lógica de negócio.
-
-1. Novo Campo
-
-Adicionar um novo campo imediatamente abaixo do campo Descrição.
-
-O campo deverá ser exibido dinamicamente conforme o valor selecionado no campo Tipo.
-
-2. Quando o Tipo for "Despesa"
-
-Se o usuário selecionar:
-
-Tipo = Despesa
-
-Exibir o seguinte campo:
-
-Destinatário – CNPJ ou CPF
-
-Tipo:
-
-Campo de texto com máscara dinâmica.
-
-Descrição:
-
-Permitir informar o CPF ou CNPJ do destinatário do pagamento.
-
-O preenchimento será opcional.
-
-3. Quando o Tipo for "Receita"
-
-Se o usuário selecionar:
-
-Tipo = Receita
-
-Exibir o seguinte campo:
-
-Origem – CNPJ ou CPF
-
-Tipo:
-
-Campo de texto com máscara dinâmica.
-
-Descrição:
-
-Permitir informar o CPF ou CNPJ da pessoa física ou jurídica responsável pela origem da receita.
-
-O preenchimento será opcional.
-
-4. Máscara Inteligente
-
-O campo deverá reconhecer automaticamente o tipo de documento conforme a quantidade de dígitos informados.
-
-Aplicar automaticamente:
-
-CPF
-
-Formato:
-
-000.000.000-00
-
-CNPJ
-
-Formato:
-
-00.000.000/0000-00
-
-A troca entre as máscaras deverá ocorrer automaticamente durante a digitação.
-
-5. Validações
-
-O campo:
-
-não será obrigatório;
-
-aceitará apenas números durante a digitação, aplicando a máscara automaticamente;
-
-deverá validar o formato do documento informado (CPF ou CNPJ);
-
-deverá exibir mensagem de erro quando o formato for inválido;
-
-permitirá que o usuário deixe o campo em branco.
-
-Caso informado, somente documentos válidos poderão ser gravados.
-
-6. Layout
-
-A organização do formulário deverá ficar da seguinte forma:
-
-Linha 1
-
-Tipo
-
-Linha 2
-
-Descrição
-
-Linha 3
-
-Destinatário – CNPJ ou CPF (quando Tipo = Despesa)
-
-ou
-
-Origem – CNPJ ou CPF (quando Tipo = Receita)
-
-Linha 4
-
-Categoria
-
-Valor (R$)
-
-Linha 5
-
-Comprovante
-
-Linha 6
-
-Botão Registrar
-
-A alteração deverá manter o alinhamento e o padrão visual adotado no restante do sistema.
-
-7. Persistência
-
-Adicionar os seguintes campos ao modelo de dados da movimentação financeira:
-
-document_holder_name (opcional para uso futuro)
-
-document_holder_type (Origem ou Destinatário)
-
-document_holder_document (CPF ou CNPJ)
-
-O sistema deverá gravar automaticamente:
-
-o tipo do documento (CPF ou CNPJ);
-
-o valor informado;
-
-o tipo da movimentação (Origem ou Destinatário).
-
-8. Compatibilidade
-
-O novo campo deverá estar disponível em:
-
-Cadastro de Nova Movimentação;
-
-Edição de Movimentação;
-
-Visualização da Movimentação;
-
-Relatórios Financeiros;
-
-Exportação para PDF e Excel (quando aplicável).
-
-9. Regras de Negócio
-
-O campo não interfere nos cálculos financeiros.
-
-Não altera receitas, despesas ou saldo do projeto.
-
-Serve exclusivamente para identificação da origem ou do destinatário da movimentação financeira.
-
-Pemanecerá disponível para futuras integrações com emissão de recibos, notas fiscais e conciliação financeira.
-
-10. Critérios de Aceitação
-
-A implementação será considerada concluída quando:
-
-O campo for exibido logo abaixo de Descrição.
-
-Ao selecionar Despesa, o campo seja identificado como Destinatário – CNPJ ou CPF.
-
-Ao selecionar Receita, o campo seja identificado como Origem – CNPJ ou CPF.
-
-O sistema aplique automaticamente a máscara de CPF ou CNPJ conforme a quantidade de dígitos digitados.
-
-O campo seja opcional.
-
-Apenas documentos com formato válido possam ser salvos quando informados.
-
-A interface permaneça alinhada ao Design System do ArremataFlow.
-
-A implementação reutilize componentes existentes, mantenha a separação entre interface e lógica de negócio, preserve a arquitetura atual do sistema e não gere regressões nas funcionalidades já implementadas.</DialogDescription>
+              <DialogDescription>veja o que aparece ao clicar em "nova movimentação" esta aparecendo a descrição. tem que corrigir este erro</DialogDescription>
             </DialogHeader>
             <form
               className="space-y-4"
@@ -512,6 +315,7 @@ A implementação reutilize componentes existentes, mantenha a separação entre
                   document_holder_document: doc || null,
                   document_holder_type: holderType,
                   document_type: doc ? (docType as "CPF" | "CNPJ") : null,
+                  tipo: tipo,
                 };
 
                 if (tipo === "receita") setReceitas((p) => [nova, ...p]);
