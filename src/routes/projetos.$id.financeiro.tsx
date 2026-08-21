@@ -43,6 +43,7 @@ export type Movimentacao = {
   valor: number;
   status: any;
   comprovanteUrl?: string | null;
+  tipo?: 'receita' | 'despesa';
 };
 
 export const Route = createFileRoute("/projetos/$id/financeiro")({
