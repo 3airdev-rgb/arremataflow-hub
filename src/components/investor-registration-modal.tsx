@@ -174,7 +174,7 @@ export function InvestorRegistrationModal({
         <DialogHeader>
           <DialogTitle>Cadastro de {type}</DialogTitle>
           <DialogDescription>
-            language selector
+            Ative Supabase para este projeto.
           </DialogDescription>
         </DialogHeader>
 
