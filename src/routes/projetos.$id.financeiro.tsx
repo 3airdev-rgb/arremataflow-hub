@@ -30,6 +30,7 @@ import {
 } from "@/lib/mock-data";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDocument, validateDocument } from "@/lib/utils-validation";
+import { type StatusKey } from "@/lib/mock-data";
 
 export type Movimentacao = {
   id: string;
@@ -41,7 +42,7 @@ export type Movimentacao = {
   categoria: string;
   data: string;
   valor: number;
-  status: any;
+  status: StatusKey;
   comprovanteUrl?: string | null;
   tipo?: 'receita' | 'despesa';
 };
