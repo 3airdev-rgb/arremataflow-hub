@@ -170,22 +170,11 @@ function FinanceiroProjeto() {
         document_holder_document: m.document_holder_document ?? null,
         document_holder_type: m.document_holder_type as any,
         document_type: m.document_type as any,
+        tipo: m.tipo as 'receita' | 'despesa',
       }));
 
-      setReceitas(formatted.filter((m) => m.tipo === "receita" || (data.find(d => d.id === m.id)?.tipo === "receita")));
-      setDespesas(formatted.filter((m) => m.tipo === "despesa" || (data.find(d => d.id === m.id)?.tipo === "despesa")));
-      
-      // Correcting the filter above since 'tipo' isn't in Movimentacao yet
-      const r: Movimentacao[] = [];
-      const d: Movimentacao[] = [];
-      data.forEach((m, idx) => {
-        const item = formatted[idx];
-        if (!item) return;
-        if (m.tipo === "receita") r.push(item);
-        else d.push(item);
-      });
-      setReceitas(r);
-      setDespesas(d);
+      setReceitas(formatted.filter((m) => m.tipo === "receita"));
+      setDespesas(formatted.filter((m) => m.tipo === "despesa"));
     }
 
     carregarMovimentacoes();
