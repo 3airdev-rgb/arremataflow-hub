@@ -52,6 +52,71 @@ export type Database = {
           },
         ]
       }
+      movimentacoes_financeiras: {
+        Row: {
+          categoria: string
+          comprovante_url: string | null
+          created_at: string | null
+          data: string
+          descricao: string
+          document_holder_document: string | null
+          document_holder_name: string | null
+          document_holder_type: string | null
+          document_type: string | null
+          id: string
+          projeto_id: string
+          status: string
+          tipo: string
+          updated_at: string | null
+          user_id: string | null
+          valor: number
+        }
+        Insert: {
+          categoria: string
+          comprovante_url?: string | null
+          created_at?: string | null
+          data?: string
+          descricao: string
+          document_holder_document?: string | null
+          document_holder_name?: string | null
+          document_holder_type?: string | null
+          document_type?: string | null
+          id?: string
+          projeto_id: string
+          status?: string
+          tipo: string
+          updated_at?: string | null
+          user_id?: string | null
+          valor: number
+        }
+        Update: {
+          categoria?: string
+          comprovante_url?: string | null
+          created_at?: string | null
+          data?: string
+          descricao?: string
+          document_holder_document?: string | null
+          document_holder_name?: string | null
+          document_holder_type?: string | null
+          document_type?: string | null
+          id?: string
+          projeto_id?: string
+          status?: string
+          tipo?: string
+          updated_at?: string | null
+          user_id?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimentacoes_financeiras_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pessoas: {
         Row: {
           agencia: string | null
