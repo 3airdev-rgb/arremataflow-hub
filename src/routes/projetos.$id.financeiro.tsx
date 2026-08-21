@@ -34,15 +34,15 @@ import { formatDocument, validateDocument } from "@/lib/utils-validation";
 export type Movimentacao = {
   id: string;
   descricao: string;
-  document_holder_name?: string;
-  document_holder_type?: 'Origem' | 'Destinatário';
-  document_holder_document?: string;
-  document_type?: 'CPF' | 'CNPJ';
+  document_holder_name?: string | null;
+  document_holder_type?: 'Origem' | 'Destinatário' | null;
+  document_holder_document?: string | null;
+  document_type?: 'CPF' | 'CNPJ' | null;
   categoria: string;
   data: string;
   valor: number;
-  status: string;
-  comprovanteUrl?: string;
+  status: any;
+  comprovanteUrl?: string | null;
 };
 
 export const Route = createFileRoute("/projetos/$id/financeiro")({
