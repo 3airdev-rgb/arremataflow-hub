@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Input, type InputProps } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import * as React from "react";
 
 export const formatCurrency = (value: number) => {
@@ -13,7 +13,7 @@ export const parseCurrency = (value: string) => {
   return Number(value.replace(/\D/g, "")) / 100;
 };
 
-interface CurrencyInputProps extends Omit<InputProps, "onChange" | "value"> {
+interface CurrencyInputProps extends Omit<React.ComponentProps<"input">, "onChange" | "value"> {
   value: number;
   onValueChange: (value: number) => void;
 }
