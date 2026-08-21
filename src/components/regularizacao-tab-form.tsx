@@ -435,16 +435,10 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
               </div>
               <div className="space-y-2">
                 <Label>Taxa Mensal</Label>
-                <div className="relative">
-                  <Input 
-                    className="text-right"
-                    value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.condominio_taxa_mensal)} 
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, "");
-                      setFormData(prev => ({ ...prev, condominio_taxa_mensal: Number(val) / 100 }));
-                    }}
-                  />
-                </div>
+                <CurrencyInput 
+                  value={formData.condominio_taxa_mensal} 
+                  onValueChange={(val) => setFormData(prev => ({ ...prev, condominio_taxa_mensal: val }))}
+                />
               </div>
             </div>
           ) : (
