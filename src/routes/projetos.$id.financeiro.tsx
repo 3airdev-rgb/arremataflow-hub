@@ -278,7 +278,7 @@ function FinanceiroProjeto() {
               <DialogHeader>
                 <DialogTitle>Nova movimentação</DialogTitle>
                 <DialogDescription>
-                  Verify that GET /projetos/3/financeiro renders without a blank screen and that the page loads correctly.
+                  Preciso da visualização em descktop e está aparecendo somente mobile web
                 </DialogDescription>
               </DialogHeader>
               <form
