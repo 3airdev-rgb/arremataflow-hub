@@ -309,10 +309,9 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
             <div className="space-y-2">
               <Label>Valor do IPTU</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">R$</span>
                 <Input 
-                  className="pl-9 text-right"
-                  value={formData.iptu_valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
+                  className="text-right"
+                  value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.iptu_valor)} 
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, "");
                     setFormData(prev => ({ ...prev, iptu_valor: Number(val) / 100 }));
@@ -341,10 +340,9 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
               <Label>Valor do ITBI</Label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">R$</span>
                   <Input 
-                    className="pl-9 text-right"
-                    value={formData.itbi_valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
+                    className="text-right"
+                    value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.itbi_valor)} 
                     onChange={(e) => {
                       const val = e.target.value.replace(/\D/g, "");
                       setFormData(prev => ({ ...prev, itbi_valor: Number(val) / 100 }));
@@ -390,10 +388,9 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
                 <Label>Débitos Anteriores</Label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">R$</span>
                     <Input 
-                      className="pl-9 text-right"
-                      value={formData.condominio_debitos_anteriores.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
+                      className="text-right"
+                      value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.condominio_debitos_anteriores)} 
                       onChange={(e) => {
                         const val = e.target.value.replace(/\D/g, "");
                         setFormData(prev => ({ ...prev, condominio_debitos_anteriores: Number(val) / 100 }));
