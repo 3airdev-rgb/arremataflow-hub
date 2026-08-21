@@ -248,6 +248,7 @@ function FinanceiroProjeto() {
           if (!val) {
             setDocumento("");
             setArquivo(null);
+            setValorMov(0);
           }
         }}>
           <DialogTrigger asChild>
