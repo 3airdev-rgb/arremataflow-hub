@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { projetos, usuarios, formatBRL } from "@/lib/mock-data";
 import { InvestorRegistrationModal, type UnifiedEntityData } from "@/components/investor-registration-modal";
 import { ImageManagementSection, type ProjetoFoto } from "@/components/image-management-section";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/projetos/novo")({
