@@ -1,6 +1,6 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { Plus, Calculator, Paperclip, FileText, Trash2, AlertCircle, DollarSign } from "lucide-react";
+import { Plus, Calculator, Paperclip, FileText, Trash2, AlertCircle, DollarSign, ArrowLeft } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -146,6 +146,14 @@ function FinanceiroProjeto() {
   const [valorMov, setValorMov] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.href = `/projetos/${projetoId}`;
+    }
+  };
+
   useEffect(() => {
     async function carregarMovimentacoes() {
       if (!projetoId || projetoId.length < 10) return;
@@ -243,19 +251,29 @@ function FinanceiroProjeto() {
       title="Financeiro do Projeto"
       subtitle="Receitas, despesas, tributos e distribuição"
       actions={
-        <Dialog open={open} onOpenChange={(val) => {
-          setOpen(val);
-          if (!val) {
-            setDocumento("");
-            setArquivo(null);
-            setValorMov(0);
-          }
-        }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="size-4" /> Nova movimentação
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="default"
+            onClick={handleBack}
+            className="gap-2"
+            aria-label="Voltar para a tela anterior"
+            title="Voltar para a tela anterior"
+          >
+            <ArrowLeft className="size-4" /> Voltar
+          </Button>
+          <Dialog open={open} onOpenChange={(val) => {
+            setOpen(val);
+            if (!val) {
+              setDocumento("");
+              setArquivo(null);
+              setValorMov(0);
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="size-4" /> Nova movimentação
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Nova movimentação</DialogTitle>
@@ -439,7 +457,8 @@ function FinanceiroProjeto() {
               </DialogFooter>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       }
     >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
