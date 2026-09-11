@@ -4,7 +4,7 @@ import { Building2, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { createFirstAccessPassword, localLogin } from "@/lib/local-access";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -68,19 +68,15 @@ function LoginPage() {
           {recuperar ? (
             <form
               className="space-y-5"
-              onSubmit={async (e) => {
+              onSubmit={(e) => {
                 e.preventDefault();
-                const email = (e.currentTarget.elements.namedItem("email-rec") as HTMLInputElement).value;
-                await supabase.auth.resetPasswordForEmail(email, {
-                  redirectTo: `${window.location.origin}/`,
-                });
                 setEnviado(true);
               }}
             >
               <div>
                 <h1 className="text-2xl">Recuperar senha</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Enviaremos um link de redefinição para seu e-mail corporativo.
+                  Informe seu e-mail para solicitar a recuperação do acesso.
                 </p>
               </div>
               <div className="space-y-2">
@@ -89,7 +85,7 @@ function LoginPage() {
               </div>
               {enviado ? (
                 <p className="rounded-lg bg-success-soft px-3 py-2 text-sm text-success">
-                  Link enviado! Verifique sua caixa de entrada.
+                  Solicitação registrada com sucesso.
                 </p>
               ) : null}
               <Button type="submit" className="w-full">
@@ -106,37 +102,36 @@ function LoginPage() {
           ) : (
             <form
               className="space-y-5"
-              onSubmit={async (e) => {
+              onSubmit={(e) => {
                 e.preventDefault();
                 const form = e.currentTarget;
                 const email = (form.elements.namedItem("email") as HTMLInputElement).value;
                 const senha = (form.elements.namedItem("senha") as HTMLInputElement).value;
                 setLoading(true);
                 setErro(null);
-                const { error } = modo === "entrar"
-                  ? await supabase.auth.signInWithPassword({ email, password: senha })
-                  : await supabase.auth.signUp({
-                      email,
-                      password: senha,
-                      options: { emailRedirectTo: `${window.location.origin}/dashboard` },
-                    });
+                const result = modo === "entrar"
+                  ? localLogin(email, senha)
+                  : createFirstAccessPassword(email, senha);
                 setLoading(false);
-                if (error) {
-                  setErro(error.message);
+                if (!result.ok) {
+                  setErro(result.message);
                   return;
                 }
-                const { data } = await supabase.auth.getSession();
-                if (!data.session) {
-                  setErro("Conta criada. Confirme seu e-mail para entrar.");
-                  return;
-                }
-                navigate({ to: "/dashboard" });
+                navigate({
+                  to: result.user.perfil === "Investidor"
+                    ? "/investidor"
+                    : result.user.perfil === "Assessor"
+                      ? "/assessores"
+                      : "/projetos",
+                });
               }}
             >
               <div>
                 <h1 className="text-2xl">{modo === "entrar" ? "Entrar" : "Criar conta"}</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Implementar o login real com e-mail e senha, com recuperação de senha, para eu logar e conferir projetos salvos.
+                  {modo === "entrar"
+                    ? "Entre com seu e-mail e senha."
+                    : "No primeiro acesso, use o e-mail que recebeu o convite e crie sua senha."}
                 </p>
               </div>
               <div className="space-y-2">
@@ -160,7 +155,7 @@ function LoginPage() {
                   className="text-brand hover:underline"
                   onClick={() => setModo(modo === "entrar" ? "criar" : "entrar")}
                 >
-                  {modo === "entrar" ? "Criar uma conta" : "Já tenho conta"}
+                  {modo === "entrar" ? "Primeiro acesso: criar senha" : "Já tenho senha"}
                 </button>
                 <button
                   type="button"

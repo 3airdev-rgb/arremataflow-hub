@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
-import { House, Handshake, BriefcaseBusiness, Users, Save, UserPlus, Search, Trash2, CalendarIcon, CheckCircle2, UserCheck, Plus } from "lucide-react";
+import { House, Handshake, BriefcaseBusiness, Users, Save, UserPlus, Search, Trash2, CalendarIcon, CheckCircle2, UserCheck, Plus, CircleDollarSign } from "lucide-react";
 import { SectionCard } from "@/components/project-form-section-card";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
@@ -14,13 +14,16 @@ import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { formatBRL } from "@/lib/mock-data";
-import { supabase } from "@/integrations/supabase/client";
+import { formatBRL, projetos, usuarios as mockUsuarios } from "@/lib/mock-data";
+import { getLocalProjects, saveLocalProject } from "@/lib/local-projects";
 import { InvestorRegistrationModal, type UnifiedEntityData } from "@/components/investor-registration-modal";
 import { Calendar } from "@/components/ui/calendar";
 import { ImageManagementSection, type ProjetoFoto } from "@/components/image-management-section";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { inviteProjectMembers } from "@/lib/local-access";
+import { logProjectAudit } from "@/lib/local-project-audit";
+import { AdvisoryModeInfo } from "@/components/advisory-mode-info";
 
 export const Route = createFileRoute("/_authenticated/projetos/$id/editar")({
   component: EditarProjeto,
@@ -55,23 +58,50 @@ function EditarProjeto() {
   const [quantidadeParcelas, setQuantidadeParcelas] = useState<number>(1);
   const [usuarios, setUsuarios] = useState<any[]>([]);
   const [isInvestorModalOpen, setIsInvestorModalOpen] = useState(false);
+  const [isAssessorModalOpen, setIsAssessorModalOpen] = useState(false);
   const [isResponsibleModalOpen, setIsResponsibleModalOpen] = useState(false);
   const [isLeiloeiroModalOpen, setIsLeiloeiroModalOpen] = useState(false);
+  const [projecoesFinanceiras, setProjecoesFinanceiras] = useState({
+    aquisicao: 0,
+    cartorio: 0,
+    prefeitura: 0,
+    condominio: 0,
+    juridico: 0,
+    obra: 0,
+    assessoria: 0,
+    venda: 0,
+  });
 
   useEffect(() => {
-    async function init() {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
+    function init() {
+      const localProject = getLocalProjects().find((item) => item.id === id);
+      const mockProject = projetos.find((item) => item.id === id);
+      const d: any = localProject || (mockProject ? {
+        ...mockProject,
+        valor_aquisicao: mockProject.valorAquisicao,
+        percentual_honorarios: 10,
+        valor_minimo: 0,
+        data_aquisicao: mockProject.dataAquisicao?.split("/").reverse().join("-"),
+        forma_pagamento: "",
+        tipo_imovel: "",
+        origem: "",
+        percentual_comissao: 5,
+        valor_parcelado: 0,
+        quantidade_parcelas: 1,
+        foto_principal: mockProject.foto,
+      } : null);
 
-      const [pRes, uRes] = await Promise.all([
-        supabase.from("projetos").select("*").eq("id", id).single(),
-        supabase.from("pessoas").select("*")
-      ]);
-
-      if (pRes.data) {
-        const d = pRes.data;
+      if (d) {
         setProjeto(d);
-        setModalidade(d.modalidade || "");
+        const modalidadeNormalizada: Record<string, string> = {
+          "Assessoria Completa": "completa",
+          "Assessoria Parcial": "parcial",
+          "Assessoria Jurídica": "juridica",
+          "Assessoria Operacional": "operacional",
+          "Consultoria Específica": "consultiva",
+          "Sem Assessoria": "nenhuma",
+        };
+        setModalidade(modalidadeNormalizada[d.modalidade] || d.modalidade || "");
         setValorAquisicao(Number(d.valor_aquisicao));
         setPercentualHonorarios(Number(d.percentual_honorarios));
         setTemMinimo(d.tem_minimo ? "sim" : "nao");
@@ -85,34 +115,37 @@ function EditarProjeto() {
         setValorFinanciado(Number(d.valor_parcelado));
         setQuantidadeParcelas(Number(d.quantidade_parcelas));
         setLeiloeiroVinculado(d.leiloeiro_id ? { id: d.leiloeiro_id, nome: d.leiloeiro_nome || "" } : null);
+        setProjecoesFinanceiras({
+          aquisicao: Number(d.valor_aquisicao) || 0,
+          cartorio: Number(d.projecoes_financeiras?.cartorio) || 0,
+          prefeitura: Number(d.projecoes_financeiras?.prefeitura) || 0,
+          condominio: Number(d.projecoes_financeiras?.condominio) || 0,
+          juridico: Number(d.projecoes_financeiras?.juridico) || 0,
+          obra: Number(d.projecoes_financeiras?.obra) || 0,
+          assessoria: Number(d.projecoes_financeiras?.assessoria) || 0,
+          venda: Number(d.projecoes_financeiras?.venda) || 0,
+        });
 
-        const [partRes, manRes, photoRes] = await Promise.all([
-          supabase.from("projeto_participantes").select("*").eq("projeto_id", id),
-          supabase.from("project_managers").select("assessor_id, pessoas(nome)").eq("project_id", id),
-          supabase.from("projeto_fotos").select("*").eq("projeto_id", id).order("display_order")
-        ]);
-
-        if (partRes.data) {
-          setParticipantes(partRes.data.filter(p => p.papel === "Investidor").map(p => ({ nome: p.nome, papel: "Investidor", percentual: p.percentual.toString() })));
-          setAssessoresVinculados(partRes.data.filter(p => p.papel === "Assessor").map(p => ({ nome: p.nome, papel: "Assessor", percentual: p.percentual.toString() })));
-        }
-        if (manRes.data) setResponsaveisVinculados(manRes.data.map(m => ({ id: m.assessor_id, nome: (m.pessoas as any)?.nome || "Assessor" })));
-        if (photoRes.data) {
-          setFotosUpload(photoRes.data.map(f => ({
-            id: f.id,
-            url: `${import.meta.env["VITE_SUPABASE_URL"]}/storage/v1/object/public/projetos/${f.file_path}`,
-            file_path: f.file_path,
-            file_name: f.file_name,
-            display_order: f.display_order,
-            is_main: f.is_main
-          })));
-        }
+        const investorNames = d.investidores || d.participantes?.map((p: any) => p.nome) || [];
+        setParticipantes(investorNames.map((nome: string, index: number) => ({ nome, papel: "Investidor", percentual: index === 0 ? "100" : "0" })));
+        const assessorNames = d.assessores?.map((a: any) => a.nome || a) || [];
+        setAssessoresVinculados(assessorNames.map((nome: string) => ({ nome, papel: "Assessor", percentual: "100" })));
+        if (d.responsavel) setResponsaveisVinculados([{ id: `mock-${d.responsavel}`, nome: d.responsavel }]);
+        const photoUrls = d.fotos || (d.foto_principal ? [d.foto_principal] : []);
+        setFotosUpload(photoUrls.map((url: string, index: number) => ({ id: `local-photo-${index}`, url, file_path: "", file_name: `Imagem ${index + 1}`, display_order: index, is_main: index === 0 })));
       }
-      if (uRes.data) setUsuarios(uRes.data);
+      setUsuarios(mockUsuarios.map((user) => ({ ...user, tipo: user.perfil })));
       setLoading(false);
     }
     init();
   }, [id]);
+
+  useEffect(() => {
+    setProjecoesFinanceiras((current) => current.aquisicao === valorAquisicao
+      ? current
+      : { ...current, aquisicao: valorAquisicao }
+    );
+  }, [valorAquisicao]);
 
   const honorarioCalculado = useMemo(() => {
     const calc = valorAquisicao * (percentualHonorarios / 100);
@@ -127,50 +160,11 @@ function EditarProjeto() {
   const leiloeirosDisponiveis = usuarios.filter(u => u.tipo === "Leiloeiro");
 
   async function salvarPessoa(data: UnifiedEntityData, tipo: "Investidor" | "Assessor" | "Leiloeiro") {
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData.user?.id;
-    if (!userId) return;
-
-    // Check for duplicate document
-    if (data.documento) {
-      const { data: existing } = await supabase
-        .from("pessoas")
-        .select("id")
-        .eq("documento", data.documento)
-        .maybeSingle();
-      
-      if (existing) {
-        toast.error("Investidor já Cadastrado", {
-          description: "Um registro com este CPF ou CNPJ já existe na base de dados."
-        });
-        return;
-      }
-    }
-
-    const { data: newPessoa, error } = await supabase.from("pessoas").insert({
-      user_id: userId,
-      tipo,
-      nome: data.nome,
-      documento: data.documento || null,
-      email: data.email || null,
-      celulares: data.celulares ?? [],
-      data_nascimento: data.dataNascimento || null,
-      estado_civil: data.estadoCivil || null,
-      endereco: data.endereco || null,
-      banco: data.banco || null,
-      agencia: data.agencia || null,
-      conta: data.conta || null,
-      website: data.website || null,
-      cidade: data.cidade || null,
-      estado: data.estado || null,
-    }).select("*").single();
-
-    if (error) {
-      toast.error(`Não foi possível salvar ${tipo.toLowerCase()}: ${error.message}`);
-    } else {
-      toast.success(`${tipo} cadastrado com sucesso!`);
-      setUsuarios(prev => [...prev, newPessoa]);
-    }
+    const newPerson = { ...data, id: `local-person-${Date.now()}`, tipo };
+    setUsuarios(prev => [...prev, newPerson]);
+    const people = JSON.parse(localStorage.getItem("arremataflow:people") || "[]");
+    localStorage.setItem("arremataflow:people", JSON.stringify([...people, newPerson]));
+    toast.success(`${tipo} cadastrado com sucesso!`);
   }
 
   if (loading || !projeto) return <div className="p-8">Carregando...</div>;
@@ -182,21 +176,20 @@ function EditarProjeto() {
           const fd = new FormData(e.currentTarget);
           setSalvando(true);
           try {
-            const { data: u } = await supabase.auth.getUser();
-            if (!u.user) throw new Error("Sessão expirada.");
-
-            let leiloeiroId = leiloeiroVinculado?.id || null;
-            if (leiloeiroVinculado && leiloeiroVinculado.id.includes("temp-")) {
-                const { data: p } = await supabase.from("pessoas").insert({ user_id: u.user!.id, tipo: "Leiloeiro", nome: leiloeiroVinculado.nome }).select("id").single();
-                if (p) leiloeiroId = p.id;
-            }
             const parcelado = formaPagamento === "parcelado" || formaPagamento === "financiado";
-            
-            const { error: projetoError } = await supabase.from("projetos").update({
-              nome: fd.get("end") as string,
-              status: status,
-              endereco: fd.get("end") as string,
-              cidade: fd.get("cidade") as string,
+            saveLocalProject({
+              ...projeto,
+              id,
+              codigo: projeto.codigo || `AF-${new Date().getFullYear()}-LOCAL`,
+              nome: (fd.get("end") as string) || projeto.nome,
+              status,
+              endereco: (fd.get("end") as string) || "Endereço não informado",
+              cidade: (fd.get("cidade") as string) || "",
+              etapa: modalidade || projeto.etapa || "Aquisição",
+              responsavel: responsaveisVinculados[0]?.nome || "Não atribuído",
+              investidores: participantes.map(p => p.nome),
+              foto: fotosUpload.find(f => f.is_main)?.url || fotosUpload[0]?.url || null,
+              updated_at: new Date().toISOString(),
               cep: fd.get("cep") as string,
               area: fd.get("area") as string,
               land_area: parseFloat((fd.get("land_area") as string)?.replace(/[^\d.,]/g, "").replace(",", ".")) || null,
@@ -207,12 +200,10 @@ function EditarProjeto() {
               iptu: fd.get("iptu") as string,
               observacoes: fd.get("obs") as string,
               fotos: fotosUpload.map(f => f.url),
-              foto_principal: fotosUpload.find(f => f.is_main)?.url || null,
               origem: origem || null,
               valor_aquisicao: valorAquisicao,
               data_aquisicao: dataAquisicao ? format(dataAquisicao, "yyyy-MM-dd") : null,
               forma_pagamento: formaPagamento || null,
-              leiloeiro_id: leiloeiroId || null,
               leiloeiro_nome: leiloeiroVinculado?.nome ?? null,
               percentual_comissao: percentualComissao,
               valor_comissao: comissaoCalculada,
@@ -220,53 +211,28 @@ function EditarProjeto() {
               valor_parcelado: parcelado ? valorFinanciado : 0,
               quantidade_parcelas: parcelado ? quantidadeParcelas : 1,
               valor_parcela: parcelado ? valorParcelaCalculado : 0,
-              modalidade: modalidade || null,
-              percentual_honorarios: modalidade === "nenhuma" ? 0 : percentualHonorarios,
+              percentual_honorarios: modalidade === "nenhuma" || modalidade === "completa" ? 0 : percentualHonorarios,
               tem_minimo: temMinimo === "sim",
               valor_minimo: valorMinimo,
-              valor_honorarios: modalidade === "nenhuma" ? 0 : honorarioCalculado,
-            }).eq("id", id);
-            
-            if (projetoError) throw projetoError;
+              valor_honorarios: modalidade === "nenhuma" || modalidade === "completa" ? 0 : honorarioCalculado,
+              participantes,
+              assessores: assessoresVinculados,
+              projecoes_financeiras: modalidade === "completa"
+                ? { ...projecoesFinanceiras, assessoria: 0 }
+                : projecoesFinanceiras,
+            });
 
-            // Sync participants
-            await supabase.from("projeto_participantes").delete().eq("projeto_id", id);
-            const vinculos = [
-              ...participantes.map(p => ({ projeto_id: id, nome: p.nome, papel: "Investidor", percentual: parseFloat(p.percentual) || 0 })),
-              ...assessoresVinculados.map(a => ({ projeto_id: id, nome: a.nome, papel: "Assessor", percentual: parseFloat(a.percentual) || 0 }))
-            ];
-            const filteredVinculos = vinculos.filter(v => v.nome && !v.nome.includes("temp-"));
-            if (filteredVinculos.length > 0) await supabase.from("projeto_participantes").insert(filteredVinculos);
+            inviteProjectMembers(
+              { id, name: (fd.get("end") as string) || projeto.nome },
+              [
+                ...assessoresVinculados.map((assessor) => ({ nome: assessor.nome, perfil: "Assessor" as const })),
+                ...participantes.map((participant) => ({ nome: participant.nome, perfil: "Investidor" as const })),
+              ],
+            );
 
-            // Sync managers
-            await supabase.from("project_managers").delete().eq("project_id", id);
-            if (responsaveisVinculados.length > 0) {
-              const managersToInsert = await Promise.all(responsaveisVinculados.map(async r => {
-                let assessorId = r.id;
-                if (r.id.includes("temp-")) {
-                  const { data: p } = await supabase.from("pessoas").insert({ user_id: u.user!.id, tipo: "Assessor", nome: r.nome }).select("id").single();
-                  if (p) assessorId = p.id;
-                }
-                return { project_id: id, assessor_id: assessorId, user_id: u.user!.id };
-              }));
-              await supabase.from("project_managers").insert(managersToInsert);
-            }
-
-            // Sync photos metadata
-            await supabase.from("projeto_fotos").delete().eq("projeto_id", id);
-            if (fotosUpload.length > 0) {
-              await supabase.from("projeto_fotos").insert(fotosUpload.map((f, idx) => ({
-                projeto_id: id,
-                file_path: f.file_path,
-                file_name: f.file_name,
-                display_order: idx,
-                is_main: f.is_main,
-                user_id: u.user!.id
-              })));
-            }
-
-            toast.success("Projeto atualizado!");
-            navigate({ to: `/projetos/${id}` });
+            toast.success("Projeto atualizado e convites locais sincronizados!");
+            logProjectAudit(id, "editou os dados cadastrais e as projeções financeiras do projeto", "Edição");
+            navigate({ to: "/projetos" });
           } catch (err: any) { toast.error(err.message); } finally { setSalvando(false); }
         }}>
         <SectionCard icon={House} title="Imóvel" description="Dados cadastrais e localização">
@@ -433,15 +399,15 @@ function EditarProjeto() {
                   <Button
                     variant={"outline"}
                     className={cn(
-                      "w-full justify-start text-left font-normal",
+                      "relative w-full justify-end pl-9 text-right font-normal",
                       !dataAquisicao && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    <CalendarIcon className="absolute left-3 h-4 w-4" />
                     {dataAquisicao ? format(dataAquisicao, "dd/MM/yyyy") : <span>Selecione uma data</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0" align="end">
                   <Calendar mode="single" selected={dataAquisicao} onSelect={setDataAquisicao} locale={ptBR} />
                 </PopoverContent>
               </Popover>
@@ -532,23 +498,75 @@ function EditarProjeto() {
         <SectionCard icon={BriefcaseBusiness} title="Modalidade de Assessoria" description="Escopo e honorários">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>Modalidade</Label>
+              <Label htmlFor="modalidade">Modalidade</Label>
               <Select value={modalidade} onValueChange={setModalidade}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectTrigger id="modalidade"><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="completa">Assessoria Completa</SelectItem>
                   <SelectItem value="parcial">Assessoria Parcial</SelectItem>
                   <SelectItem value="juridica">Assessoria Jurídica</SelectItem>
+                  <SelectItem value="operacional">Assessoria Operacional</SelectItem>
+                  <SelectItem value="consultiva">Consultoria Específica</SelectItem>
                   <SelectItem value="nenhuma">Sem Assessoria</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {modalidade !== "nenhuma" && modalidade !== "completa" && (
+
+            {(modalidade === "parcial" || modalidade === "juridica" || modalidade === "operacional" || modalidade === "consultiva") && <>
               <div className="space-y-2">
-                <Label>Percentual de Honorários (%)</Label>
-                <Input type="number" value={percentualHonorarios} onChange={(e) => setPercentualHonorarios(parseFloat(e.target.value) || 0)} />
+                <Label htmlFor="honorario">Percentual de Honorários (%)</Label>
+                <Input id="honorario" type="number" value={percentualHonorarios} onChange={(e) => setPercentualHonorarios(parseFloat(e.target.value) || 0)} />
               </div>
-            )}
+
+              <div className="space-y-3">
+                <Label>Há valor mínimo de honorários?</Label>
+                <RadioGroup value={temMinimo} onValueChange={setTemMinimo} className="flex items-center gap-4">
+                  <div className="flex items-center space-x-2"><RadioGroupItem value="sim" id="edit-min-sim" /><Label htmlFor="edit-min-sim" className="cursor-pointer">Sim</Label></div>
+                  <div className="flex items-center space-x-2"><RadioGroupItem value="nao" id="edit-min-nao" /><Label htmlFor="edit-min-nao" className="cursor-pointer">Não</Label></div>
+                </RadioGroup>
+              </div>
+
+              {temMinimo === "sim" && <div className="space-y-2">
+                <Label htmlFor="edit-val-min">Valor Mínimo de Honorários</Label>
+                <CurrencyInput id="edit-val-min" value={valorMinimo} onValueChange={setValorMinimo} placeholder="R$ 0,00" />
+              </div>}
+
+              <div className="space-y-2">
+                <Label>Valor devido calculado</Label>
+                <div className="h-10 flex items-center px-3 rounded-md border bg-muted font-medium">{formatBRL(honorarioCalculado)}</div>
+              </div>
+            </>}
+
+            <AdvisoryModeInfo mode={modalidade} />
+
+            {modalidade === "nenhuma" && <div className="md:col-span-2 space-y-4">
+              <div className="grid gap-4 md:grid-cols-2"><div className="space-y-2"><Label htmlFor="edit-fixo-zero">Valor dos honorários</Label><Input id="edit-fixo-zero" value="R$ 0,00" disabled /></div></div>
+            </div>}
+
+            {modalidade !== "nenhuma" && modalidade !== "" && <div className="md:col-span-2 space-y-6 pt-4 border-t">
+              <div className="flex items-center justify-between gap-4">
+                <div><h4 className="text-sm font-semibold">Assessores</h4><p className="text-xs text-muted-foreground">Vincule os assessores e defina suas participações</p></div>
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsAssessorModalOpen(true)}><UserPlus className="mr-2 h-4 w-4" />Cadastrar novo assessor</Button>
+              </div>
+              <div className="space-y-2">
+                <Label>Vincular assessor existente</Label>
+                <Popover><PopoverTrigger asChild><Button variant="outline" role="combobox" className="w-full justify-between">Procurar por nome...<Search className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0" align="start"><Command><CommandInput placeholder="Digite o nome do assessor..." /><CommandList><CommandEmpty>Nenhum assessor encontrado.</CommandEmpty><CommandGroup>
+                    {assessoresDisponiveis.map((assessor) => <CommandItem key={assessor.id} value={assessor.nome} onSelect={() => {
+                      if (!assessoresVinculados.find((item) => item.nome === assessor.nome)) setAssessoresVinculados([...assessoresVinculados, { nome: assessor.nome, papel: "Assessor", percentual: "" }]);
+                      else toast.error("Assessor já adicionado.");
+                    }}><CheckCircle2 className="mr-2 h-4 w-4" />{assessor.nome} ({assessor.email})</CommandItem>)}
+                  </CommandGroup></CommandList></Command></PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-3">{assessoresVinculados.map((assessor, index) => <div key={index} className="flex items-end gap-3 rounded-lg border bg-muted/30 p-3">
+                <div className="flex-1 space-y-1"><Label className="text-xs text-muted-foreground">Nome</Label><div className="h-10 flex items-center px-3 rounded-md bg-white border font-medium">{assessor.nome}</div></div>
+                <div className="w-32 space-y-1"><Label className="text-xs text-muted-foreground">% Participação</Label><Input type="number" placeholder="0" value={assessor.percentual} onChange={(e) => {
+                  const next = [...assessoresVinculados]; if (next[index]) next[index].percentual = e.target.value; setAssessoresVinculados(next);
+                }} /></div>
+                <Button type="button" variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setAssessoresVinculados(assessoresVinculados.filter((_, itemIndex) => itemIndex !== index))}><Trash2 className="h-4 w-4" /></Button>
+              </div>)}</div>
+            </div>}
           </div>
         </SectionCard>
 
@@ -594,6 +612,55 @@ function EditarProjeto() {
             </div>
         </SectionCard>
 
+        <SectionCard
+          icon={CircleDollarSign}
+          title="Projeções Financeiras"
+          description="Estimativa de despesas e receitas do projeto"
+        >
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
+              <h3 className="font-semibold">Despesas</h3>
+              {([
+                ["aquisicao", "Aquisição"],
+                ["cartorio", "Cartório"],
+                ["prefeitura", "Prefeitura"],
+                ["condominio", "Condomínio"],
+                ["juridico", "Jurídico"],
+                ["obra", "Obra"],
+                ["assessoria", "Assessoria"],
+              ] as const).map(([field, label]) => (
+                <div key={field} className="space-y-2">
+                  <Label htmlFor={`edit-projecao-${field}`}>{label}</Label>
+                  <CurrencyInput
+                    id={`edit-projecao-${field}`}
+                    value={projecoesFinanceiras[field]}
+                    wholeReais
+                    inputMode="numeric"
+                    readOnly={field === "aquisicao"}
+                    className={field === "aquisicao" ? "cursor-not-allowed bg-muted" : undefined}
+                    onValueChange={(value) => setProjecoesFinanceiras((current) => ({ ...current, [field]: value }))}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
+              <h3 className="font-semibold">Receitas</h3>
+              <div className="space-y-2">
+                <Label htmlFor="edit-projecao-venda">Estimativa de Venda</Label>
+                <CurrencyInput
+                  id="edit-projecao-venda"
+                  value={projecoesFinanceiras.venda}
+                  wholeReais
+                  inputMode="numeric"
+                  maxValue={99999999.99}
+                  onValueChange={(value) => setProjecoesFinanceiras((current) => ({ ...current, venda: value }))}
+                />
+              </div>
+            </div>
+          </div>
+        </SectionCard>
+
         <InvestorRegistrationModal
           open={isInvestorModalOpen}
           onOpenChange={setIsInvestorModalOpen}
@@ -602,6 +669,15 @@ function EditarProjeto() {
             await salvarPessoa(data, "Investidor");
           }}
           type="Investidor"
+        />
+        <InvestorRegistrationModal
+          open={isAssessorModalOpen}
+          onOpenChange={setIsAssessorModalOpen}
+          onSave={async (data) => {
+            setAssessoresVinculados((prev) => [...prev, { nome: data.nome, papel: "Assessor", percentual: "" }]);
+            await salvarPessoa(data, "Assessor");
+          }}
+          type="Assessor"
         />
         <InvestorRegistrationModal
           open={isResponsibleModalOpen}

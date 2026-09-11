@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
-import { House, Handshake, BriefcaseBusiness, Users, Plus, Trash2, Save, UserPlus, Search, CalendarIcon, CheckCircle2, UserCheck } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { House, Handshake, BriefcaseBusiness, Users, Plus, Trash2, Save, UserPlus, Search, CalendarIcon, CheckCircle2, UserCheck, CircleDollarSign } from "lucide-react";
 import { SectionCard } from "@/components/project-form-section-card";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,9 @@ import { projetos, usuarios, formatBRL } from "@/lib/mock-data";
 import { InvestorRegistrationModal, type UnifiedEntityData } from "@/components/investor-registration-modal";
 import { ImageManagementSection, type ProjetoFoto } from "@/components/image-management-section";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { supabase } from "@/integrations/supabase/client";
+import { AdvisoryModeInfo } from "@/components/advisory-mode-info";
+import { saveLocalProject } from "@/lib/local-projects";
+import { inviteProjectMembers } from "@/lib/local-access";
 
 export const Route = createFileRoute("/_authenticated/projetos/novo")({
   head: () => ({
@@ -62,48 +64,14 @@ export const Route = createFileRoute("/_authenticated/projetos/novo")({
 
 
 async function salvarPessoa(data: UnifiedEntityData, tipo: "Investidor" | "Assessor" | "Leiloeiro") {
-  const { data: userData } = await supabase.auth.getUser();
-  const userId = userData.user?.id;
-  if (!userId) return;
-
-  // Check for duplicate document before saving (secondary safety)
-  if (data.documento) {
-    const { data: existing } = await supabase
-      .from("pessoas")
-      .select("id")
-      .eq("documento", data.documento)
-      .maybeSingle();
-    
-    if (existing) {
-      toast.error("Investidor já Cadastrado", {
-        description: "Um registro com este CPF ou CNPJ já existe na base de dados."
-      });
-      return;
-    }
+  const key = "arremataflow:people";
+  const people = JSON.parse(localStorage.getItem(key) || "[]") as UnifiedEntityData[];
+  if (data.documento && people.some((person) => person.documento === data.documento)) {
+    toast.error(`${tipo} já cadastrado`, { description: "Este CPF ou CNPJ já existe no cadastro local." });
+    return;
   }
-
-  const { error } = await supabase.from("pessoas").insert({
-    user_id: userId,
-    tipo,
-    nome: data.nome,
-    documento: data.documento || null,
-    email: data.email || null,
-    celulares: data.celulares ?? [],
-    data_nascimento: data.dataNascimento || null,
-    estado_civil: data.estadoCivil || null,
-    endereco: data.endereco || null,
-    banco: data.banco || null,
-    agencia: data.agencia || null,
-    conta: data.conta || null,
-    website: data.website || null,
-    cidade: data.cidade || null,
-    estado: data.estado || null,
-  });
-  if (error) {
-    toast.error(`Não foi possível salvar ${tipo.toLowerCase()}: ${error.message}`);
-  } else {
-    toast.success(`${tipo} cadastrado com sucesso!`);
-  }
+  localStorage.setItem(key, JSON.stringify([...people, { ...data, tipo }]));
+  toast.success(`${tipo} cadastrado com sucesso!`);
 }
 
 function NovoProjeto() {
@@ -113,13 +81,19 @@ function NovoProjeto() {
   const [isAssessorModalOpen, setIsAssessorModalOpen] = useState(false);
   const [isResponsibleModalOpen, setIsResponsibleModalOpen] = useState(false);
   const [isLeiloeiroModalOpen, setIsLeiloeiroModalOpen] = useState(false);
-  const [participantes, setParticipantes] = useState([
-    { nome: "Marcos Ribeiro", papel: "Investidor", percentual: "45" },
-  ]);
-  const [assessoresVinculados, setAssessoresVinculados] = useState([
-    { nome: "Camila Andrade", papel: "Assessor", percentual: "100" },
-  ]);
+  const [participantes, setParticipantes] = useState<Array<{ nome: string; papel: string; percentual: string }>>([]);
+  const [assessoresVinculados, setAssessoresVinculados] = useState<Array<{ nome: string; papel: string; percentual: string }>>([]);
   const [responsaveisVinculados, setResponsaveisVinculados] = useState<{id: string, nome: string}[]>([]);
+  const [projecoesFinanceiras, setProjecoesFinanceiras] = useState({
+    aquisicao: 0,
+    cartorio: 0,
+    prefeitura: 0,
+    condominio: 0,
+    juridico: 0,
+    obra: 0,
+    assessoria: 0,
+    venda: 0,
+  });
   
   // States for new logic
   const [modalidade, setModalidade] = useState<string>("");
@@ -149,6 +123,13 @@ function NovoProjeto() {
     }
     return calculado;
   }, [valorAquisicao, percentualHonorarios, temMinimo, valorMinimo]);
+
+  useEffect(() => {
+    setProjecoesFinanceiras((current) => current.aquisicao === valorAquisicao
+      ? current
+      : { ...current, aquisicao: valorAquisicao }
+    );
+  }, [valorAquisicao]);
 
   const comissaoCalculada = useMemo(() => {
     return valorAquisicao * (percentualComissao / 100);
@@ -182,116 +163,50 @@ function NovoProjeto() {
           };
           setSalvando(true);
           try {
-            const { data: userData } = await supabase.auth.getUser();
-            const userId = userData.user?.id;
-            if (!userId) throw new Error("Sessão expirada. Entre novamente.");
-
-            let leiloeiroId: string | null = null;
-            if (leiloeiroVinculado) {
-              const { data: pessoa, error: pessoaError } = await supabase
-                .from("pessoas")
-                .insert({ user_id: userId, tipo: "Leiloeiro", nome: leiloeiroVinculado.nome })
-                .select("id")
-                .single();
-              if (pessoaError) throw pessoaError;
-              leiloeiroId = pessoa.id;
-            }
-
             const parcelado = formaPagamento === "parcelado" || formaPagamento === "financiado";
-            const { data: projeto, error: projetoError } = await supabase
-              .from("projetos")
-              .insert({
-                user_id: userId,
-                status: status,
-                nome: txt("end") ?? "Novo projeto",
-                endereco: txt("end"),
-                cidade: txt("cidade"),
-                cep: txt("cep"),
-                area: txt("area"),
-                land_area: num("land_area"),
-                built_area: num("built_area"),
-                total_area: num("total_area"),
-                matricula: txt("mat"),
-                tipo_imovel: tipoImovel || null,
-                iptu: txt("iptu"),
-                observacoes: txt("obs"),
-                fotos: fotosUpload.map(f => f.url),
-                foto_principal: fotosUpload.find(f => f.is_main)?.url || null,
-                origem: origem || null,
-                valor_aquisicao: valorAquisicao,
-                data_aquisicao: dataAquisicao ? format(dataAquisicao, "yyyy-MM-dd") : null,
-                forma_pagamento: formaPagamento || null,
-                leiloeiro_id: leiloeiroId,
-                leiloeiro_nome: leiloeiroVinculado?.nome ?? null,
-                percentual_comissao: percentualComissao,
-                valor_comissao: comissaoCalculada,
-                credor: parcelado ? txt("credor") : null,
-                valor_parcelado: parcelado ? valorFinanciado : 0,
-                quantidade_parcelas: parcelado ? quantidadeParcelas : 1,
-                valor_parcela: parcelado ? valorParcelaCalculado : 0,
-                modalidade: modalidade || null,
-                percentual_honorarios: modalidade === "nenhuma" ? 0 : percentualHonorarios,
-                tem_minimo: temMinimo === "sim",
-                valor_minimo: valorMinimo,
-                valor_honorarios: modalidade === "nenhuma" ? 0 : honorarioCalculado,
-              })
-              .select("id")
-              .single();
-            if (projetoError) throw projetoError;
+            const id = `local-${Date.now()}`;
+            const existingCount = projetos.length + JSON.parse(localStorage.getItem("arremataflow:projects") || "[]").length;
+            saveLocalProject({
+              id,
+              codigo: `AF-${new Date().getFullYear()}-${String(existingCount + 1).padStart(3, "0")}`,
+              nome: txt("end") ?? "Novo projeto",
+              endereco: txt("end") ?? "Endereço não informado",
+              cidade: txt("cidade") ?? "",
+              etapa: modalidade || "Aquisição",
+              status,
+              responsavel: responsaveisVinculados[0]?.nome || "Não atribuído",
+              investidores: participantes.map((participant) => participant.nome),
+              foto: fotosUpload.find((foto) => foto.is_main)?.url || fotosUpload[0]?.url || null,
+              updated_at: new Date().toISOString(),
+              cep: txt("cep"), area: txt("area"), land_area: num("land_area"),
+              built_area: num("built_area"), total_area: num("total_area"), matricula: txt("mat"),
+              tipo_imovel: tipoImovel || null, iptu: txt("iptu"), observacoes: txt("obs"),
+              fotos: fotosUpload.map((foto) => foto.url), origem: origem || null,
+              valor_aquisicao: valorAquisicao,
+              data_aquisicao: dataAquisicao ? format(dataAquisicao, "yyyy-MM-dd") : null,
+              forma_pagamento: formaPagamento || null, leiloeiro_nome: leiloeiroVinculado?.nome ?? null,
+              percentual_comissao: percentualComissao, valor_comissao: comissaoCalculada,
+              credor: parcelado ? txt("credor") : null, valor_parcelado: parcelado ? valorFinanciado : 0,
+              quantidade_parcelas: parcelado ? quantidadeParcelas : 1,
+              valor_parcela: parcelado ? valorParcelaCalculado : 0,
+              percentual_honorarios: modalidade === "nenhuma" || modalidade === "completa" ? 0 : percentualHonorarios,
+              tem_minimo: temMinimo === "sim", valor_minimo: valorMinimo,
+              valor_honorarios: modalidade === "nenhuma" || modalidade === "completa" ? 0 : honorarioCalculado,
+              participantes, assessores: assessoresVinculados, responsaveis: responsaveisVinculados,
+              projecoes_financeiras: modalidade === "completa"
+                ? { ...projecoesFinanceiras, assessoria: 0 }
+                : projecoesFinanceiras,
+            });
 
-            const vinculos = [
-              ...participantes.map((p) => ({
-                projeto_id: projeto.id,
-                nome: p.nome,
-                papel: "Investidor",
-                percentual: parseFloat(p.percentual) || 0,
-              })),
-              ...assessoresVinculados.map((a) => ({
-                projeto_id: projeto.id,
-                nome: a.nome,
-                papel: "Assessor",
-                percentual: parseFloat(a.percentual) || 0,
-              })),
-            ];
-            if (vinculos.length > 0) {
-              const { error: vinculoError } = await supabase
-                .from("projeto_participantes")
-                .insert(vinculos);
-              if (vinculoError) throw vinculoError;
-            }
-            
-            // Salvar responsáveis (project_managers)
-            if (responsaveisVinculados.length > 0) {
-              const managers = responsaveisVinculados.map((r) => ({
-                project_id: projeto.id,
-                assessor_id: r.id,
-                user_id: userId
-              }));
-              const { error: managerError } = await supabase
-                .from("project_managers")
-                .insert(managers);
-              if (managerError) throw managerError;
-            }
+            inviteProjectMembers(
+              { id, name: txt("end") ?? "Novo projeto" },
+              [
+                ...assessoresVinculados.map((assessor) => ({ nome: assessor.nome, perfil: "Assessor" as const })),
+                ...participantes.map((participant) => ({ nome: participant.nome, perfil: "Investidor" as const })),
+              ],
+            );
 
-            // Salvar metadados das fotos
-            if (fotosUpload.length > 0) {
-              const fotosMetadata = fotosUpload.map((f, idx) => ({
-                projeto_id: projeto.id,
-                file_path: f.file_path,
-                file_name: f.file_name,
-                display_order: idx,
-                is_main: f.is_main,
-                user_id: userId
-              }));
-              
-              const { error: fotosError } = await supabase
-                .from("projeto_fotos")
-                .insert(fotosMetadata);
-                
-              if (fotosError) console.error("Erro ao salvar metadados das fotos:", fotosError);
-            }
-
-            toast.success("Projeto salvo no banco com sucesso!");
+            toast.success("Projeto salvo e convites locais gerados para os participantes!");
             navigate({ to: "/projetos" });
           } catch (err) {
             toast.error(err instanceof Error ? err.message : "Não foi possível salvar o projeto.");
@@ -463,11 +378,11 @@ function NovoProjeto() {
                   <Button
                     variant={"outline"}
                     className={cn(
-                      "w-full justify-start text-left font-normal",
+                      "relative w-full justify-end pl-9 text-right font-normal",
                       !dataAquisicao && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    <CalendarIcon className="absolute left-3 h-4 w-4" />
                     {dataAquisicao ? (
                       format(dataAquisicao, "dd/MM/yyyy")
                     ) : (
@@ -475,7 +390,7 @@ function NovoProjeto() {
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0" align="end">
                   <Calendar
                     mode="single"
                     selected={dataAquisicao}
@@ -685,24 +600,10 @@ function NovoProjeto() {
               </>
             )}
 
-            {modalidade === "completa" && (
-              <div className="md:col-span-2 rounded-lg bg-primary-soft p-4 border border-brand/20">
-                <p className="text-sm font-medium text-brand">Regra de Assessoria Completa</p>
-                <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                  Honorários apurados sobre o Resultado Líquido (Venda - Despesas).
-                  Distribuição: 50% Assessoria / 50% Investidores.
-                </p>
-              </div>
-            )}
+            <AdvisoryModeInfo mode={modalidade} />
 
             {modalidade === "nenhuma" && (
               <div className="md:col-span-2 space-y-4">
-                <div className="rounded-lg bg-muted p-4 border border-border">
-                  <p className="text-sm font-medium">Sem Assessoria</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Nenhum cálculo de honorários ou distribuição será realizado para assessoria.
-                  </p>
-                </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="fixo-zero">Valor dos honorários</Label>
@@ -988,6 +889,59 @@ function NovoProjeto() {
                 <UserPlus className="mr-2 h-4 w-4" />
                 Cadastrar
               </Button>
+            </div>
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          icon={CircleDollarSign}
+          title="Projeções Financeiras"
+          description="Estimativa de despesas e receitas do projeto"
+        >
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
+              <h3 className="font-semibold">Despesas</h3>
+              {([
+                ["aquisicao", "Aquisição"],
+                ["cartorio", "Cartório"],
+                ["prefeitura", "Prefeitura"],
+                ["condominio", "Condomínio"],
+                ["juridico", "Jurídico"],
+                ["obra", "Obra"],
+                ["assessoria", "Assessoria"],
+              ] as const).map(([campo, rotulo]) => (
+                <div key={campo} className="space-y-2">
+                  <Label htmlFor={`projecao-${campo}`}>{rotulo}</Label>
+                  <CurrencyInput
+                    id={`projecao-${campo}`}
+                    value={projecoesFinanceiras[campo]}
+                    wholeReais
+                    readOnly={campo === "aquisicao"}
+                    className={campo === "aquisicao" ? "cursor-not-allowed bg-muted" : undefined}
+                    onValueChange={(value) =>
+                      setProjecoesFinanceiras((current) => ({ ...current, [campo]: value }))
+                    }
+                    inputMode="numeric"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
+              <h3 className="font-semibold">Receitas</h3>
+              <div className="space-y-2">
+                <Label htmlFor="projecao-venda">Venda</Label>
+                <CurrencyInput
+                  id="projecao-venda"
+                  value={projecoesFinanceiras.venda}
+                  wholeReais
+                  maxValue={99999999.99}
+                  onValueChange={(value) =>
+                    setProjecoesFinanceiras((current) => ({ ...current, venda: value }))
+                  }
+                  inputMode="numeric"
+                />
+              </div>
             </div>
           </div>
         </SectionCard>

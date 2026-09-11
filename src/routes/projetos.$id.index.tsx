@@ -1,5 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { MapPin, Wallet, TrendingUp, BadgeDollarSign, ExternalLink, Pencil } from "lucide-react";
+import { useEffect, useState } from "react";
+import { MapPin, Wallet, TrendingUp, BadgeDollarSign, ExternalLink, Pencil, Calculator } from "lucide-react";
+import { toast } from "sonner";
 import { AppLayout } from "@/components/app-layout";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -7,16 +9,56 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { RegularizacaoTab } from "@/components/regularizacao-tab-form";
 import { PosseTab } from "@/components/posse-tab-form";
+import { ServiceProvidersCard } from "@/components/service-providers-card";
+import { canAccessProject, getCurrentLocalUser } from "@/lib/local-access";
+import {
+  FINANCIAL_MOVEMENTS_UPDATED,
+  getLocalFinancialMovements,
+} from "@/lib/local-financial-movements";
+import { getLocalProjects } from "@/lib/local-projects";
+import {
+  getProjectAudit,
+  PROJECT_AUDIT_UPDATED,
+  type ProjectAuditEvent,
+} from "@/lib/local-project-audit";
+import { NewFinancialMovementDialog } from "@/components/new-financial-movement-dialog";
+import {
+  getLocalSalesPortfolio,
+  SALES_PORTFOLIO_UPDATED,
+  SalesPortfolioCard,
+} from "@/components/sales-portfolio-card";
+import {
+  getLocalSalesProposals,
+  SALES_PROPOSALS_UPDATED,
+  SalesProposalsCard,
+} from "@/components/sales-proposals-card";
+import {
+  ComprovantesFinanceiros,
+  DemonstrativoResultado,
+  type Movimentacao,
+} from "@/routes/projetos.$id.financeiro";
 import {
   projetos,
   tarefas,
   documentos,
-  receitas,
-  despesas,
   formatBRL,
+  formatBRLWithCents,
 } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/projetos/$id/")({
+  validateSearch: (search: Record<string, unknown>): {
+    aba?: string;
+    categoria?: string;
+    novaMovimentacao?: string;
+    descricao?: string;
+  } => ({
+    ...(typeof search["aba"] === "string" ? { aba: search["aba"] } : {}),
+    ...(typeof search["categoria"] === "string" ? { categoria: search["categoria"] } : {}),
+    ...(search["novaMovimentacao"] === "1" || search["novaMovimentacao"] === 1 || search["novaMovimentacao"] === true
+      ? { novaMovimentacao: "1" }
+      : {}),
+    ...(typeof search["descricao"] === "string" ? { descricao: search["descricao"] } : {}),
+  }),
   loader: ({ params }) => {
     const projeto = projetos.find((p) => p.id === params.id);
     if (!projeto) throw notFound();
@@ -65,6 +107,18 @@ const slug = (s: string) =>
     .toLowerCase()
     .replace(/\s+/g, "-");
 
+type DistributionParticipant = { nome: string; percentual: number; valor: number };
+type DistributionSnapshot = {
+  result: number;
+  advisoryShare: number;
+  investorShare: number;
+  investors: DistributionParticipant[];
+  assessors: DistributionParticipant[];
+  calculatedAt: string;
+};
+
+const distributionKey = (projectId: string) => `arremataflow:project:${projectId}:distribution`;
+
 function Bloco({ titulo, itens }: { titulo: string; itens: { label: string; valor: string }[] }) {
   return (
     <div className="surface-card p-5">
@@ -81,9 +135,365 @@ function Bloco({ titulo, itens }: { titulo: string; itens: { label: string; valo
   );
 }
 
+function FinancialProjectTab({
+  projetoId,
+  openNewMovement,
+  defaultCategory,
+  defaultDescription,
+}: {
+  projetoId: string;
+  openNewMovement?: boolean;
+  defaultCategory?: string;
+  defaultDescription?: string;
+}) {
+  const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
+
+  useEffect(() => {
+    const refresh = () => setMovimentacoes(getLocalFinancialMovements(projetoId));
+    refresh();
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, [projetoId]);
+
+  const receitasProjeto = movimentacoes.filter((movement) => movement.tipo === "receita");
+  const despesasProjeto = movimentacoes.filter((movement) => movement.tipo === "despesa");
+  const totalReceitas = receitasProjeto.reduce((total, movement) => total + movement.valor, 0);
+  const totalDespesas = despesasProjeto.reduce((total, movement) => total + movement.valor, 0);
+  const saldo = totalReceitas - totalDespesas;
+
+  return (
+    <div>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">Financeiro do Projeto</h3>
+          <p className="text-sm text-muted-foreground">Receitas, despesas e comprovantes deste projeto.</p>
+        </div>
+        <NewFinancialMovementDialog
+          projetoId={projetoId}
+          defaultOpen={openNewMovement}
+          defaultCategory={defaultCategory}
+          defaultDescription={defaultDescription}
+          onSaved={() => setMovimentacoes(getLocalFinancialMovements(projetoId))}
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="surface-card p-4">
+          <p className="text-sm text-muted-foreground">Total de receitas</p>
+          <p className="mt-1 text-xl font-semibold text-success">{formatBRL(totalReceitas)}</p>
+        </div>
+        <div className="surface-card p-4">
+          <p className="text-sm text-muted-foreground">Total de despesas</p>
+          <p className="mt-1 text-xl font-semibold text-destructive">{formatBRL(totalDespesas)}</p>
+        </div>
+        <div className="surface-card p-4">
+          <p className="text-sm text-muted-foreground">Saldo do projeto</p>
+          <p className={`mt-1 text-xl font-semibold ${saldo >= 0 ? "text-success" : "text-destructive"}`}>
+            {formatBRL(saldo)}
+          </p>
+        </div>
+      </div>
+
+      <DemonstrativoResultado receitas={receitasProjeto} despesas={despesasProjeto} />
+      <ComprovantesFinanceiros movimentacoes={movimentacoes} />
+    </div>
+  );
+}
+
+function ProjectAuditHistory({ projetoId }: { projetoId: string }) {
+  const [events, setEvents] = useState<ProjectAuditEvent[]>([]);
+
+  useEffect(() => {
+    const refresh = () => setEvents(getProjectAudit(projetoId));
+    const handleUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<{ projectId: string }>;
+      if (customEvent.detail.projectId === projetoId) refresh();
+    };
+    refresh();
+    window.addEventListener(PROJECT_AUDIT_UPDATED, handleUpdate);
+    return () => window.removeEventListener(PROJECT_AUDIT_UPDATED, handleUpdate);
+  }, [projetoId]);
+
+  const formatAuditDate = (value: string) => new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "medium",
+  }).format(new Date(value));
+
+  return (
+    <div className="surface-card p-5">
+      <h3 className="text-base font-semibold">Auditoria de movimentações</h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Inclusões, edições, exclusões, documentos, relatórios e impressões realizados neste projeto.
+      </p>
+      {events.length ? (
+        <ol className="relative mt-5 space-y-5 border-l border-border pl-6">
+          {events.map((event) => (
+            <li key={event.id}>
+              <span className="absolute -left-1.5 mt-1.5 size-3 rounded-full bg-brand" />
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">{event.category}</span>
+                <p className="text-sm font-medium">{event.userName} {event.action}</p>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{formatAuditDate(event.createdAt)}</p>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="mt-5 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+          Nenhuma movimentação registrada neste projeto.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function SalesIndicator({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "muted" | "brand" | "success" | "danger";
+}) {
+  const styles = {
+    muted: "border-slate-200 bg-slate-50 text-slate-800",
+    brand: "border-sky-200 bg-sky-50 text-brand",
+    success: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    danger: "border-red-200 bg-red-50 text-red-700",
+  };
+
+  return (
+    <div className={`rounded-xl border p-4 ${styles[tone]}`}>
+      <p className="text-xs font-semibold uppercase tracking-wide opacity-75">{label}</p>
+      <p className="mt-2 text-2xl font-bold">{value}</p>
+    </div>
+  );
+}
+
 function FichaProjeto() {
   const { projeto } = Route.useLoaderData();
+  const { aba, categoria, novaMovimentacao, descricao } = Route.useSearch();
+  const [activeTab, setActiveTab] = useState(aba || "visao-geral");
+  const [projectAdvisoryMode, setProjectAdvisoryMode] = useState(projeto.modalidade);
+  const [financialSummary, setFinancialSummary] = useState({
+    investedCapital: projeto.valorAquisicao,
+    acquisitionValue: projeto.valorAquisicao,
+    advisoryFees: projeto.honorarios,
+    projectedResult: 0,
+  });
+  const [salesIndicators, setSalesIndicators] = useState({
+    minimum: 0,
+    estimated: 0,
+    maximum: 0,
+    isAvailable: false,
+    isSold: false,
+  });
+  const [salesSettlement, setSalesSettlement] = useState({
+    hasAcceptedProposal: false,
+    finalSaleValue: 0,
+    taxValue: 0,
+    commissionValue: 0,
+  });
+  const [distribution, setDistribution] = useState<DistributionSnapshot | null>(null);
+  const currentUser = getCurrentLocalUser();
+  const canView = canAccessProject(projeto, currentUser);
+  const canEdit = currentUser.perfil === "Administrador" || currentUser.permissions.includes("Editar projetos");
   const tarefasProjeto = tarefas.filter((t) => t.projeto === projeto.codigo);
+  const normalizedAdvisoryMode = projectAdvisoryMode
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  const isCompleteAdvisory = normalizedAdvisoryMode === "completa"
+    || normalizedAdvisoryMode === "assessoria completa";
+  const visibleTabs = abas.filter((tab) => isCompleteAdvisory
+    ? tab !== "Resultado"
+    : tab !== "Distribuição de Resultados"
+  );
+
+  useEffect(() => {
+    if (aba) setActiveTab(aba);
+  }, [aba]);
+
+  useEffect(() => {
+    const refreshFinancialSummary = () => {
+      const localProject = getLocalProjects().find((item) => item.id === projeto.id);
+      const acquisitionValue = Number(localProject?.["valor_aquisicao"] ?? projeto.valorAquisicao) || 0;
+      const advisoryFees = isCompleteAdvisory
+        ? 0
+        : Number(localProject?.["valor_honorarios"] ?? projeto.honorarios) || 0;
+      const projections = (localProject?.["projecoes_financeiras"] || {}) as Record<string, unknown>;
+      const projectedRevenue = Number(projections.venda) || 0;
+      const projectedExpenses = Object.entries(projections)
+        .filter(([field]) => field !== "venda" && !(isCompleteAdvisory && field === "assessoria"))
+        .reduce((total, [, value]) => total + (Number(value) || 0), 0);
+      const actualExpenses = getLocalFinancialMovements(projeto.id)
+        .filter((movement) => movement.tipo === "despesa")
+        .reduce((total, movement) => total + (Number(movement.valor) || 0), 0);
+
+      setFinancialSummary({
+        investedCapital: acquisitionValue + actualExpenses,
+        acquisitionValue,
+        advisoryFees,
+        projectedResult: projectedRevenue - projectedExpenses,
+      });
+    };
+
+    const handleFinancialUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId?: string }>).detail;
+      if (!detail?.projectId || detail.projectId === projeto.id) refreshFinancialSummary();
+    };
+
+    refreshFinancialSummary();
+    window.addEventListener(FINANCIAL_MOVEMENTS_UPDATED, handleFinancialUpdate);
+    window.addEventListener("storage", refreshFinancialSummary);
+    window.addEventListener("focus", refreshFinancialSummary);
+    return () => {
+      window.removeEventListener(FINANCIAL_MOVEMENTS_UPDATED, handleFinancialUpdate);
+      window.removeEventListener("storage", refreshFinancialSummary);
+      window.removeEventListener("focus", refreshFinancialSummary);
+    };
+  }, [projeto.id, projeto.valorAquisicao, projeto.honorarios, isCompleteAdvisory]);
+
+  useEffect(() => {
+    const refreshAdvisoryMode = () => {
+      const localProject = getLocalProjects().find((item) => item.id === projeto.id);
+      setProjectAdvisoryMode(String(localProject?.modalidade || projeto.modalidade));
+    };
+
+    refreshAdvisoryMode();
+    window.addEventListener("storage", refreshAdvisoryMode);
+    window.addEventListener("focus", refreshAdvisoryMode);
+    return () => {
+      window.removeEventListener("storage", refreshAdvisoryMode);
+      window.removeEventListener("focus", refreshAdvisoryMode);
+    };
+  }, [projeto.id, projeto.modalidade]);
+
+  useEffect(() => {
+    const tabIsVisible = visibleTabs.some((tab) => slug(tab) === activeTab);
+    if (!tabIsVisible) setActiveTab("visao-geral");
+  }, [activeTab, isCompleteAdvisory]);
+
+  useEffect(() => {
+    const refreshSalesIndicators = () => {
+      const portfolio = getLocalSalesPortfolio(projeto.id);
+      const proposals = getLocalSalesProposals(projeto.id);
+      const advertisedValues = portfolio
+        .map((entry) => Number(entry.advertisedValue) || 0)
+        .filter((value) => value > 0);
+      const localProject = getLocalProjects().find((item) => item.id === projeto.id);
+      const projections = localProject?.["projecoes_financeiras"] as { venda?: unknown } | undefined;
+      const isAvailable = portfolio
+        .some((entry) => entry.isPropertyAvailable ?? true);
+      const acceptedProposal = [...proposals]
+        .filter((proposal) => proposal.status === "Aceita")
+        .sort((a, b) => b.number - a.number)[0];
+      const isSold = Boolean(acceptedProposal);
+      const broker = acceptedProposal
+        ? portfolio.find((entry) => entry.id === acceptedProposal.originId)
+        : undefined;
+
+      setSalesSettlement({
+        hasAcceptedProposal: Boolean(acceptedProposal),
+        finalSaleValue: Number(acceptedProposal?.finalSaleValue) || 0,
+        taxValue: Number(acceptedProposal?.taxValue) || 0,
+        commissionValue: Number(broker?.commissionValue) || 0,
+      });
+
+      setSalesIndicators({
+        minimum: advertisedValues.length ? Math.min(...advertisedValues) : 0,
+        estimated: Number(projections?.venda) || 0,
+        maximum: advertisedValues.length ? Math.max(...advertisedValues) : 0,
+        isAvailable,
+        isSold,
+      });
+    };
+
+    const handlePortfolioUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId?: string }>).detail;
+      if (!detail?.projectId || detail.projectId === projeto.id) refreshSalesIndicators();
+    };
+
+    refreshSalesIndicators();
+    window.addEventListener(SALES_PORTFOLIO_UPDATED, handlePortfolioUpdate);
+    window.addEventListener(SALES_PROPOSALS_UPDATED, handlePortfolioUpdate);
+    window.addEventListener("storage", refreshSalesIndicators);
+    window.addEventListener("focus", refreshSalesIndicators);
+    return () => {
+      window.removeEventListener(SALES_PORTFOLIO_UPDATED, handlePortfolioUpdate);
+      window.removeEventListener(SALES_PROPOSALS_UPDATED, handlePortfolioUpdate);
+      window.removeEventListener("storage", refreshSalesIndicators);
+      window.removeEventListener("focus", refreshSalesIndicators);
+    };
+  }, [projeto.id]);
+
+  useEffect(() => {
+    try {
+      setDistribution(JSON.parse(localStorage.getItem(distributionKey(projeto.id)) || "null"));
+    } catch {
+      setDistribution(null);
+    }
+  }, [projeto.id]);
+
+  const calculateDistribution = () => {
+    if (!salesSettlement.hasAcceptedProposal) return;
+    const localProject = getLocalProjects().find((item) => item.id === projeto.id);
+    const result = salesSettlement.finalSaleValue
+      - salesSettlement.taxValue
+      - salesSettlement.commissionValue
+      - financialSummary.investedCapital;
+    const advisoryShare = result * 0.5;
+    const investorShare = result * 0.5;
+    const storedInvestors = (localProject?.["participantes"] || []) as Array<{ nome?: string; percentual?: string | number }>;
+    const storedAssessors = (localProject?.["assessores"] || []) as Array<{ nome?: string; percentual?: string | number }>;
+    const fallbackInvestors = projeto.investidores.map((nome) => ({
+      nome,
+      percentual: projeto.investidores.length ? 100 / projeto.investidores.length : 0,
+    }));
+    const fallbackAssessors = projeto.assessores.map((nome) => ({
+      nome,
+      percentual: projeto.assessores.length ? 100 / projeto.assessores.length : 0,
+    }));
+    const distribute = (
+      participants: Array<{ nome?: string; percentual?: string | number }>,
+      share: number,
+    ): DistributionParticipant[] => participants.filter((item) => item.nome).map((item) => {
+      const percentual = Number(item.percentual) || 0;
+      return { nome: item.nome!, percentual, valor: share * (percentual / 100) };
+    });
+    const snapshot: DistributionSnapshot = {
+      result,
+      advisoryShare,
+      investorShare,
+      investors: distribute(storedInvestors.length ? storedInvestors : fallbackInvestors, investorShare),
+      assessors: distribute(storedAssessors.length ? storedAssessors : fallbackAssessors, advisoryShare),
+      calculatedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(distributionKey(projeto.id), JSON.stringify(snapshot));
+    setDistribution(snapshot);
+    logProjectAudit(projeto.id, "apurou e calculou a distribuição de resultados", "Apuração");
+    toast.success("Resultados apurados com sucesso.");
+  };
+
+  const projectedVsAdvertised = salesIndicators.estimated > 0
+    ? ((salesIndicators.maximum - salesIndicators.estimated) / salesIndicators.estimated) * 100
+    : 0;
+  const commercializationStatus = salesIndicators.isSold
+    ? { label: "Imóvel Vendido", className: "bg-emerald-600" }
+    : salesIndicators.isAvailable
+      ? { label: "Imóvel disponibilizado para venda", className: "bg-brand" }
+      : { label: "Imóvel não disponibilizado para venda", className: "bg-red-600" };
+
+  if (!canView) {
+    return (
+      <AppLayout title="Acesso restrito" subtitle="Este projeto não está vinculado ao seu usuário">
+        <div className="surface-card p-8 text-center text-muted-foreground">
+          Você não possui permissão para visualizar este projeto.
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout title={projeto.nome} subtitle={`${projeto.codigo} · ${projeto.modalidade}`}>
@@ -117,12 +527,14 @@ function FichaProjeto() {
               </a>
             </div>
             
-            <Button asChild className="bg-white text-brand hover:bg-white/90 font-medium">
-              <Link to="/projetos/$id/editar" params={{ id: projeto.id }}>
-                <Pencil className="mr-2 size-4" />
-                Editar Projeto
-              </Link>
-            </Button>
+            {canEdit ? (
+              <Button asChild className="bg-white text-brand hover:bg-white/90 font-medium">
+                <Link to="/projetos/$id/editar" params={{ id: projeto.id }}>
+                  <Pencil className="mr-2 size-4" />
+                  Editar Projeto
+                </Link>
+              </Button>
+            ) : null}
           </div>
         </div>
         <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-5">
@@ -151,10 +563,10 @@ function FichaProjeto() {
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { l: "Capital investido", v: formatBRL(projeto.capitalInvestido), i: Wallet },
-          { l: "Valor de aquisição", v: formatBRL(projeto.valorAquisicao), i: BadgeDollarSign },
-          { l: "Honorários", v: formatBRL(projeto.honorarios), i: BadgeDollarSign },
-          { l: "Resultado projetado", v: formatBRL(projeto.resultadoProjetado), i: TrendingUp },
+          { l: "Capital investido", v: formatBRLWithCents(financialSummary.investedCapital), i: Wallet },
+          { l: "Valor de aquisição", v: formatBRLWithCents(financialSummary.acquisitionValue), i: BadgeDollarSign },
+          ...(!isCompleteAdvisory ? [{ l: "Honorários", v: formatBRLWithCents(financialSummary.advisoryFees), i: BadgeDollarSign }] : []),
+          { l: "Resultado projetado", v: formatBRLWithCents(financialSummary.projectedResult), i: TrendingUp },
         ].map((k) => (
           <div key={k.l} className="surface-card p-4">
             <p className="text-sm text-muted-foreground">{k.l}</p>
@@ -163,11 +575,16 @@ function FichaProjeto() {
         ))}
       </div>
 
-      <Tabs defaultValue="visao-geral" className="mt-8">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-8">
+        {!canEdit ? (
+          <div className="mb-4 rounded-lg border border-brand/20 bg-primary-soft px-4 py-3 text-sm text-brand">
+            Modo de visualização: você pode consultar todo o projeto e utilizar somente as ações permitidas ao seu perfil.
+          </div>
+        ) : null}
         <TabsList className="h-auto w-full bg-transparent p-0 flex flex-col gap-2">
           {/* Primeira linha (6 botões) */}
           <div className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-            {abas.slice(0, 6).map((a) => (
+            {visibleTabs.slice(0, 6).map((a) => (
               <TabsTrigger
                 key={a}
                 value={slug(a)}
@@ -179,13 +596,18 @@ function FichaProjeto() {
           </div>
           {/* Segunda linha (5 botões) */}
           <div className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-            {abas.slice(6).map((a) => (
+            {visibleTabs.slice(6).map((a) => (
               <TabsTrigger
                 key={a}
                 value={slug(a)}
-                className="w-full h-11 px-4 py-2 text-sm font-semibold rounded-lg border border-border bg-white transition-all hover:bg-muted/50 data-[state=active]:bg-brand data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:border-brand"
+                className="w-full min-h-11 h-auto px-4 py-2 text-sm leading-tight whitespace-normal font-semibold rounded-lg border border-border bg-white transition-all hover:bg-muted/50 data-[state=active]:bg-brand data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:border-brand"
               >
-                {a}
+                {a === "Distribuição de Resultados" ? (
+                  <span className="flex flex-col items-center">
+                    <span>Distribuição de</span>
+                    <span>Resultados</span>
+                  </span>
+                ) : a}
               </TabsTrigger>
             ))}
           </div>
@@ -230,44 +652,24 @@ function FichaProjeto() {
         </TabsContent>
 
         <TabsContent value="regularizacao">
-          <RegularizacaoTab projetoId={projeto.id} />
+          <fieldset disabled={!canEdit}>
+            <RegularizacaoTab projetoId={projeto.id} />
+          </fieldset>
         </TabsContent>
 
         <TabsContent value="posse">
-          <PosseTab projetoId={projeto.id} />
+          <fieldset disabled={!canEdit}>
+            <PosseTab projetoId={projeto.id} />
+          </fieldset>
         </TabsContent>
 
         <TabsContent value="financeiro" className="mt-5">
-          <div className="surface-card p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-base font-semibold">Resumo financeiro</h3>
-              <Button asChild variant="outline" size="sm">
-                <Link to="/projetos/$id/financeiro" params={{ id: projeto.id }}>
-                  Abrir financeiro <ExternalLink className="size-4" />
-                </Link>
-              </Button>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="rounded-lg bg-success-soft p-4">
-                <p className="text-sm text-success">Receitas</p>
-                <p className="text-xl font-semibold text-success">
-                  {formatBRL(receitas.reduce((s, r) => s + r.valor, 0))}
-                </p>
-              </div>
-              <div className="rounded-lg bg-destructive/10 p-4">
-                <p className="text-sm text-destructive">Despesas</p>
-                <p className="text-xl font-semibold text-destructive">
-                  {formatBRL(despesas.reduce((s, r) => s + r.valor, 0))}
-                </p>
-              </div>
-              <div className="rounded-lg bg-primary-soft p-4">
-                <p className="text-sm text-brand">Resultado projetado</p>
-                <p className="text-xl font-semibold text-brand">
-                  {formatBRL(projeto.resultadoProjetado)}
-                </p>
-              </div>
-            </div>
-          </div>
+          <FinancialProjectTab
+            projetoId={projeto.id}
+            openNewMovement={novaMovimentacao === "1"}
+            defaultCategory={categoria}
+            defaultDescription={descricao}
+          />
         </TabsContent>
 
         <TabsContent value="documentos" className="mt-5">
@@ -275,7 +677,11 @@ function FichaProjeto() {
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-base font-semibold">Documentos recentes</h3>
               <Button asChild variant="outline" size="sm">
-                <Link to="/projetos/$id/documentos" params={{ id: projeto.id }}>
+                <Link
+                  to="/projetos/$id/documentos"
+                  params={{ id: projeto.id }}
+                  search={{ retorno: `/projetos/${projeto.id}?aba=documentos` }}
+                >
                   Gestão documental <ExternalLink className="size-4" />
                 </Link>
               </Button>
@@ -297,11 +703,13 @@ function FichaProjeto() {
           <div className="surface-card p-5">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-base font-semibold">Tarefas do projeto</h3>
-              <Button asChild variant="outline" size="sm">
-                <Link to="/projetos/$id/tarefas" params={{ id: projeto.id }}>
-                  Gerenciar tarefas <ExternalLink className="size-4" />
-                </Link>
-              </Button>
+              {canEdit ? (
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/projetos/$id/tarefas" params={{ id: projeto.id }}>
+                    Gerenciar tarefas <ExternalLink className="size-4" />
+                  </Link>
+                </Button>
+              ) : null}
             </div>
             <ul className="divide-y divide-border">
               {(tarefasProjeto.length ? tarefasProjeto : tarefas.slice(0, 3)).map((t) => (
@@ -320,91 +728,88 @@ function FichaProjeto() {
         </TabsContent>
 
         <TabsContent value="obra" className="mt-5 grid gap-5 lg:grid-cols-2">
-          <Bloco
-            titulo="Reforma"
-            itens={[
-              { label: "Construtora", valor: "Reforma Prime LTDA" },
-              { label: "Início", valor: "10/06/2026" },
-              { label: "Previsão de entrega", valor: "28/09/2026" },
-              { label: "Orçamento aprovado", valor: formatBRL(96000) },
-            ]}
-          />
-          <Bloco
-            titulo="Cronograma físico"
-            itens={[
-              { label: "Demolição", valor: "Concluído" },
-              { label: "Hidráulica e elétrica", valor: "Em andamento" },
-              { label: "Acabamento", valor: "Não iniciado" },
-              { label: "Desvio", valor: "12 dias" },
-            ]}
-          />
+          <fieldset disabled={!canEdit} className="contents">
+            <ServiceProvidersCard projectId={projeto.id} />
+          </fieldset>
         </TabsContent>
 
         <TabsContent value="venda" className="mt-5 grid gap-5 lg:grid-cols-2">
-          <Bloco
-            titulo="Comercialização"
-            itens={[
-              { label: "Valor de anúncio", valor: formatBRL(789000) },
-              { label: "Portais ativos", valor: "3" },
-              { label: "Visitas no mês", valor: "11" },
-            ]}
-          />
-          <Bloco
-            titulo="Propostas"
-            itens={[
-              { label: "Proposta 1", valor: `${formatBRL(742000)} — em análise` },
-              { label: "Proposta 2", valor: `${formatBRL(710000)} — recusada` },
-            ]}
-          />
+          <div className="surface-card overflow-hidden border-brand/30 shadow-md lg:col-span-2">
+            <div className={`${commercializationStatus.className} px-5 py-4 text-white`}>
+              <p className="text-sm font-medium text-white/80">Comercialização</p>
+              <h3 className="mt-1 text-xl font-semibold">{commercializationStatus.label}</h3>
+            </div>
+            <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4">
+              <SalesIndicator label="Menor Valor Anunciado" value={formatBRL(salesIndicators.minimum)} tone="muted" />
+              <SalesIndicator label="Valor Estimado de Venda" value={formatBRL(salesIndicators.estimated)} tone="brand" />
+              <SalesIndicator label="Maior Valor Anunciado" value={formatBRL(salesIndicators.maximum)} tone="success" />
+              <SalesIndicator
+                label="Variação Projetado x Anunciado"
+                value={`${projectedVsAdvertised > 0 ? "+" : ""}${projectedVsAdvertised.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`}
+                tone={projectedVsAdvertised >= 0 ? "success" : "danger"}
+              />
+            </div>
+          </div>
+          <SalesProposalsCard projectId={projeto.id} />
+          <fieldset disabled={!canEdit} className="contents">
+            <SalesPortfolioCard projectId={projeto.id} />
+          </fieldset>
         </TabsContent>
 
-        <TabsContent value="resultado" className="mt-5 grid gap-5 lg:grid-cols-2">
+        {!isCompleteAdvisory ? <TabsContent value="resultado" className="mt-5 grid gap-5 lg:grid-cols-2">
           <Bloco
             titulo="Apuração"
             itens={[
-              { label: "Receita bruta", valor: formatBRL(789000) },
-              { label: "Custos totais", valor: formatBRL(526900) },
-              { label: "Tributos", valor: formatBRL(74100) },
-              { label: "Resultado líquido", valor: formatBRL(188000) },
+              { label: "Receita bruta", valor: formatBRL(0) },
+              { label: "Custos totais", valor: formatBRL(0) },
+              { label: "Tributos", valor: formatBRL(0) },
+              { label: "Resultado líquido", valor: formatBRL(0) },
             ]}
           />
           <Bloco
             titulo="Distribuição"
-            itens={[
-              { label: "Marcos Ribeiro (45%)", valor: formatBRL(84150) },
-              { label: "Fundo Atlas (35%)", valor: formatBRL(65450) },
-              { label: "Assessoria (20%)", valor: formatBRL(37400) },
-            ]}
+            itens={[]}
           />
-        </TabsContent>
+        </TabsContent> : null}
 
-        <TabsContent value="distribuicao-de-resultados" className="mt-5 space-y-5">
+        {isCompleteAdvisory ? <TabsContent value="distribuicao-de-resultados" className="mt-5 space-y-5">
           <div className="surface-card p-6">
             <h3 className="mb-6 text-lg font-semibold">Cálculo de Distribuição</h3>
             
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground font-medium">Resultado Líquido</p>
-                <p className="text-2xl font-bold text-brand">{formatBRL(188000)}</p>
-                <p className="text-xs text-muted-foreground">Valor total após despesas e impostos</p>
+                <p className="text-2xl font-bold text-brand">{formatBRL(distribution?.result || 0)}</p>
+                <p className="text-xs text-muted-foreground">Venda final menos impostos, comissão e capital investido</p>
               </div>
               <div className="space-y-1 border-l pl-6">
                 <p className="text-sm text-muted-foreground font-medium">Parcela da Assessoria (50%)</p>
-                <p className="text-2xl font-bold text-brand">{formatBRL(94000)}</p>
+                <p className="text-2xl font-bold text-brand">{formatBRL(distribution?.advisoryShare || 0)}</p>
                 <p className="text-xs text-muted-foreground">Regra: Assessoria Completa</p>
               </div>
               <div className="space-y-1 border-l pl-6">
                 <p className="text-sm text-muted-foreground font-medium">Parcela dos Investidores (50%)</p>
-                <p className="text-2xl font-bold text-brand">{formatBRL(94000)}</p>
+                <p className="text-2xl font-bold text-brand">{formatBRL(distribution?.investorShare || 0)}</p>
                 <p className="text-xs text-muted-foreground">Divisão proporcional às cotas</p>
               </div>
               <div className="space-y-1 border-l pl-6">
                 <p className="text-sm text-muted-foreground font-medium">Status da Operação</p>
                 <div className="pt-1">
-                  <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success ring-1 ring-inset ring-success/20">
-                    Apurado
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${distribution ? "bg-success/10 text-success ring-success/20" : "bg-destructive/10 text-destructive ring-destructive/20"}`}>
+                    {distribution ? "Apurado" : "Não apurado"}
                   </span>
                 </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="mt-3 h-8 gap-1.5"
+                  disabled={!salesSettlement.hasAcceptedProposal}
+                  onClick={calculateDistribution}
+                  title={salesSettlement.hasAcceptedProposal ? "Apurar resultados" : "É necessário possuir uma proposta aceita"}
+                >
+                  <Calculator className="size-4" />
+                  Apurar resultados
+                </Button>
               </div>
             </div>
 
@@ -412,35 +817,32 @@ function FichaProjeto() {
               <div className="space-y-4">
                 <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Repasse aos Investidores (Cotas)</h4>
                 <div className="space-y-3">
-                  {[
-                    { nome: "Marcos Ribeiro", cota: "60%", valor: 56400 },
-                    { nome: "Fundo Atlas", cota: "40%", valor: 37600 },
-                  ].map((inv) => (
+                  {(distribution?.investors || []).map((inv) => (
                     <div key={inv.nome} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
                       <div>
                         <p className="font-medium">{inv.nome}</p>
-                        <p className="text-xs text-muted-foreground">Participação: {inv.cota}</p>
+                        <p className="text-xs text-muted-foreground">Participação: {inv.percentual.toLocaleString("pt-BR")}%</p>
                       </div>
                       <p className="font-semibold text-brand">{formatBRL(inv.valor)}</p>
                     </div>
                   ))}
+                  {!distribution && <p className="text-sm text-muted-foreground">Aguardando apuração dos resultados.</p>}
                 </div>
               </div>
 
               <div className="space-y-4">
                 <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Honorários dos Assessores</h4>
                 <div className="space-y-3">
-                  {[
-                    { nome: "Camila Andrade", cota: "100%", valor: 94000 },
-                  ].map((ass) => (
+                  {(distribution?.assessors || []).map((ass) => (
                     <div key={ass.nome} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
                       <div>
                         <p className="font-medium">{ass.nome}</p>
-                        <p className="text-xs text-muted-foreground">Participação: {ass.cota}</p>
+                        <p className="text-xs text-muted-foreground">Participação: {ass.percentual.toLocaleString("pt-BR")}%</p>
                       </div>
                       <p className="font-semibold text-brand">{formatBRL(ass.valor)}</p>
                     </div>
                   ))}
+                  {!distribution && <p className="text-sm text-muted-foreground">Aguardando apuração dos resultados.</p>}
                 </div>
               </div>
             </div>
@@ -448,37 +850,21 @@ function FichaProjeto() {
             <div className="mt-8 pt-6 border-t">
                <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Histórico da Distribuição</h4>
                <div className="text-sm text-muted-foreground">
-                 <div className="flex gap-4 py-2">
-                   <span className="w-24">20/08/2026</span>
-                   <span className="font-medium text-foreground">Distribuição final processada por Camila Andrade</span>
-                 </div>
-                 <div className="flex gap-4 py-2">
-                   <span className="w-24">18/08/2026</span>
-                   <span className="font-medium text-foreground">Encerramento financeiro do projeto</span>
-                 </div>
+                 {distribution ? (
+                   <div className="flex gap-4 py-2">
+                     <span className="w-24">{new Intl.DateTimeFormat("pt-BR").format(new Date(distribution.calculatedAt))}</span>
+                     <span className="font-medium text-foreground">Distribuição processada por {currentUser.nome}</span>
+                   </div>
+                 ) : (
+                   <p>Nenhuma apuração realizada.</p>
+                 )}
                </div>
             </div>
           </div>
-        </TabsContent>
+        </TabsContent> : null}
 
         <TabsContent value="historico" className="mt-5">
-          <div className="surface-card p-5">
-            <h3 className="mb-4 text-base font-semibold">Auditoria de alterações</h3>
-            <ol className="relative space-y-5 border-l border-border pl-6">
-              {[
-                { q: "16/08/2026 09:12", t: "Camila Andrade atualizou o status para Em andamento" },
-                { q: "14/08/2026 17:40", t: "Rafael Lima publicou 'Matrícula Atualizada v1'" },
-                { q: "11/08/2026 10:05", t: "Juliana Prado registrou despesa de obra" },
-                { q: "02/08/2026 08:22", t: "Dr. Paulo Tavares anexou petição de imissão" },
-              ].map((h) => (
-                <li key={h.q}>
-                  <span className="absolute -left-1.5 mt-1.5 size-3 rounded-full bg-brand" />
-                  <p className="text-sm font-medium">{h.t}</p>
-                  <p className="text-xs text-muted-foreground">{h.q}</p>
-                </li>
-              ))}
-            </ol>
-          </div>
+          <ProjectAuditHistory projetoId={projeto.id} />
         </TabsContent>
       </Tabs>
     </AppLayout>

@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { Building2, Percent, BellRing, Save, Users } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
@@ -10,12 +11,12 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/admin/configuracoes")({
   head: () => ({
     meta: [
-      { title: "Configurações da Empresa | ArremataFlow" },
+      { title: "Configurações | ArremataFlow" },
       {
         name: "description",
         content: "Dados cadastrais, regras de honorários e distribuição, e canais de notificação da empresa.",
       },
-      { property: "og:title", content: "Configurações da Empresa | ArremataFlow" },
+      { property: "og:title", content: "Configurações | ArremataFlow" },
       { property: "og:description", content: "Ajuste o comportamento do sistema multiempresa." },
     ],
   }),
@@ -50,9 +51,28 @@ function Bloco({
 }
 
 function ConfiguracoesPage() {
+  const [documento, setDocumento] = useState("42.118.900/0001-33");
+
+  const formatarCpfCnpj = (valor: string) => {
+    const digitos = valor.replace(/\D/g, "").slice(0, 14);
+
+    if (digitos.length <= 11) {
+      return digitos
+        .replace(/^(\d{3})(\d)/, "$1.$2")
+        .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+        .replace(/\.(\d{3})(\d)/, ".$1-$2");
+    }
+
+    return digitos
+      .replace(/^(\d{2})(\d)/, "$1.$2")
+      .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+      .replace(/\.(\d{3})(\d)/, ".$1/$2")
+      .replace(/(\d{4})(\d)/, "$1-$2");
+  };
+
   return (
     <AppLayout
-      title="Configurações da Empresa"
+      title="Configurações"
       subtitle="Arremata Capital LTDA"
       actions={
         <div className="flex gap-2">
@@ -68,27 +88,58 @@ function ConfiguracoesPage() {
       }
     >
       <div className="grid gap-6">
-        <Bloco icon={Building2} titulo="Dados da empresa" descricao="Identificação e contato">
+        <Bloco icon={Building2} titulo="Dados cadastrais" descricao="Identificação e contato">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="razao">Razão social</Label>
-              <Input id="razao" defaultValue="Arremata Capital LTDA" />
+              <Label htmlFor="razao">Nome ou Razão social</Label>
+              <Input id="razao" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cnpj">CNPJ</Label>
-              <Input id="cnpj" defaultValue="42.118.900/0001-33" />
+              <Label htmlFor="cnpj">CPF ou CNPJ</Label>
+              <Input
+                id="cnpj"
+                inputMode="numeric"
+                maxLength={18}
+                placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                value={documento}
+                onChange={(event) => setDocumento(formatarCpfCnpj(event.target.value))}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="emailc">E-mail institucional</Label>
-              <Input id="emailc" defaultValue="contato@arremataflow.com" />
+              <Input id="emailc" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="tel">Telefone</Label>
-              <Input id="tel" defaultValue="(11) 4002-8922" />
+              <Input id="tel" />
             </div>
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2">
               <Label htmlFor="endc">Endereço</Label>
-              <Input id="endc" defaultValue="Av. Paulista, 1000 — São Paulo / SP" />
+              <Input id="endc" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="numero">Nro.</Label>
+              <Input id="numero" inputMode="numeric" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="complemento">Complemento</Label>
+              <Input id="complemento" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bairro">Bairro</Label>
+              <Input id="bairro" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cidade">Cidade</Label>
+              <Input id="cidade" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="uf">UF</Label>
+              <Input id="uf" maxLength={2} className="uppercase" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cep">CEP</Label>
+              <Input id="cep" inputMode="numeric" maxLength={9} placeholder="00000-000" />
             </div>
           </div>
         </Bloco>
@@ -98,18 +149,10 @@ function ConfiguracoesPage() {
           titulo="Regras financeiras"
           descricao="Honorários padrão e política de distribuição"
         >
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="hon">Honorário padrão (%)</Label>
-              <Input id="hon" defaultValue="20" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="taxa">Taxa de administração (%)</Label>
-              <Input id="taxa" defaultValue="2" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="trib">Alíquota de tributos (%)</Label>
-              <Input id="trib" defaultValue="9,4" />
+              <Input id="hon" />
             </div>
           </div>
           <div className="mt-5 space-y-3">

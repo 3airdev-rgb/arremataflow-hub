@@ -35,8 +35,12 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { statusLabels, type StatusKey } from "@/lib/mock-data";
+import { projetos, statusLabels, usuarios, type StatusKey } from "@/lib/mock-data";
 import { supabase } from "@/integrations/supabase/client";
+import { logProjectAudit } from "@/lib/local-project-audit";
+import { getLocalProjects } from "@/lib/local-projects";
+import { getLocalAccessUsers } from "@/lib/local-access";
+import { getLocalSalesPortfolio } from "@/components/sales-portfolio-card";
 
 const CATEGORIAS = [
   "Aquisição",
@@ -48,6 +52,76 @@ const CATEGORIAS = [
   "Financeiro",
   "Venda",
 ];
+
+type ProjectContact = { label: string; value: string; type: string; email?: string };
+const localTasksKey = (projectId: string) => `arremataflow:project:${projectId}:tasks`;
+const meetingHref = (url: string) => /^https?:\/\//i.test(url) ? url : `https://${url}`;
+
+function uniqueContacts(contacts: ProjectContact[]) {
+  return contacts.filter((contact) => contact.label && contact.value)
+    .filter((contact, index, all) => all.findIndex((item) =>
+      item.value === contact.value || item.label.toLocaleLowerCase("pt-BR") === contact.label.toLocaleLowerCase("pt-BR"),
+    ) === index);
+}
+
+function getLocalProjectContacts(projectId: string): ProjectContact[] {
+  const project = getLocalProjects().find((item) => item.id === projectId)
+    || projetos.find((item) => item.id === projectId);
+  if (!project) return [];
+
+  const users = getLocalAccessUsers();
+  const names = [
+    ...((project as any).assessores || []).map((item: any) => ({ name: typeof item === "string" ? item : item.nome, type: "Assessor" })),
+    ...((project as any).investidores || []).map((name: string) => ({ name, type: "Investidor" })),
+    ...((project as any).responsaveis || []).map((name: string) => ({ name, type: "Responsável" })),
+    ...((project as any).responsavel ? [{ name: (project as any).responsavel, type: "Responsável" }] : []),
+  ];
+  const contacts: ProjectContact[] = names.map(({ name, type }) => {
+    const user = users.find((item) => item.nome === name);
+    return { label: name, value: user?.id || `project-${type}-${name}`, type, email: user?.email };
+  });
+
+  const administrators = [
+    ...users.filter((user) => user.perfil === "Administrador"),
+    ...usuarios.filter((user) => user.perfil === "Administrador"),
+  ];
+  administrators.forEach((admin) => {
+    contacts.push({
+      label: admin.nome,
+      value: admin.id,
+      type: "Administrador",
+      email: admin.email,
+    });
+  });
+
+  getLocalSalesPortfolio(projectId).forEach((entry) => {
+    if (entry.type === "Site") return;
+    contacts.push({
+      label: entry.name,
+      value: `portfolio-${entry.id}`,
+      type: entry.type,
+      email: entry.email,
+    });
+  });
+
+  try {
+    const providers = JSON.parse(localStorage.getItem("arremataflow:service-providers") || "[]") as any[];
+    const assignments = JSON.parse(localStorage.getItem(`arremataflow:project:${projectId}:providers`) || "[]") as any[];
+    assignments.forEach((assignment) => {
+      const provider = providers.find((item) => item.id === assignment.providerId);
+      if (provider) contacts.push({
+        label: provider.tradeName || provider.name,
+        value: `provider-${provider.id}`,
+        type: "Fornecedor de obra",
+        email: provider.email,
+      });
+    });
+  } catch {
+    // Ignora apenas cadastros locais corrompidos e preserva os demais vínculos.
+  }
+
+  return uniqueContacts(contacts);
+}
 
 
 export const Route = createFileRoute("/projetos/$id/tarefas")({
@@ -78,11 +152,24 @@ function TarefasProjeto() {
   
   // Novos estados para reunião online
   const [isOnlineMeeting, setIsOnlineMeeting] = useState("nao");
+  const [responsaveisSelecionados, setResponsaveisSelecionados] = useState<string[]>([]);
+  const [editResponsaveisSelecionados, setEditResponsaveisSelecionados] = useState<string[]>([]);
   const [participantesSelecionados, setParticipantesSelecionados] = useState<string[]>([]);
-  const [participantesProjeto, setParticipantesProjeto] = useState<{label: string, value: string, type: string}[]>([]);
+  const [participantesProjeto, setParticipantesProjeto] = useState<ProjectContact[]>([]);
 
   const loadData = async () => {
     setLoading(true);
+    const isMockProject = !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projetoId);
+    if (isMockProject) {
+      try {
+        setLista(JSON.parse(localStorage.getItem(localTasksKey(projetoId)) || "[]"));
+      } catch {
+        setLista([]);
+      }
+      setParticipantesProjeto(getLocalProjectContacts(projetoId));
+      setLoading(false);
+      return;
+    }
     try {
       const { data: tasks, error } = await supabase
         .from("tarefas")
@@ -96,19 +183,29 @@ function TarefasProjeto() {
       // Carregar participantes do projeto (investidores e assessores)
       const { data: parts, error: partsError } = await supabase
         .from("projeto_participantes")
-        .select("pessoa_id, nome, papel")
+        .select("pessoa_id, nome, papel, pessoas(nome, email)")
         .eq("projeto_id", projetoId);
       
       const { data: managers, error: managersError } = await supabase
         .from("project_managers")
-        .select("assessor_id, pessoas(nome)")
+        .select("assessor_id, pessoas(nome, email)")
         .eq("project_id", projetoId);
+
+      const { data: authData } = await supabase.auth.getUser();
+      const { data: adminProfile } = authData.user
+        ? await supabase
+          .from("profiles")
+          .select("id, nome, email")
+          .eq("id", authData.user.id)
+          .maybeSingle()
+        : { data: null };
 
       if (partsError || managersError) throw partsError || managersError;
 
       const allParticipants = [
-        ...(parts?.map(p => ({ label: p.nome, value: p.pessoa_id, type: p.papel || "Investidor" })) || []),
-        ...(managers?.map(m => ({ label: (m.pessoas as any)?.nome, value: m.assessor_id, type: "Assessor" })) || [])
+        ...(parts?.map((p: any) => ({ label: p.nome || p.pessoas?.nome, value: p.pessoa_id, type: p.papel || "Investidor", email: p.pessoas?.email })) || []),
+        ...(managers?.map((m: any) => ({ label: m.pessoas?.nome, value: m.assessor_id, type: "Assessor", email: m.pessoas?.email })) || []),
+        ...(adminProfile ? [{ label: adminProfile.nome || adminProfile.email || "Administrador", value: adminProfile.id, type: "Administrador", email: adminProfile.email || undefined }] : []),
       ].filter((v, i, a) => a.findIndex(t => t.value === v.value) === i); // Unique
 
       if (allParticipants.length === 0) {
@@ -126,12 +223,23 @@ function TarefasProjeto() {
   };
 
   useEffect(() => {
-    if (projetoId && projetoId.length > 5) { // Check if UUID
-      loadData();
-    } else {
-      setLoading(false);
-    }
+    if (projetoId) loadData();
   }, [projetoId]);
+
+  const notifyByEmail = async (task: any, recipientIds: string[]) => {
+    const recipients = [...new Set(recipientIds
+      .map((participantId) => participantesProjeto.find((item) => item.value === participantId)?.email)
+      .filter((email): email is string => Boolean(email && email.includes("@"))))];
+    if (!recipients.length) {
+      toast.info("Tarefa criada, mas nenhum destinatário possui e-mail cadastrado.");
+      return;
+    }
+    const { error } = await supabase.functions.invoke("send-task-notification", {
+      body: { recipients, task },
+    });
+    if (error) toast.warning("Tarefa criada, mas o envio do e-mail não pôde ser concluído.");
+    else toast.success(`Notificação enviada para ${recipients.length} destinatário(s).`);
+  };
 
   const visiveis = filtro === "todos" ? lista : lista.filter((t) => t.status === filtro);
 
@@ -142,7 +250,7 @@ function TarefasProjeto() {
     const taskData = {
       projeto_id: projetoId,
       titulo: String(fd.get("titulo")),
-      responsavel: String(fd.get("resp")),
+      responsavel: responsaveisSelecionados.join(","),
       prazo: dataSelecionada ? format(dataSelecionada, "dd/MM/yyyy") : null,
       category: String(fd.get("category")),
       descricao: String(fd.get("desc")),
@@ -152,12 +260,37 @@ function TarefasProjeto() {
       status: "nao_iniciado",
     };
 
+    if (responsaveisSelecionados.length === 0) {
+      toast.error("Selecione pelo menos um responsável pela tarefa.");
+      return;
+    }
+
     if (taskData.is_online_meeting && participantesSelecionados.length === 0) {
       toast.error("Selecione pelo menos um participante para a reunião online.");
       return;
     }
 
     try {
+      const isMockProject = !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projetoId);
+      if (isMockProject) {
+        const task = { ...taskData, id: `local-task-${Date.now()}`, created_at: new Date().toISOString() };
+        const nextTasks = [task, ...lista];
+        localStorage.setItem(localTasksKey(projetoId), JSON.stringify(nextTasks));
+        setLista(nextTasks);
+        await notifyByEmail(taskData, [
+          ...responsaveisSelecionados,
+          ...(taskData.is_online_meeting ? participantesSelecionados : []),
+        ]);
+        toast.success("Tarefa criada!");
+        logProjectAudit(projetoId, `incluiu a tarefa “${taskData.titulo}”`, "Inclusão");
+        setOpen(false);
+        setDataSelecionada(undefined);
+        setIsOnlineMeeting("nao");
+        setResponsaveisSelecionados([]);
+        setParticipantesSelecionados([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("tarefas")
         .insert(taskData)
@@ -183,10 +316,17 @@ function TarefasProjeto() {
         if (pError) throw pError;
       }
 
+      await notifyByEmail(taskData, [
+        ...responsaveisSelecionados,
+        ...(taskData.is_online_meeting ? participantesSelecionados : []),
+      ]);
+
       toast.success("Tarefa criada!");
+      logProjectAudit(projetoId, `incluiu a tarefa “${taskData.titulo}”`, "Inclusão");
       setOpen(false);
       setDataSelecionada(undefined);
       setIsOnlineMeeting("nao");
+      setResponsaveisSelecionados([]);
       setParticipantesSelecionados([]);
       loadData();
     } catch (error) {
@@ -201,10 +341,11 @@ function TarefasProjeto() {
       subtitle="Pipeline operacional do projeto"
       actions={
         <Dialog open={open} onOpenChange={(val) => {
-          setOpen(val);
+            setOpen(val);
           if (!val) {
             setDataSelecionada(undefined);
             setIsOnlineMeeting("nao");
+            setResponsaveisSelecionados([]);
             setParticipantesSelecionados([]);
           }
         }}>
@@ -240,22 +381,16 @@ function TarefasProjeto() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="resp">Responsável</Label>
-                  <Select name="resp" required disabled={participantesProjeto.length === 0}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={participantesProjeto.length === 0 ? "Nenhum participante vinculado" : "Selecione o responsável"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {participantesProjeto.map(p => (
-                        <SelectItem key={p.value} value={p.value}>
-                          {p.label} <span className="text-[10px] opacity-50 ml-1">({p.type})</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Responsáveis</Label>
+                  <MultiSelect
+                    options={participantesProjeto}
+                    selected={responsaveisSelecionados}
+                    onChange={setResponsaveisSelecionados}
+                    placeholder={participantesProjeto.length === 0 ? "Nenhum participante vinculado" : "Buscar responsáveis..."}
+                  />
                   {participantesProjeto.length === 0 && (
                     <p className="text-[10px] text-destructive mt-1">
-                      Não existem assessores ou investidores vinculados a este projeto. Cadastre ou vincule um participante antes de criar uma tarefa.
+                      Não existem pessoas ou fornecedores vinculados a este projeto. Cadastre ou vincule um participante antes de criar uma tarefa.
                     </p>
                   )}
                 </div>
@@ -266,11 +401,11 @@ function TarefasProjeto() {
                       <Button
                         variant={"outline"}
                         className={cn(
-                          "w-full justify-start text-left font-normal",
+                          "relative w-full justify-end pl-9 text-right font-normal",
                           !dataSelecionada && "text-muted-foreground"
                         )}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        <CalendarIcon className="absolute left-3 h-4 w-4" />
                         {dataSelecionada ? (
                           format(dataSelecionada, "dd/MM/yyyy")
                         ) : (
@@ -278,7 +413,7 @@ function TarefasProjeto() {
                         )}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0" align="end">
                       <Calendar
                         mode="single"
                         selected={dataSelecionada}
@@ -376,6 +511,9 @@ function TarefasProjeto() {
         onOpenChange={async (val) => {
           setEditOpen(val);
           if (val && editingTask) {
+            setEditResponsaveisSelecionados(
+              String(editingTask.responsavel || "").split(",").filter(Boolean),
+            );
             const parts = editingTask.prazo?.split("/");
             if (parts && parts.length === 3) {
               const year = parts[2] ? parseInt(parts[2]) : 2026;
@@ -401,6 +539,7 @@ function TarefasProjeto() {
             }
           } else if (!val) {
             setIsOnlineMeeting("nao");
+            setEditResponsaveisSelecionados([]);
             setParticipantesSelecionados([]);
           }
         }}
@@ -419,7 +558,7 @@ function TarefasProjeto() {
                 
                 const taskData = {
                   titulo: String(fd.get("titulo")),
-                  responsavel: String(fd.get("resp")),
+                  responsavel: editResponsaveisSelecionados.join(","),
                   prazo: editDataSelecionada ? format(editDataSelecionada, "dd/MM/yyyy") : editingTask.prazo,
                   category: String(fd.get("category")),
                   status: fd.get("status") as StatusKey,
@@ -429,7 +568,21 @@ function TarefasProjeto() {
                   meeting_time: fd.get("is_online_meeting") === "sim" ? String(fd.get("meeting_time")) : null,
                 };
 
+                if (editResponsaveisSelecionados.length === 0) {
+                  toast.error("Selecione pelo menos um responsável pela tarefa.");
+                  return;
+                }
+
                  try {
+                  const isMockProject = !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projetoId);
+                  if (isMockProject) {
+                    const nextTasks = lista.map((task) => task.id === editingTask.id ? { ...task, ...taskData } : task);
+                    localStorage.setItem(localTasksKey(projetoId), JSON.stringify(nextTasks));
+                    setLista(nextTasks);
+                    setEditOpen(false);
+                    toast.success("Tarefa atualizada!");
+                    return;
+                  }
                   const { error } = await supabase
                     .from("tarefas")
                     .update(taskData)
@@ -459,6 +612,7 @@ function TarefasProjeto() {
                   }
                   
                   toast.success("Tarefa atualizada!");
+                  logProjectAudit(projetoId, `editou a tarefa “${taskData.titulo}”`, "Edição");
                   setEditOpen(false);
                   loadData();
                 } catch (error) {
@@ -493,19 +647,13 @@ function TarefasProjeto() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-resp">Responsável</Label>
-                  <Select name="resp" defaultValue={editingTask.responsavel || undefined} required disabled={participantesProjeto.length === 0}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o responsável" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {participantesProjeto.map(p => (
-                        <SelectItem key={p.value} value={p.value}>
-                          {p.label} <span className="text-[10px] opacity-50 ml-1">({p.type})</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Responsáveis</Label>
+                  <MultiSelect
+                    options={participantesProjeto}
+                    selected={editResponsaveisSelecionados}
+                    onChange={setEditResponsaveisSelecionados}
+                    placeholder="Buscar responsáveis..."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Prazo</Label>
@@ -514,11 +662,11 @@ function TarefasProjeto() {
                       <Button
                         variant={"outline"}
                         className={cn(
-                          "w-full justify-start text-left font-normal",
+                          "relative w-full justify-end pl-9 text-right font-normal",
                           !editDataSelecionada && "text-muted-foreground"
                         )}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        <CalendarIcon className="absolute left-3 h-4 w-4" />
                         {editDataSelecionada ? (
                           format(editDataSelecionada, "dd/MM/yyyy")
                         ) : (
@@ -526,7 +674,7 @@ function TarefasProjeto() {
                         )}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0" align="end">
                       <Calendar
                         mode="single"
                         selected={editDataSelecionada}
@@ -660,8 +808,30 @@ function TarefasProjeto() {
                 <div>
                   <p className="font-medium">{t.titulo}</p>
                   <p className="text-xs text-muted-foreground">
-                    {t.category} · {participantesProjeto.find(p => p.value === t.responsavel)?.label || t.responsavel} · vence {t.prazo || "N/A"}
+                    {t.category} · {String(t.responsavel || "").split(",").filter(Boolean).map((id) =>
+                      participantesProjeto.find((participant) => participant.value === id)?.label || id
+                    ).join(", ")} · vence {t.prazo || "N/A"}
                   </p>
+                  {t.is_online_meeting && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="inline-flex items-center gap-1 text-muted-foreground">
+                        <CalendarIcon className="size-3.5" />
+                        Reunião: {t.prazo || "Data não informada"}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-muted-foreground">
+                        <Clock className="size-3.5" />
+                        {t.meeting_time || "Horário não informado"}
+                      </span>
+                      {t.meeting_url && (
+                        <Button asChild variant="outline" size="sm" className="h-7 gap-1 px-2 text-xs font-normal">
+                          <a href={meetingHref(t.meeting_url)} target="_blank" rel="noopener noreferrer">
+                            <LinkIcon className="size-3.5" />
+                            Acessar reunião
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -692,4 +862,3 @@ function TarefasProjeto() {
     </AppLayout>
   );
 }
-

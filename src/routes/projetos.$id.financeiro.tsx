@@ -1,8 +1,7 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
+import { createFileRoute, Navigate, useParams } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { Plus, Calculator, Paperclip, FileText, Trash2, AlertCircle, DollarSign, ArrowLeft } from "lucide-react";
+import { Plus, Paperclip, FileText, Trash2, AlertCircle, DollarSign, ArrowLeft, Eye } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
-import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,15 +22,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import {
-  distribuicao,
-  formatBRL,
-  categoriasDocumentos,
-} from "@/lib/mock-data";
-import { supabase } from "@/integrations/supabase/client";
+import { formatBRL, categoriasDocumentos } from "@/lib/mock-data";
 import { formatDocument, validateDocument } from "@/lib/utils-validation";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { DatePickerField } from "@/components/ui/date-picker-field";
 import { type StatusKey } from "@/lib/mock-data";
+import { getLocalFinancialMovements, saveLocalFinancialMovements } from "@/lib/local-financial-movements";
 
 export type Movimentacao = {
   id: string;
@@ -45,10 +41,21 @@ export type Movimentacao = {
   valor: number;
   status: StatusKey;
   comprovanteUrl?: string | null;
+  comprovanteUrls?: string[];
   tipo?: 'receita' | 'despesa';
 };
 
+const fileToDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result));
+  reader.onerror = () => reject(reader.error);
+  reader.readAsDataURL(file);
+});
+
 export const Route = createFileRoute("/projetos/$id/financeiro")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    categoria: typeof search["categoria"] === "string" ? search["categoria"] : "",
+  }),
   head: () => ({
     meta: [
       { title: "Financeiro do Projeto | ArremataFlow" },
@@ -60,90 +67,224 @@ export const Route = createFileRoute("/projetos/$id/financeiro")({
       { property: "og:description", content: "Movimentações, indicadores e distribuição por participante." },
     ],
   }),
-  component: FinanceiroProjeto,
+  component: FinanceiroRedirect,
 });
 
-function Tabela({
-  titulo,
-  itens,
-  onDelete,
+function FinanceiroRedirect() {
+  const { id } = useParams({ from: "/projetos/$id/financeiro" });
+  return <Navigate to="/projetos/$id" params={{ id }} search={{ aba: "financeiro" }} replace />;
+}
+
+export function DemonstrativoResultado({
+  receitas,
+  despesas,
 }: {
-  titulo: string;
-  itens: Movimentacao[];
-  onDelete: (id: string) => void;
+  receitas: Movimentacao[];
+  despesas: Movimentacao[];
 }) {
+  const totalReceitas = receitas.reduce((total, movement) => total + movement.valor, 0);
+  const totalDespesas = despesas.reduce((total, movement) => total + movement.valor, 0);
+  const resultado = totalReceitas - totalDespesas;
+
   return (
-    <div className="surface-card overflow-hidden">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <h3 className="text-base font-semibold">{titulo}</h3>
-        <span className="text-sm font-semibold">
-          {formatBRL(itens.reduce((s, i) => s + i.valor, 0))}
-        </span>
+    <div className="surface-card mt-6 overflow-hidden">
+      <div className="border-b border-border px-5 py-4">
+        <h3 className="text-base font-semibold">Demonstrativo de Resultado do Projeto</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Detalhamento consolidado de todas as movimentações financeiras do projeto.
+        </p>
       </div>
-      <table className="w-full text-sm">
-        <tbody>
-          {itens.map((i) => (
-            <tr key={i.id} className="group border-b border-border last:border-0 hover:bg-muted/30">
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <p className="font-medium">{i.descricao}</p>
-                  {i.comprovanteUrl && (
-                    <a
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        toast.info("Visualizando comprovante: " + i.descricao);
-                      }}
-                      className="text-brand hover:text-brand-dark"
-                      title="Visualizar comprovante"
-                    >
-                      <Paperclip className="size-3.5" />
-                    </a>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {i.categoria} · {i.data}
-                  {i.document_holder_document && (
-                    <> · {i.document_holder_type}: {i.document_holder_document}</>
-                  )}
-                </p>
-              </td>
-              <td className="px-4 py-3">
-                <StatusBadge status={i.status} />
-              </td>
-              <td className="px-4 py-3 text-right">
-                <div className="flex items-center justify-end gap-3">
-                  <span className="font-medium">{formatBRL(i.valor)}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => onDelete(i.id)}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+
+      <div className="divide-y divide-border text-sm">
+        <div className="flex items-center justify-between bg-success-soft/60 px-5 py-3 font-semibold text-success">
+          <span>(+) Receitas</span>
+          <span>{formatBRL(totalReceitas)}</span>
+        </div>
+        {receitas.length > 0 ? receitas.map((movement) => (
+          <div key={movement.id} className="grid gap-2 px-5 py-3 sm:grid-cols-[100px_1fr_auto] sm:items-center">
+            <span className="text-xs text-muted-foreground">{movement.data}</span>
+            <div>
+              <p className="font-medium">{movement.descricao}</p>
+              <p className="text-xs text-muted-foreground">{movement.categoria}</p>
+            </div>
+            <span className="text-right font-medium text-success">{formatBRL(movement.valor)}</span>
+          </div>
+        )) : (
+          <p className="px-5 py-3 text-muted-foreground">Nenhuma receita registrada.</p>
+        )}
+
+        <div className="flex items-center justify-between bg-destructive/5 px-5 py-3 font-semibold text-destructive">
+          <span>(−) Despesas</span>
+          <span>{formatBRL(totalDespesas)}</span>
+        </div>
+        {despesas.length > 0 ? despesas.map((movement) => (
+          <div key={movement.id} className="grid gap-2 px-5 py-3 sm:grid-cols-[100px_1fr_auto] sm:items-center">
+            <span className="text-xs text-muted-foreground">{movement.data}</span>
+            <div>
+              <p className="font-medium">{movement.descricao}</p>
+              <p className="text-xs text-muted-foreground">{movement.categoria}</p>
+            </div>
+            <span className="text-right font-medium text-destructive">− {formatBRL(movement.valor)}</span>
+          </div>
+        )) : (
+          <p className="px-5 py-3 text-muted-foreground">Nenhuma despesa registrada.</p>
+        )}
+
+        <div className="flex items-center justify-between bg-muted/50 px-5 py-4 text-base font-bold">
+          <span>(=) Resultado Atual</span>
+          <span className={resultado >= 0 ? "text-success" : "text-destructive"}>
+            {formatBRL(resultado)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ComprovantesFinanceiros({ movimentacoes }: { movimentacoes: Movimentacao[] }) {
+  const [tipoFiltro, setTipoFiltro] = useState<"todos" | "receita" | "despesa">("todos");
+  const [dataInicial, setDataInicial] = useState("");
+  const [dataFinal, setDataFinal] = useState("");
+  const dateToIso = (date: string) => {
+    const [day, month, year] = date.split("/");
+    return year && month && day ? `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}` : "";
+  };
+  const comprovantes = movimentacoes
+    .filter((movement) => Boolean(movement.comprovanteUrl) || Boolean(movement.comprovanteUrls?.length))
+    .filter((movement) => tipoFiltro === "todos" || movement.tipo === tipoFiltro)
+    .filter((movement) => {
+      const movementDate = dateToIso(movement.data);
+      return (!dataInicial || movementDate >= dataInicial) && (!dataFinal || movementDate <= dataFinal);
+    })
+    .sort((a, b) => {
+      const parseDate = (date: string) => {
+        const [day, month, year] = date.split("/").map(Number);
+        return new Date(year || 0, (month || 1) - 1, day || 1).getTime();
+      };
+      return parseDate(b.data) - parseDate(a.data);
+    });
+
+  return (
+    <div className="surface-card mt-6 overflow-hidden">
+      <div className="border-b border-border px-5 py-4">
+        <h3 className="text-base font-semibold">Comprovantes de Movimentação Financeira</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Documentos anexados às receitas e despesas deste projeto.
+        </p>
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="comprovantes-tipo">Tipo</Label>
+            <Select value={tipoFiltro} onValueChange={(value) => setTipoFiltro(value as "todos" | "receita" | "despesa")}>
+              <SelectTrigger id="comprovantes-tipo"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="receita">Receita</SelectItem>
+                <SelectItem value="despesa">Despesa</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="comprovantes-data-inicial">Data inicial</Label>
+            <DatePickerField
+              value={dataInicial}
+              max={dataFinal || undefined}
+              aria-label="Data inicial"
+              onValueChange={(value) => {
+                if (dataFinal && value > dataFinal) {
+                  toast.error("A data inicial não pode ser posterior à data final.");
+                  return;
+                }
+                setDataInicial(value);
+              }}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="comprovantes-data-final">Data final</Label>
+            <DatePickerField
+              value={dataFinal}
+              min={dataInicial || undefined}
+              aria-label="Data final"
+              onValueChange={(value) => {
+                if (dataInicial && value < dataInicial) {
+                  toast.error("A data final não pode ser anterior à data inicial.");
+                  return;
+                }
+                setDataFinal(value);
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {comprovantes.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[620px] text-sm">
+            <thead className="bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <tr>
+                <th className="px-5 py-3 font-medium">Data</th>
+                <th className="px-5 py-3 font-medium">Tipo</th>
+                <th className="px-5 py-3 font-medium">Categoria</th>
+                <th className="px-5 py-3 text-right font-medium">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comprovantes.map((movement) => (
+                <tr key={movement.id} className="border-t border-border hover:bg-muted/30">
+                  <td className="px-5 py-3">{movement.data}</td>
+                  <td className="px-5 py-3">
+                    <span className={movement.tipo === "receita" ? "text-success" : "text-destructive"}>
+                      {movement.tipo === "receita" ? "Receita" : "Despesa"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3">{movement.categoria}</td>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <span className="font-medium">{formatBRL(movement.valor)}</span>
+                      {(movement.comprovanteUrls?.length
+                        ? movement.comprovanteUrls
+                        : movement.comprovanteUrl ? [movement.comprovanteUrl] : []
+                      ).map((url, index) => (
+                        <Button key={`${movement.id}-receipt-${index}`} asChild variant="ghost" size="icon" className="size-8 text-brand">
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Visualizar comprovante ${index + 1} de ${movement.categoria}`}
+                            title={`Visualizar comprovante ${index + 1}`}
+                          >
+                            <Eye className="size-4" />
+                          </a>
+                        </Button>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="px-5 py-6 text-sm text-muted-foreground">
+          Nenhum comprovante encontrado para os filtros selecionados.
+        </p>
+      )}
     </div>
   );
 }
 
 function FinanceiroProjeto() {
   const { id: projetoId } = useParams({ from: "/projetos/$id/financeiro" });
+  const { categoria: categoriaFiltro } = Route.useSearch();
   const [receitas, setReceitas] = useState<Movimentacao[]>([]);
   const [despesas, setDespesas] = useState<Movimentacao[]>([]);
   const [open, setOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [movParaExcluir, setMovParaExcluir] = useState<string | null>(null);
-  const [calculado, setCalculado] = useState(false);
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [tipoMov, setTipoMov] = useState<"receita" | "despesa">("despesa");
   const [documento, setDocumento] = useState("");
   const [valorMov, setValorMov] = useState(0);
+  const [categoriaMov, setCategoriaMov] = useState(categoriaFiltro);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleBack = () => {
@@ -155,40 +296,12 @@ function FinanceiroProjeto() {
   };
 
   useEffect(() => {
-    async function carregarMovimentacoes() {
-      if (!projetoId || projetoId.length < 10) return;
-
-      const { data, error } = await supabase
-        .from("movimentacoes_financeiras")
-        .select("*")
-        .eq("projeto_id", projetoId)
-        .order("data", { ascending: false });
-
-      if (error) {
-        console.error("Erro ao carregar movimentações:", error);
-        return;
-      }
-
-      const formatted: Movimentacao[] = data.map((m) => ({
-        id: m.id,
-        descricao: m.descricao,
-        categoria: m.categoria,
-        data: new Date(m.data).toLocaleDateString("pt-BR"),
-        valor: Number(m.valor),
-        status: m.status as StatusKey,
-        comprovanteUrl: m.comprovante_url ?? null,
-        document_holder_document: m.document_holder_document ?? null,
-        document_holder_type: m.document_holder_type as any,
-        document_type: m.document_type as any,
-        tipo: m.tipo as 'receita' | 'despesa',
-      }));
-
-      setReceitas(formatted.filter((m) => m.tipo === "receita"));
-      setDespesas(formatted.filter((m) => m.tipo === "despesa"));
-    }
-
-    carregarMovimentacoes();
+    const movements = getLocalFinancialMovements(projetoId);
+    setReceitas(movements.filter((movement) => movement.tipo === "receita"));
+    setDespesas(movements.filter((movement) => movement.tipo === "despesa"));
   }, [projetoId]);
+
+  useEffect(() => setCategoriaMov(categoriaFiltro), [categoriaFiltro]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -216,21 +329,13 @@ function FinanceiroProjeto() {
     setDeleteOpen(true);
   };
 
-  const confirmarExclusao = async (removerDoDoc = false) => {
+  const confirmarExclusao = (removerDoDoc = false) => {
     if (!movParaExcluir) return;
-
-    const { error } = await supabase
-      .from("movimentacoes_financeiras")
-      .delete()
-      .eq("id", movParaExcluir);
-
-    if (error) {
-      toast.error("Erro ao excluir movimentação.");
-      return;
-    }
-
-    setReceitas((prev) => prev.filter((m) => m.id !== movParaExcluir));
-    setDespesas((prev) => prev.filter((m) => m.id !== movParaExcluir));
+    const nextReceitas = receitas.filter((movement) => movement.id !== movParaExcluir);
+    const nextDespesas = despesas.filter((movement) => movement.id !== movParaExcluir);
+    setReceitas(nextReceitas);
+    setDespesas(nextDespesas);
+    saveLocalFinancialMovements(projetoId, [...nextReceitas, ...nextDespesas]);
 
     if (removerDoDoc) {
       toast.info("Movimentação e documento removidos.");
@@ -278,7 +383,7 @@ function FinanceiroProjeto() {
               <DialogHeader>
                 <DialogTitle>Nova movimentação</DialogTitle>
                 <DialogDescription>
-                  Preciso da visualização em descktop e está aparecendo somente mobile web
+                  Cadastre uma receita ou despesa vinculada a este projeto.
                 </DialogDescription>
               </DialogHeader>
               <form
@@ -300,49 +405,27 @@ function FinanceiroProjeto() {
                   const docDigits = doc.replace(/\D/g, "");
                   const docType = docDigits.length === 11 ? "CPF" : "CNPJ";
                   const holderType = tipo === "receita" ? "Origem" : "Destinatário";
-
-                  const { data: userResponse } = await supabase.auth.getUser();
-                  const userId = userResponse.user?.id || null;
-
-                  const { data, error } = await supabase
-                    .from("movimentacoes_financeiras")
-                    .insert({
-                      projeto_id: projetoId,
-                      tipo,
-                      descricao: desc,
-                      categoria: cat,
-                      valor: val,
-                      document_holder_document: doc || null,
-                      document_type: doc ? docType : null,
-                      document_holder_type: holderType,
-                      user_id: userId,
-                      status: "pendente",
-                    })
-                    .select()
-                    .single();
-
-                  if (error) {
-                    toast.error("Erro ao registrar movimentação.");
-                    console.error(error);
-                    return;
-                  }
+                  const comprovanteUrl = arquivo ? await fileToDataUrl(arquivo) : null;
 
                   const nova: Movimentacao = {
-                    id: data.id,
+                    id: `local-${Date.now()}`,
                     descricao: desc,
                     categoria: cat,
                     data: new Date().toLocaleDateString("pt-BR"),
                     valor: val,
                     status: "pendente",
-                    comprovanteUrl: arquivo ? URL.createObjectURL(arquivo) : null,
+                    comprovanteUrl,
                     document_holder_document: doc || null,
                     document_holder_type: holderType,
                     document_type: doc ? (docType as "CPF" | "CNPJ") : null,
                     tipo: tipo,
                   };
 
-                  if (tipo === "receita") setReceitas((p) => [nova, ...p]);
-                  else setDespesas((p) => [nova, ...p]);
+                  const nextReceitas = tipo === "receita" ? [nova, ...receitas] : receitas;
+                  const nextDespesas = tipo === "despesa" ? [nova, ...despesas] : despesas;
+                  setReceitas(nextReceitas);
+                  setDespesas(nextDespesas);
+                  saveLocalFinancialMovements(projetoId, [...nextReceitas, ...nextDespesas]);
 
                   setOpen(false);
                   setArquivo(null);
@@ -396,7 +479,12 @@ function FinanceiroProjeto() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="categoria">Categoria</Label>
-                    <Select name="categoria" required>
+                    <Select
+                      name="categoria"
+                      value={categoriaMov}
+                      onValueChange={setCategoriaMov}
+                      required
+                    >
                       <SelectTrigger id="categoria">
                         <SelectValue placeholder="Selecione..." />
                       </SelectTrigger>
@@ -463,12 +551,11 @@ function FinanceiroProjeto() {
         </div>
       }
     >
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         {[
           { l: "Total de receitas", v: formatBRL(totalR), c: "text-success" },
           { l: "Total de despesas", v: formatBRL(totalD), c: "text-destructive" },
           { l: "Saldo do projeto", v: formatBRL(saldo), c: saldo >= 0 ? "text-success" : "text-destructive" },
-          { l: "ROI projetado", v: "27,4%", c: "text-brand" },
         ].map((k) => (
           <div key={k.l} className="surface-card p-4">
             <p className="text-sm text-muted-foreground">{k.l}</p>
@@ -477,10 +564,9 @@ function FinanceiroProjeto() {
         ))}
       </div>
 
-      <div className="mt-6 grid gap-5 lg:grid-cols-2">
-        <Tabela titulo="Receitas" itens={receitas} onDelete={handleExcluir} />
-        <Tabela titulo="Despesas" itens={despesas} onDelete={handleExcluir} />
-      </div>
+      <DemonstrativoResultado receitas={receitas} despesas={despesas} />
+
+      <ComprovantesFinanceiros movimentacoes={[...receitas, ...despesas]} />
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
@@ -508,47 +594,6 @@ function FinanceiroProjeto() {
         </DialogContent>
       </Dialog>
 
-      <div className="surface-card mt-6 p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-base font-semibold">Distribuição de resultados</h3>
-            <p className="text-sm text-muted-foreground">
-              Cálculo conforme cotas e regras de honorários da empresa.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setCalculado(true);
-              toast.success("Distribuição recalculada!");
-            }}
-          >
-            <Calculator className="size-4" /> Calcular distribuição
-          </Button>
-        </div>
-        <table className="w-full text-sm">
-          <thead className="bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-4 py-2 font-medium">Participante</th>
-              <th className="px-4 py-2 font-medium">Tipo</th>
-              <th className="px-4 py-2 font-medium">%</th>
-              <th className="px-4 py-2 text-right font-medium">Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            {distribuicao.map((d) => (
-              <tr key={d.participante} className="border-t border-border">
-                <td className="px-4 py-3 font-medium">{d.participante}</td>
-                <td className="px-4 py-3 text-muted-foreground">{d.tipo}</td>
-                <td className="px-4 py-3">{d.percentual}%</td>
-                <td className="px-4 py-3 text-right font-medium">
-                  {calculado ? formatBRL(d.valor) : "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </AppLayout>
   );
 }

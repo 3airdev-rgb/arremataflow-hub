@@ -24,8 +24,14 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { documentos as docsMock, categoriasDocumentos } from "@/lib/mock-data";
+import { logProjectAudit } from "@/lib/local-project-audit";
+import { getCurrentLocalUser } from "@/lib/local-access";
 
 export const Route = createFileRoute("/projetos/$id/documentos")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    categoria: typeof search.categoria === "string" ? search.categoria : undefined,
+    retorno: typeof search.retorno === "string" ? search.retorno : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Documentos do Projeto | ArremataFlow" },
@@ -42,16 +48,19 @@ export const Route = createFileRoute("/projetos/$id/documentos")({
 
 function DocumentosProjeto() {
   const { id } = Route.useParams();
+  const { categoria, retorno } = Route.useSearch();
   const [docs, setDocs] = useState(docsMock);
-  const [cat, setCat] = useState<string>("Todas");
+  const [cat, setCat] = useState<string>(categoria || "Todas");
   const [open, setOpen] = useState(false);
 
   const handleBack = () => {
-    if (window.history.length > 1) {
-      window.history.back();
-    } else {
-      window.location.href = `/projetos/${id}`;
-    }
+    const projectPrefix = `/projetos/${id}`;
+    const safeReturn = retorno?.startsWith(projectPrefix)
+      && !retorno.startsWith(`${projectPrefix}/documentos`)
+      ? retorno
+      : `${projectPrefix}?aba=documentos`;
+
+    window.location.assign(safeReturn);
   };
 
   // Efeito para simular a sincronização com o financeiro
@@ -97,18 +106,20 @@ function DocumentosProjeto() {
               onSubmit={(e) => {
                 e.preventDefault();
                 const fd = new FormData(e.currentTarget);
+                const documentName = String(fd.get("nome") || "Documento.pdf");
                 setDocs((prev) => [
                   {
                     id: `d${Date.now()}`,
-                    nome: String(fd.get("nome") || "Documento.pdf"),
+                    nome: documentName,
                     categoria: String(fd.get("categoria") || "Aquisição"),
                     versao: "v1",
-                    autor: "Camila Andrade",
-                    data: "16/08/2026",
-                    tamanho: "420 KB",
+                    autor: getCurrentLocalUser().nome,
+                    data: new Intl.DateTimeFormat("pt-BR").format(new Date()),
+                    tamanho: "—",
                   },
                   ...prev,
                 ]);
+                logProjectAudit(id, `incluiu o documento “${documentName}”`, "Documento");
                 setOpen(false);
                 toast.success("Documento enviado!");
               }}

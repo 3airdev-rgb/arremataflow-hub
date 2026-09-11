@@ -13,6 +13,12 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/mock-data";
+import { logProjectAudit } from "@/lib/local-project-audit";
+import {
+  getLocalJudicialActions,
+  setLocalJudicialActions,
+  type LocalJudicialAction,
+} from "@/lib/local-judicial-actions";
 
 // formatCurrency and parseCurrency removed in favor of CurrencyInput component
 
@@ -30,6 +36,14 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
     locksmith_security_costs: 0,
     settlement_costs: 0,
   });
+  const [imissaoAction, setImissaoAction] = useState<LocalJudicialAction | null>(null);
+
+  const emptyImissaoAction = (): LocalJudicialAction => ({
+    tipo_acao: "Ação de Imissão na Posse",
+    numero_processo: "",
+    vara: "",
+    ultima_movimentacao: null,
+  });
 
   useEffect(() => {
     async function loadData() {
@@ -37,18 +51,31 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projetoId);
       
       if (!isUuid) {
+        const localAction = getLocalJudicialActions(projetoId).find(
+          (acao) => acao.tipo_acao === "Ação de Imissão na Posse"
+        );
+        setImissaoAction(localAction || null);
         setLoading(false);
         return;
       }
 
       try {
-        const { data, error } = await supabase
-          .from("projetos")
-          .select("occupancy_status, possession_action_required, expected_possession_date, possession_completed_date, legal_costs, bailiff_costs, locksmith_security_costs, settlement_costs")
-          .eq("id", projetoId)
-          .single();
+        const [{ data, error }, { data: actionsData, error: actionsError }] = await Promise.all([
+          supabase
+            .from("projetos")
+            .select("occupancy_status, possession_action_required, expected_possession_date, possession_completed_date, legal_costs, bailiff_costs, locksmith_security_costs, settlement_costs")
+            .eq("id", projetoId)
+            .single(),
+          supabase
+            .from("judicial_actions")
+            .select("*")
+            .eq("projeto_id", projetoId)
+            .eq("tipo_acao", "Ação de Imissão na Posse")
+            .maybeSingle(),
+        ]);
 
         if (error) throw error;
+        if (actionsError) throw actionsError;
 
         if (data) {
           setFormData({
@@ -60,6 +87,15 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
             bailiff_costs: Number(data.bailiff_costs) || 0,
             locksmith_security_costs: Number(data.locksmith_security_costs) || 0,
             settlement_costs: Number(data.settlement_costs) || 0,
+          });
+        }
+        if (actionsData) {
+          setImissaoAction({
+            id: actionsData.id,
+            tipo_acao: actionsData.tipo_acao,
+            numero_processo: actionsData.numero_processo || "",
+            vara: actionsData.vara || "",
+            ultima_movimentacao: actionsData.ultima_movimentacao,
           });
         }
       } catch (err: any) {
@@ -77,7 +113,13 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projetoId);
       
       if (!isUuid) {
-        toast.info("A persistência no banco de dados não está disponível para projetos de demonstração.");
+        if (formData.possession_action_required && imissaoAction) {
+          const actions = getLocalJudicialActions(projetoId);
+          const otherActions = actions.filter((acao) => acao.tipo_acao !== "Ação de Imissão na Posse");
+          setLocalJudicialActions(projetoId, [...otherActions, imissaoAction]);
+        }
+        toast.success("Alterações salvas com sucesso.");
+        logProjectAudit(projetoId, "alterou os dados de posse do projeto", "Edição");
         setSalvando(false);
         return;
       }
@@ -97,7 +139,24 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
         .eq("id", projetoId);
 
       if (error) throw error;
+
+      if (formData.possession_action_required && imissaoAction) {
+        const actionPayload = {
+          projeto_id: projetoId,
+          tipo_acao: "Ação de Imissão na Posse",
+          numero_processo: imissaoAction.numero_processo,
+          vara: imissaoAction.vara,
+          ultima_movimentacao: imissaoAction.ultima_movimentacao,
+        };
+
+        const { error: actionError } = imissaoAction.id
+          ? await supabase.from("judicial_actions").update(actionPayload).eq("id", imissaoAction.id)
+          : await supabase.from("judicial_actions").insert(actionPayload);
+
+        if (actionError) throw actionError;
+      }
       toast.success("Alterações salvas com sucesso.");
+      logProjectAudit(projetoId, "alterou os dados de posse do projeto", "Edição");
     } catch (err: any) {
       toast.error("Erro ao salvar: " + err.message);
     } finally {
@@ -135,7 +194,11 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
               <Label>Ação de Imissão</Label>
               <Select 
                 value={formData.possession_action_required ? "Sim" : "Não"} 
-                onValueChange={(v) => setFormData(prev => ({ ...prev, possession_action_required: v === "Sim" }))}
+                onValueChange={(v) => {
+                  const required = v === "Sim";
+                  setFormData(prev => ({ ...prev, possession_action_required: required }));
+                  if (required && !imissaoAction) setImissaoAction(emptyImissaoAction());
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Necessário ação?" />
@@ -147,6 +210,58 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
               </Select>
             </div>
 
+            {formData.possession_action_required && imissaoAction && (
+              <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
+                <div>
+                  <h4 className="font-medium">Ação de Imissão na Posse</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {imissaoAction.id ? "Ação cadastrada no Jurídico." : "Preencha os dados para cadastrar a ação."}
+                  </p>
+                </div>
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <Label>Número do Processo</Label>
+                    <Input
+                      placeholder="Ex: 0000000-00.0000.0.00.0000"
+                      value={imissaoAction.numero_processo}
+                      onChange={(event) => setImissaoAction(prev => prev ? ({ ...prev, numero_processo: event.target.value }) : prev)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Vara</Label>
+                    <Input
+                      placeholder="Ex: 3ª Vara Cível"
+                      value={imissaoAction.vara}
+                      onChange={(event) => setImissaoAction(prev => prev ? ({ ...prev, vara: event.target.value }) : prev)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Última Movimentação</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn("relative w-full justify-end pl-9 text-right font-normal", !imissaoAction.ultima_movimentacao && "text-muted-foreground")}
+                        >
+                          <CalendarIcon className="absolute left-3 h-4 w-4" />
+                          {imissaoAction.ultima_movimentacao
+                            ? format(parseISO(imissaoAction.ultima_movimentacao), "dd/MM/yyyy")
+                            : "Selecionar data"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={imissaoAction.ultima_movimentacao ? parseISO(imissaoAction.ultima_movimentacao) : undefined}
+                          onSelect={(date) => setImissaoAction(prev => prev ? ({ ...prev, ultima_movimentacao: date ? format(date, "yyyy-MM-dd") : null }) : prev)}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Data prevista da posse</Label>
               <Popover>
@@ -154,11 +269,11 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
                   <Button
                     variant={"outline"}
                     className={cn(
-                      "w-full justify-start text-left font-normal",
+                      "relative w-full justify-end pl-9 text-right font-normal",
                       !formData.expected_possession_date && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    <CalendarIcon className="absolute left-3 h-4 w-4" />
                     {formData.expected_possession_date ? (
                       format(parseISO(formData.expected_possession_date), "dd/MM/yyyy")
                     ) : (
@@ -166,7 +281,7 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0" align="end">
                   <Calendar
                     mode="single"
                     selected={formData.expected_possession_date ? parseISO(formData.expected_possession_date) : undefined}
@@ -188,11 +303,11 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
                   <Button
                     variant={"outline"}
                     className={cn(
-                      "w-full justify-start text-left font-normal",
+                      "relative w-full justify-end pl-9 text-right font-normal",
                       !formData.possession_completed_date && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    <CalendarIcon className="absolute left-3 h-4 w-4" />
                     {formData.possession_completed_date ? (
                       format(parseISO(formData.possession_completed_date), "dd/MM/yyyy")
                     ) : (
@@ -200,7 +315,7 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0" align="end">
                   <Calendar
                     mode="single"
                     selected={formData.possession_completed_date ? parseISO(formData.possession_completed_date) : undefined}

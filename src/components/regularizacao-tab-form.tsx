@@ -1,9 +1,10 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Trash2, FileText, CalendarIcon, Info, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { DatePickerField } from "@/components/ui/date-picker-field";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -15,14 +16,19 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { formatBRL, despesas } from "@/lib/mock-data";
+import { formatBRL, formatBRLWithCents } from "@/lib/mock-data";
+import {
+  FINANCIAL_MOVEMENTS_UPDATED,
+  getLocalFinancialMovements,
+} from "@/lib/local-financial-movements";
+import { logProjectAudit } from "@/lib/local-project-audit";
+import {
+  getLocalJudicialActions,
+  setLocalJudicialActions,
+  type LocalJudicialAction,
+} from "@/lib/local-judicial-actions";
 
-type JudicialAction = {
-  id?: string;
-  tipo_acao: string;
-  vara: string;
-  ultima_movimentacao: string | null;
-};
+type JudicialAction = LocalJudicialAction;
 
 export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
   const navigate = useNavigate();
@@ -43,10 +49,25 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
     condominio_debitos_anteriores: 0,
     condominio_debitos_status: "",
     condominio_responsabilidade: "",
+    condominio_vencimento: "",
     condominio_taxa_mensal: 0,
   });
 
   const [acoesJudiciais, setAcoesJudiciais] = useState<JudicialAction[]>([]);
+  const [, setFinancialRevision] = useState(0);
+
+  useEffect(() => {
+    const refresh = (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId?: string }>).detail;
+      if (!detail?.projectId || detail.projectId === projetoId) setFinancialRevision((value) => value + 1);
+    };
+    window.addEventListener(FINANCIAL_MOVEMENTS_UPDATED, refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener(FINANCIAL_MOVEMENTS_UPDATED, refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [projetoId]);
 
   // Load data
   useEffect(() => {
@@ -55,6 +76,15 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projetoId);
       
       if (!isUuid) {
+        const storedData = window.localStorage.getItem(`regularizacao:${projetoId}`);
+        if (storedData) {
+          try {
+            setFormData((previous) => ({ ...previous, ...JSON.parse(storedData) }));
+          } catch {
+            window.localStorage.removeItem(`regularizacao:${projetoId}`);
+          }
+        }
+        setAcoesJudiciais(getLocalJudicialActions(projetoId));
         setLoading(false);
         return;
       }
@@ -82,6 +112,7 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
             condominio_debitos_anteriores: Number((projData as any).condominio_debitos_anteriores) || 0,
             condominio_debitos_status: (projData as any).condominio_debitos_status || "",
             condominio_responsabilidade: (projData as any).condominio_responsabilidade || "",
+            condominio_vencimento: (projData as any).condominio_vencimento || "",
             condominio_taxa_mensal: Number((projData as any).condominio_taxa_mensal) || 0,
           });
         }
@@ -92,7 +123,13 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
           .eq("projeto_id", projetoId);
 
         if (acoesData) {
-          setAcoesJudiciais(acoesData as any[]);
+          setAcoesJudiciais(
+            acoesData.map((acao) => ({
+              ...acao,
+              numero_processo: acao.numero_processo || "",
+              vara: acao.vara || "",
+            }))
+          );
         }
       } catch (err: any) {
         toast.error("Erro ao carregar dados: " + err.message);
@@ -103,12 +140,27 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
     loadData();
   }, [projetoId]);
 
-  // Auto-calculated Cartório Costs (from mock despesas for now as instructed, but could be DB if integrated)
-  const custosCartorio = useMemo(() => {
-    return despesas
-      .filter((d) => d.categoria === "Cartório")
-      .reduce((acc, curr) => acc + curr.valor, 0);
-  }, []);
+  const custosCartorio = getLocalFinancialMovements(projetoId)
+    .filter((movement) => movement.tipo === "despesa" && movement.categoria === "Cartório")
+    .reduce((total, movement) => total + movement.valor, 0);
+  const custosItbi = getLocalFinancialMovements(projetoId)
+    .filter((movement) => movement.tipo === "despesa"
+      && movement.categoria === "Prefeitura"
+      && movement.descricao.trim().toLocaleLowerCase("pt-BR").includes("itbi"))
+    .reduce((total, movement) => total + movement.valor, 0);
+  const custosIptu = getLocalFinancialMovements(projetoId)
+    .filter((movement) => movement.tipo === "despesa"
+      && movement.categoria === "Prefeitura"
+      && movement.descricao.trim().toLocaleLowerCase("pt-BR").includes("iptu"))
+    .reduce((total, movement) => total + movement.valor, 0);
+  const permiteLancamentoIptu = ["Arrematante", "Comprador", "Proprietário"]
+    .includes(formData.iptu_responsabilidade);
+  const iptuEditavel = formData.iptu_responsabilidade === "Vendedor";
+  const pagamentosCondominio = getLocalFinancialMovements(projetoId)
+    .filter((movement) => movement.tipo === "despesa"
+      && movement.categoria === "Condomínio"
+      && movement.descricao.trim().toLocaleLowerCase("pt-BR")
+        .includes("pagamento de taxa de condomínio"));
 
   const handleSave = async () => {
     setSalvando(true);
@@ -117,7 +169,10 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projetoId);
       
       if (!isUuid) {
-        toast.info("A persistência no banco de dados não está disponível para projetos de demonstração.");
+        window.localStorage.setItem(`regularizacao:${projetoId}`, JSON.stringify(formData));
+        setLocalJudicialActions(projetoId, acoesJudiciais);
+        logProjectAudit(projetoId, "alterou os dados de regularização do projeto", "Edição");
+        toast.success("Alterações salvas com sucesso.");
         setSalvando(false);
         return;
       }
@@ -138,6 +193,7 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
           condominio_debitos_anteriores: formData.condominio_debitos_anteriores,
           condominio_debitos_status: formData.condominio_debitos_status,
           condominio_responsabilidade: formData.condominio_responsabilidade,
+          condominio_vencimento: formData.condominio_vencimento || null,
           condominio_taxa_mensal: formData.condominio_taxa_mensal,
         } as any)
         .eq("id", projetoId);
@@ -155,6 +211,7 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
             acoesJudiciais.map(acao => ({
               projeto_id: projetoId,
               tipo_acao: acao.tipo_acao,
+              numero_processo: acao.numero_processo,
               vara: acao.vara,
               ultima_movimentacao: acao.ultima_movimentacao,
             }))
@@ -163,6 +220,7 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
       }
 
       toast.success("Alterações salvas com sucesso.");
+      logProjectAudit(projetoId, "alterou os dados de regularização do projeto", "Edição");
     } catch (err: any) {
       toast.error("Erro ao salvar: " + err.message);
     } finally {
@@ -171,7 +229,10 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
   };
 
   const addAcao = () => {
-    setAcoesJudiciais([...acoesJudiciais, { tipo_acao: "", vara: "", ultima_movimentacao: null }]);
+    setAcoesJudiciais([
+      ...acoesJudiciais,
+      { tipo_acao: "", numero_processo: "", vara: "", ultima_movimentacao: null },
+    ]);
   };
 
   const removeAcao = (index: number) => {
@@ -185,11 +246,28 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
     setAcoesJudiciais(newAcoes);
   };
 
-  const navigateToDocuments = (category: string, type?: string) => {
-    const params = new URLSearchParams();
-    params.set("categoria", category);
-    if (type) params.set("tipo", type);
-    navigate({ to: `/projetos/${projetoId}/documentos`, search: Object.fromEntries(params.entries()) });
+  const navigateToFinancial = (category: string, description?: string) => {
+    navigate({
+      to: "/projetos/$id",
+      params: { id: projetoId },
+      search: {
+        aba: "financeiro",
+        categoria: category,
+        novaMovimentacao: "1",
+        descricao: description,
+      },
+    });
+  };
+
+  const navigateToDocuments = (category: string) => {
+    navigate({
+      to: "/projetos/$id/documentos",
+      params: { id: projetoId },
+      search: {
+        categoria: category,
+        retorno: `/projetos/${projetoId}?aba=regularizacao`,
+      },
+    });
   };
 
   if (loading) return <div className="p-8 text-center">Carregando dados da regularização...</div>;
@@ -247,7 +325,7 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
               <div className="space-y-0.5">
                 <Label className="text-muted-foreground">Custos de Cartório</Label>
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-semibold">{formatBRL(custosCartorio)}</span>
+                  <span className="text-lg font-semibold">{formatBRLWithCents(custosCartorio)}</span>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -255,12 +333,12 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
                           variant="ghost" 
                           size="icon" 
                           className="h-8 w-8 text-brand"
-                          onClick={() => navigateToDocuments("Cartório", "Financeiro")}
+                          onClick={() => navigateToFinancial("Cartório")}
                         >
                           <FileText className="size-4" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Comprovantes</TooltipContent>
+                      <TooltipContent>Ver despesas de Cartório</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
@@ -309,10 +387,37 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
             </div>
             <div className="space-y-2">
               <Label>Valor do IPTU</Label>
-              <CurrencyInput 
-                value={formData.iptu_valor} 
-                onValueChange={(val) => setFormData(prev => ({ ...prev, iptu_valor: val }))}
-              />
+              <div className="flex gap-2">
+                <CurrencyInput
+                  className={iptuEditavel ? "flex-1" : "flex-1 cursor-not-allowed bg-muted"}
+                  value={iptuEditavel ? formData.iptu_valor : custosIptu}
+                  onValueChange={(value) => {
+                    if (iptuEditavel) {
+                      setFormData((previous) => ({ ...previous, iptu_valor: value }));
+                    }
+                  }}
+                  readOnly={!iptuEditavel}
+                />
+                {permiteLancamentoIptu ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="shrink-0 text-brand"
+                          aria-label="Lançar despesa de IPTU"
+                          onClick={() => navigateToFinancial("Prefeitura", "IPTU")}
+                        >
+                          <FileText className="size-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Lançar despesa de IPTU</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : null}
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Transferência Cadastral</Label>
@@ -335,23 +440,26 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
               <Label>Valor do ITBI</Label>
               <div className="flex gap-2">
                 <CurrencyInput 
-                  className="flex-1"
-                  value={formData.itbi_valor} 
-                  onValueChange={(val) => setFormData(prev => ({ ...prev, itbi_valor: val }))}
+                  className="flex-1 cursor-not-allowed bg-muted"
+                  value={custosItbi}
+                  onValueChange={() => undefined}
+                  readOnly
                 />
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button 
+                        type="button"
                         variant="outline" 
                         size="icon" 
                         className="shrink-0 text-brand"
-                        onClick={() => navigateToDocuments("Prefeitura")}
+                        aria-label="Lançar despesa de ITBI"
+                        onClick={() => navigateToFinancial("Prefeitura", "ITBI")}
                       >
                         <FileText className="size-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Comprovantes</TooltipContent>
+                      <TooltipContent>Lançar despesa de ITBI</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               </div>
@@ -374,47 +482,7 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
           
           {formData.tem_condominio ? (
             <div className="grid gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
-              <div className="space-y-2">
-                <Label>Débitos Anteriores</Label>
-                <div className="flex gap-2">
-                  <CurrencyInput 
-                    className="flex-1"
-                    value={formData.condominio_debitos_anteriores} 
-                    onValueChange={(val) => setFormData(prev => ({ ...prev, condominio_debitos_anteriores: val }))}
-                  />
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="icon" 
-                          className="shrink-0 text-brand"
-                          onClick={() => navigateToDocuments("Condomínio")}
-                        >
-                          <FileText className="size-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Comprovantes</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Status dos Débitos</Label>
-                  <Select 
-                    value={formData.condominio_debitos_status} 
-                    onValueChange={(v) => setFormData(prev => ({ ...prev, condominio_debitos_status: v }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Em aberto">Em aberto</SelectItem>
-                      <SelectItem value="Quitado">Quitado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
                 <div className="space-y-2">
                   <Label>Responsabilidade</Label>
                   <Select 
@@ -432,13 +500,109 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
                     </SelectContent>
                   </Select>
                 </div>
+                <div />
+                <div className="space-y-2">
+                  <Label>Status dos Débitos</Label>
+                  <Select 
+                    value={formData.condominio_debitos_status} 
+                    onValueChange={(v) => setFormData(prev => ({ ...prev, condominio_debitos_status: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Em aberto">Em aberto</SelectItem>
+                      <SelectItem value="Quitado">Quitado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Débitos Anteriores</Label>
+                  <div className="flex gap-2">
+                    <CurrencyInput 
+                      className="flex-1"
+                      value={formData.condominio_debitos_anteriores} 
+                      onValueChange={(val) => setFormData(prev => ({ ...prev, condominio_debitos_anteriores: val }))}
+                    />
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            type="button"
+                            variant="outline" 
+                            size="icon" 
+                            className="shrink-0 text-brand"
+                            aria-label="Abrir comprovantes do condomínio"
+                            onClick={() => navigateToDocuments("Condomínio")}
+                          >
+                            <FileText className="size-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Comprovantes</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Taxa Mensal</Label>
+                  <CurrencyInput 
+                    value={formData.condominio_taxa_mensal} 
+                    onValueChange={(val) => setFormData(prev => ({ ...prev, condominio_taxa_mensal: val }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="condominio-vencimento">Vencimento</Label>
+                  <div className="flex gap-2">
+                    <DatePickerField
+                      className="flex-1"
+                      value={formData.condominio_vencimento}
+                      aria-label="Vencimento"
+                      onValueChange={(value) => setFormData((previous) => ({
+                        ...previous,
+                        condominio_vencimento: value,
+                      }))}
+                    />
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="shrink-0 text-brand"
+                            aria-label="Lançar pagamento"
+                            onClick={() => navigateToFinancial("Condomínio", "Pagamento de Taxa de Condomínio")}
+                          >
+                            <Plus className="size-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Lançar pagamento</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Taxa Mensal</Label>
-                <CurrencyInput 
-                  value={formData.condominio_taxa_mensal} 
-                  onValueChange={(val) => setFormData(prev => ({ ...prev, condominio_taxa_mensal: val }))}
-                />
+
+              <div className="border-t border-brand/40 pt-3">
+                <h4 className="text-center text-base font-semibold">Resumo de Pagamentos</h4>
+                <div className="mt-3 grid grid-cols-2 gap-4 border-b pb-2 text-sm font-medium text-muted-foreground">
+                  <span>Data de Pagamento</span>
+                  <span className="text-right">Valor</span>
+                </div>
+                {pagamentosCondominio.length ? (
+                  <div className="divide-y">
+                    {pagamentosCondominio.map((movement) => (
+                      <div key={movement.id} className="grid grid-cols-2 gap-4 py-2 text-sm">
+                        <span>{movement.data}</span>
+                        <span className="text-right font-medium">{formatBRLWithCents(movement.valor)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="py-4 text-center text-sm text-muted-foreground">
+                    Nenhum pagamento lançado.
+                  </p>
+                )}
               </div>
             </div>
           ) : (
@@ -484,23 +648,32 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
                         <SelectValue placeholder="Tipo de ação" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Ação de Despejo">Ação de Despejo</SelectItem>
-                        <SelectItem value="Ação de Reintegração de Posse">Ação de Reintegração de Posse</SelectItem>
                         <SelectItem value="Ação Anulatória de Leilão / Arrematação">Ação Anulatória de Leilão / Arrematação</SelectItem>
-                        <SelectItem value="Ação Rescisória">Ação Rescisória</SelectItem>
-                        <SelectItem value="Ação Pauliana">Ação Pauliana</SelectItem>
-                        <SelectItem value="Embargos de Terceiro">Embargos de Terceiro</SelectItem>
-                        <SelectItem value="Embargos à Arrematação">Embargos à Arrematação</SelectItem>
                         <SelectItem value="Ação de Cobrança">Ação de Cobrança</SelectItem>
                         <SelectItem value="Ação de Consignação em Pagamento">Ação de Consignação em Pagamento</SelectItem>
+                        <SelectItem value="Ação de Despejo">Ação de Despejo</SelectItem>
                         <SelectItem value="Ação de Extinção de Condomínio">Ação de Extinção de Condomínio</SelectItem>
-                        <SelectItem value="Procedimento de Dúvida Registral">Procedimento de Dúvida Registral</SelectItem>
+                        <SelectItem value="Ação de Imissão na Posse">Ação de Imissão na Posse</SelectItem>
+                        <SelectItem value="Ação de Reintegração de Posse">Ação de Reintegração de Posse</SelectItem>
                         <SelectItem value="Ação de Retificação de Registro Imobiliário">Ação de Retificação de Registro Imobiliário</SelectItem>
+                        <SelectItem value="Ação Pauliana">Ação Pauliana</SelectItem>
+                        <SelectItem value="Ação Rescisória">Ação Rescisória</SelectItem>
+                        <SelectItem value="Embargos à Arrematação">Embargos à Arrematação</SelectItem>
+                        <SelectItem value="Embargos de Terceiro">Embargos de Terceiro</SelectItem>
+                        <SelectItem value="Procedimento de Dúvida Registral">Procedimento de Dúvida Registral</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label>Número do Processo</Label>
+                      <Input
+                        placeholder="Ex: 0000000-00.0000.0.00.0000"
+                        value={acao.numero_processo}
+                        onChange={(e) => updateAcao(index, "numero_processo", e.target.value)}
+                      />
+                    </div>
                     <div className="space-y-2">
                       <Label>Vara</Label>
                       <Input 
@@ -516,15 +689,15 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
                           <Button
                             variant={"outline"}
                             className={cn(
-                              "w-full justify-start text-left font-normal h-9",
+                              "relative h-9 w-full justify-end pl-9 text-right font-normal",
                               !acao.ultima_movimentacao && "text-muted-foreground"
                             )}
                           >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            <CalendarIcon className="absolute left-3 h-4 w-4" />
                             {acao.ultima_movimentacao ? format(parseISO(acao.ultima_movimentacao), "dd/MM/yyyy", { locale: ptBR }) : "Selecionar data"}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
+                        <PopoverContent className="w-auto p-0" align="end">
                           <Calendar
                             mode="single"
                             selected={acao.ultima_movimentacao ? parseISO(acao.ultima_movimentacao) : undefined}

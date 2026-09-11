@@ -13,8 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { projetos, formatBRL, statusLabels, statusPriority, type StatusKey } from "@/lib/mock-data";
-import { supabase } from "@/integrations/supabase/client";
-import type { Tables } from "@/integrations/supabase/types";
+import { getLocalProjects, type LocalProject } from "@/lib/local-projects";
+import { canAccessProject, getCurrentLocalUser } from "@/lib/local-access";
 
 export const Route = createFileRoute("/projetos/")({
   head: () => ({
@@ -45,41 +45,21 @@ type UnifiedProject = {
   status: StatusKey;
   responsavel: string;
   investidores: string[];
+  assessores: string[];
   foto: string | null;
   updated_at: string;
   isReal: boolean;
 };
 
 function ProjetosPage() {
+  const [currentUser] = useState(getCurrentLocalUser);
   const [q, setQ] = useState("");
   const [etapaFilter, setEtapaFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [salvos, setSalvos] = useState<(Tables<"projetos"> & { 
-    projeto_participantes: Tables<"projeto_participantes">[],
-    project_managers: (Tables<"project_managers"> & { pessoas: Tables<"pessoas"> })[]
-  })[]>([]);
+  const [salvos, setSalvos] = useState<LocalProject[]>([]);
 
   useEffect(() => {
-    let ativo = true;
-    (async () => {
-      const { data: sessao } = await supabase.auth.getSession();
-      if (!sessao.session) return;
-      
-      const { data, error } = await supabase
-        .from("projetos")
-        .select(`
-          *,
-          projeto_participantes (*),
-          project_managers (*, pessoas (*))
-        `);
-        
-      if (ativo && data) {
-        setSalvos(data as any);
-      }
-    })();
-    return () => {
-      ativo = false;
-    };
+    setSalvos(getLocalProjects());
   }, []);
 
   const unifiedProjects = useMemo(() => {
@@ -89,18 +69,20 @@ function ProjetosPage() {
       nome: p.nome || "Sem nome",
       endereco: p.endereco || "Sem endereço",
       cidade: p.cidade || "",
-      etapa: p.modalidade || "Não definida",
+      etapa: p.etapa || "Não definida",
       status: (p.status as StatusKey) || "nao_iniciado",
-      responsavel: p.project_managers?.[0]?.pessoas?.nome || "Não atribuído",
-      investidores: p.projeto_participantes
-        ?.filter(part => part.papel === "Investidor")
-        .map(part => part.nome) || [],
-      foto: p.foto_principal,
+      responsavel: p.responsavel || "Não atribuído",
+      investidores: p.investidores || [],
+      assessores: Array.isArray(p["assessores"])
+        ? (p["assessores"] as Array<string | { nome?: string }>).map((assessor) => typeof assessor === "string" ? assessor : assessor.nome || "")
+        : [],
+      foto: p.foto,
       updated_at: p.updated_at,
       isReal: true
     }));
 
-    const mockProjects: UnifiedProject[] = projetos.map(p => ({
+    const localIds = new Set(salvos.map((project) => project.id));
+    const mockProjects: UnifiedProject[] = projetos.filter((project) => !localIds.has(project.id)).map(p => ({
       id: p.id,
       codigo: p.codigo,
       nome: p.nome,
@@ -110,6 +92,7 @@ function ProjetosPage() {
       status: p.status,
       responsavel: p.responsavel,
       investidores: p.investidores,
+      assessores: p.assessores,
       foto: p.foto,
       updated_at: p.updated_at,
       isReal: false
@@ -121,12 +104,13 @@ function ProjetosPage() {
   const sortedAndFiltrada = useMemo(() => {
     return unifiedProjects
       .filter((p) => {
+        const hasAccess = canAccessProject(p, currentUser);
         const matchesSearch = `${p.nome} ${p.endereco} ${p.codigo}`
           .toLowerCase()
           .includes(q.toLowerCase());
         const matchesEtapa = etapaFilter === "all" || p.etapa === etapaFilter;
         const matchesStatus = statusFilter === "all" || p.status === statusFilter;
-        return matchesSearch && matchesEtapa && matchesStatus;
+        return hasAccess && matchesSearch && matchesEtapa && matchesStatus;
       })
       .sort((a, b) => {
         // Priority order: Atrasado, Pendente, Aguardando, Andamento, Não Iniciado, Concluído
@@ -143,7 +127,7 @@ function ProjetosPage() {
         // Tertiary: code ascending
         return a.codigo.localeCompare(b.codigo);
       });
-  }, [unifiedProjects, q, etapaFilter, statusFilter]);
+  }, [unifiedProjects, q, etapaFilter, statusFilter, currentUser]);
 
   const todasEtapas = useMemo(() => {
     const etapas = new Set(unifiedProjects.map((p) => p.etapa));
