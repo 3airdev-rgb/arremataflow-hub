@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import {
   FolderKanban,
   FileCheck,
@@ -15,16 +16,8 @@ import {
 } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { KpiCard } from "@/components/kpi-card";
-import { StatusBadge } from "@/components/status-badge";
-import {
-  kpis,
-  tarefas,
-  pipeline,
-  alertasCriticos,
-  movimentacoesRecentes,
-  formatBRL,
-  projetos,
-} from "@/lib/mock-data";
+import { getOrganizationSettings } from "@/lib/organization-settings";
+import { listProjects } from "@/lib/projects";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -45,20 +38,44 @@ export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
 });
 
-const vencimentos = [
-  { dia: "17", mes: "AGO", titulo: "Averbação — Vila Mariana", tipo: "Cartório" },
-  { dia: "18", mes: "AGO", titulo: "Vistoria de posse — Jd. Botânico", tipo: "Posse" },
-  { dia: "20", mes: "AGO", titulo: "Orçamento hidráulica — Boa Viagem", tipo: "Obra" },
-  { dia: "31", mes: "AGO", titulo: "Relatório mensal a investidores", tipo: "Financeiro" },
-];
+const formatBRL = (value: number) => new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+}).format(value);
+
+const pipelineStages = ["Aquisição", "Regularização", "Posse", "Obra", "Venda"];
 
 function Dashboard() {
-  const hoje = tarefas.filter((t) => t.prazo === "Hoje");
+  const { data: organization } = useQuery({
+    queryKey: ["active-organization"],
+    queryFn: () => getOrganizationSettings(),
+  });
+  const { data: projects = [] } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => listProjects(),
+  });
+  const countStage = (terms: string[]) => projects.filter((project: any) => {
+    const stage = String(project.etapa || "").toLowerCase();
+    return terms.some((term) => stage.includes(term));
+  }).length;
+  const capitalInvested = projects.reduce((total: number, project: any) => total + (Number(project.valor_aquisicao) || 0), 0);
+  const fees = projects.reduce((total: number, project: any) => total + (Number(project.valor_honorarios) || 0), 0);
+  const projectedResult = projects.reduce((total: number, project: any) => {
+    const projections = project.projecoes_financeiras || {};
+    const revenue = Number(projections.venda) || 0;
+    const expenses = Object.entries(projections)
+      .filter(([key]) => key !== "venda")
+      .reduce((sum, [, value]) => sum + (Number(value) || 0), 0);
+    return total + revenue - expenses;
+  }, 0);
+  const today = new Intl.DateTimeFormat("pt-BR", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  }).format(new Date());
 
   return (
     <AppLayout
       title="Dashboard Executivo"
-      subtitle="Domingo, 16 de agosto de 2026 · Arremata Capital LTDA"
+      subtitle={`${today.charAt(0).toUpperCase()}${today.slice(1)} · ${organization?.name || "Empresa"}`}
     >
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="surface-card p-5 lg:col-span-2">
@@ -66,39 +83,9 @@ function Dashboard() {
             <AlertTriangle className="size-4.5 text-destructive" />
             <h3 className="text-base font-semibold">Alertas do dia</h3>
           </div>
-          <ul className="space-y-3">
-            {alertasCriticos.map((a) => {
-              const projeto = projetos.find((p) => p.codigo === a.projeto);
-              return (
-                <li key={a.id}>
-                  <Link
-                    to="/projetos/$id"
-                    params={{ id: projeto?.id || "" }}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3 transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">{a.texto}</p>
-                      <div className="mt-1 flex flex-col gap-0.5">
-                        <p className="text-xs font-semibold text-muted-foreground">
-                          {projeto?.nome || `Projeto ${a.projeto}`}
-                        </p>
-                        {projeto?.investidores && projeto.investidores.length > 0 && (
-                          <div className="flex flex-col">
-                            {projeto.investidores.map((investidor, idx) => (
-                              <p key={idx} className="text-[10px] text-muted-foreground/80">
-                                {investidor}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <StatusBadge status={a.nivel} />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          <p className="rounded-lg border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
+            Nenhum alerta para hoje.
+          </p>
         </div>
 
         <div className="surface-card p-5">
@@ -109,74 +96,74 @@ function Dashboard() {
           <dl className="space-y-3 text-sm">
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Tarefas vencendo hoje</dt>
-              <dd className="font-semibold">{hoje.length}</dd>
+              <dd className="font-semibold">0</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Concluídas na semana</dt>
-              <dd className="font-semibold">14</dd>
+              <dd className="font-semibold">0</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Novos documentos</dt>
-              <dd className="font-semibold">6</dd>
+              <dd className="font-semibold">0</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Movimentações financeiras</dt>
-              <dd className="font-semibold">{formatBRL(128740)}</dd>
+              <dd className="font-semibold">{formatBRL(0)}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Aportes recebidos</dt>
-              <dd className="font-semibold text-success">{formatBRL(250000)}</dd>
+              <dd className="font-semibold text-success">{formatBRL(0)}</dd>
             </div>
           </dl>
         </div>
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <KpiCard label="Projetos ativos" value={kpis.projetosAtivos} icon={FolderKanban} hint="+3 no mês" />
-        <KpiCard label="Regularizações" value={kpis.regularizacoes} icon={FileCheck} tone="info" />
-        <KpiCard label="Pendências" value={kpis.pendencias} icon={AlertTriangle} tone="danger" hint="2 críticas" />
-        <KpiCard label="Posse pendente" value={kpis.possePendente} icon={KeyRound} tone="warning" />
-        <KpiCard label="Reformas" value={kpis.reformas} icon={Hammer} tone="warning" />
-        <KpiCard label="Imóveis à venda" value={kpis.aVenda} icon={Store} tone="info" />
-        <KpiCard label="Capital investido" value={formatBRL(kpis.capitalInvestido)} icon={Wallet} />
-        <KpiCard label="Honorários" value={formatBRL(kpis.honorarios)} icon={BadgeDollarSign} tone="success" />
+        <KpiCard label="Projetos ativos" value={projects.filter((project: any) => project.status !== "concluido").length} icon={FolderKanban} />
+        <KpiCard label="Regularizações" value={countStage(["regulariza"])} icon={FileCheck} tone="info" />
+        <KpiCard label="Pendências" value={0} icon={AlertTriangle} tone="danger" />
+        <KpiCard label="Posse pendente" value={countStage(["posse"])} icon={KeyRound} tone="warning" />
+        <KpiCard label="Reformas" value={countStage(["obra", "reforma"])} icon={Hammer} tone="warning" />
+        <KpiCard label="Imóveis à venda" value={countStage(["venda"])} icon={Store} tone="info" />
+        <KpiCard label="Capital investido" value={formatBRL(capitalInvested)} icon={Wallet} />
+        <KpiCard label="Honorários" value={formatBRL(fees)} icon={BadgeDollarSign} tone="success" />
         <KpiCard
           label="Resultado projetado"
-          value={formatBRL(kpis.resultadoProjetado)}
+          value={formatBRL(projectedResult)}
           icon={TrendingUp}
           tone="success"
         />
         <KpiCard
           label="Resultado realizado"
-          value={formatBRL(kpis.resultadoRealizado)}
+          value={formatBRL(0)}
           icon={TrendingUp}
           tone="success"
-          hint="Exercício 2026"
         />
       </div>
 
       <section className="mt-8">
         <h2 className="mb-4 text-lg font-semibold">Pipeline de projetos</h2>
         <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
-          {pipeline.map((col) => (
-            <div key={col.etapa} className="rounded-xl border border-border bg-muted/40 p-3">
+          {pipelineStages.map((stage) => {
+            const stageProjects = projects.filter((project: any) => String(project.etapa || "").toLowerCase().includes(stage.toLowerCase()));
+            return (
+            <div key={stage} className="rounded-xl border border-border bg-muted/40 p-3">
               <div className="mb-3 flex items-center justify-between px-1">
-                <span className="text-sm font-semibold">{col.etapa}</span>
+                <span className="text-sm font-semibold">{stage}</span>
                 <span className="rounded-full bg-card px-2 py-0.5 text-xs text-muted-foreground">
-                  {col.itens.length}
+                  {stageProjects.length}
                 </span>
               </div>
-              <div className="space-y-2">
-                {col.itens.map((i) => (
-                  <div key={i.codigo} className="surface-card p-3">
-                    <p className="text-xs text-muted-foreground">{i.codigo}</p>
-                    <p className="mt-0.5 text-sm font-medium leading-snug">{i.nome}</p>
-                    <StatusBadge status={i.status} className="mt-2" />
-                  </div>
+              {stageProjects.length ? <div className="space-y-2">
+                {stageProjects.map((project: any) => (
+                  <Link key={project.id} to="/projetos/$id" params={{ id: project.id }} className="block rounded-lg bg-card p-3 shadow-sm">
+                    <p className="text-xs text-muted-foreground">{project.codigo}</p>
+                    <p className="mt-0.5 text-sm font-medium leading-snug">{project.nome}</p>
+                  </Link>
                 ))}
-              </div>
+              </div> : <p className="py-3 text-center text-xs text-muted-foreground">Nenhum projeto</p>}
             </div>
-          ))}
+          )})}
         </div>
       </section>
 
@@ -186,37 +173,16 @@ function Dashboard() {
             <CalendarDays className="size-4.5 text-brand" />
             <h3 className="text-base font-semibold">Calendário de vencimentos</h3>
           </div>
-          <ul className="space-y-3">
-            {vencimentos.map((v) => (
-              <li key={v.titulo} className="flex items-center gap-3">
-                <div className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary-soft text-brand">
-                  <span className="text-sm font-bold leading-none">{v.dia}</span>
-                  <span className="text-[10px] font-medium">{v.mes}</span>
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{v.titulo}</p>
-                  <p className="text-xs text-muted-foreground">{v.tipo}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <p className="rounded-lg border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
+            Nenhum vencimento agendado.
+          </p>
         </div>
 
         <div className="surface-card p-5">
           <h3 className="mb-4 text-base font-semibold">Tarefas do dia</h3>
-          <ul className="space-y-3">
-            {tarefas.slice(0, 5).map((t) => (
-              <li key={t.id} className="border-b border-border pb-3 last:border-0 last:pb-0">
-                <p className="text-sm font-medium leading-snug">{t.titulo}</p>
-                <div className="mt-1.5 flex items-center gap-2">
-                  <StatusBadge status={t.status} />
-                  <span className="text-xs text-muted-foreground">
-                    {t.responsavel} · {t.prazo}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <p className="rounded-lg border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
+            Nenhuma tarefa para hoje.
+          </p>
         </div>
 
         <div className="surface-card p-5">
@@ -224,16 +190,9 @@ function Dashboard() {
             <Activity className="size-4.5 text-brand" />
             <h3 className="text-base font-semibold">Últimas movimentações</h3>
           </div>
-          <ul className="space-y-3">
-            {movimentacoesRecentes.map((m) => (
-              <li key={m.id} className="text-sm">
-                <p className="leading-snug">{m.texto}</p>
-                <p className="text-xs text-muted-foreground">
-                  {m.projeto} · {m.quando}
-                </p>
-              </li>
-            ))}
-          </ul>
+          <p className="rounded-lg border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
+            Nenhuma movimentação registrada.
+          </p>
           <Link
             to="/projetos"
             className="mt-4 inline-block text-sm font-medium text-brand hover:underline"

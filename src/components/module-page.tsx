@@ -1,8 +1,11 @@
 import type { LucideIcon } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/app-layout";
 import { StatusBadge } from "@/components/status-badge";
-import { projetos, formatBRL } from "@/lib/mock-data";
+import { formatBRL } from "@/lib/format-currency";
+import { listProjects } from "@/lib/projects";
+import type { StatusKey } from "@/lib/project-display";
 
 export function ModulePage({
   title,
@@ -17,6 +20,11 @@ export function ModulePage({
   campo: "etapa" | "modalidade" | "responsavel" | "cidade";
   descricaoModulo: string;
 }) {
+  const { data: projetos = [], isPending } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => listProjects(),
+  });
+
   return (
     <AppLayout title={title} subtitle={subtitle}>
       <div className="surface-card mb-6 flex items-start gap-3 p-5">
@@ -26,6 +34,10 @@ export function ModulePage({
         <p className="text-sm text-muted-foreground">{descricaoModulo}</p>
       </div>
 
+      {isPending ? <p className="text-sm text-muted-foreground">Carregando projetos...</p> : null}
+      {!isPending && projetos.length === 0 ? (
+        <div className="surface-card p-8 text-center text-sm text-muted-foreground">Nenhum projeto cadastrado nesta empresa.</div>
+      ) : null}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {projetos.map((p) => (
           <Link
@@ -34,19 +46,14 @@ export function ModulePage({
             params={{ id: p.id }}
             className="surface-card overflow-hidden transition-shadow hover:shadow-soft"
           >
-            <img
-              src={p.foto}
-              alt={`Imóvel ${p.nome}`}
-              loading="lazy"
-              className="h-36 w-full object-cover"
-            />
+            {p.foto ? <img src={p.foto} alt={`Imóvel ${p.nome}`} loading="lazy" className="h-36 w-full object-cover" /> : <div className="h-36 bg-muted" />}
             <div className="p-4">
               <p className="text-xs text-muted-foreground">{p.codigo}</p>
               <p className="font-medium">{p.nome}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">{p[campo]}</p>
               <div className="mt-3 flex items-center justify-between">
-                <StatusBadge status={p.status} />
-                <span className="text-sm font-semibold">{formatBRL(p.capitalInvestido)}</span>
+                <StatusBadge status={p.status as StatusKey} />
+                <span className="text-sm font-semibold">{formatBRL(Number(p.capitalInvestido) || 0)}</span>
               </div>
             </div>
           </Link>

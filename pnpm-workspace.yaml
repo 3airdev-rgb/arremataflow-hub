@@ -1,0 +1,2 @@
+trustLockfile: true
+nodeLinker: hoisted

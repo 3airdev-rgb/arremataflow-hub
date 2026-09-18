@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Upload, FolderOpen, FileText, UploadCloud, ArrowLeft } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
@@ -23,14 +24,13 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { documentos as docsMock, categoriasDocumentos } from "@/lib/mock-data";
-import { logProjectAudit } from "@/lib/local-project-audit";
-import { getCurrentLocalUser } from "@/lib/local-access";
+import { financialCategories } from "@/lib/financial-categories";
+import { listProjectDocuments } from "@/lib/documents";
 
 export const Route = createFileRoute("/projetos/$id/documentos")({
   validateSearch: (search: Record<string, unknown>) => ({
-    categoria: typeof search.categoria === "string" ? search.categoria : undefined,
-    retorno: typeof search.retorno === "string" ? search.retorno : undefined,
+    categoria: typeof search["categoria"] === "string" ? search["categoria"] : undefined,
+    retorno: typeof search["retorno"] === "string" ? search["retorno"] : undefined,
   }),
   head: () => ({
     meta: [
@@ -49,9 +49,14 @@ export const Route = createFileRoute("/projetos/$id/documentos")({
 function DocumentosProjeto() {
   const { id } = Route.useParams();
   const { categoria, retorno } = Route.useSearch();
-  const [docs, setDocs] = useState(docsMock);
+  const { data: docs = [], refetch } = useQuery({
+    queryKey: ["project-documents", id],
+    queryFn: () => listProjectDocuments({ data: { projectId: id } }),
+  });
   const [cat, setCat] = useState<string>(categoria || "Todas");
   const [open, setOpen] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [sending, setSending] = useState(false);
 
   const handleBack = () => {
     const projectPrefix = `/projetos/${id}`;
@@ -63,16 +68,6 @@ function DocumentosProjeto() {
     window.location.assign(safeReturn);
   };
 
-  // Efeito para simular a sincronização com o financeiro
-  // Em uma aplicação real, isso seria uma query no banco de dados
-  const syncWithFinanceiro = () => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const sync = searchParams.get("sync");
-    if (sync) {
-      // Simulação: se houver movimentações novas com comprovante, elas apareceriam aqui
-      // Como estamos usando mock local, apenas garantimos que o componente reage a mudanças
-    }
-  };
   const visiveis = cat === "Todas" ? docs : docs.filter((d) => d.categoria === cat);
 
   return (
@@ -103,33 +98,26 @@ function DocumentosProjeto() {
             </DialogHeader>
             <form
               className="space-y-4"
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 const fd = new FormData(e.currentTarget);
-                const documentName = String(fd.get("nome") || "Documento.pdf");
-                setDocs((prev) => [
-                  {
-                    id: `d${Date.now()}`,
-                    nome: documentName,
-                    categoria: String(fd.get("categoria") || "Aquisição"),
-                    versao: "v1",
-                    autor: getCurrentLocalUser().nome,
-                    data: new Intl.DateTimeFormat("pt-BR").format(new Date()),
-                    tamanho: "—",
-                  },
-                  ...prev,
-                ]);
-                logProjectAudit(id, `incluiu o documento “${documentName}”`, "Documento");
-                setOpen(false);
-                toast.success("Documento enviado!");
+                if (!file) { toast.error("Selecione um arquivo."); return; }
+                fd.set("file", file); fd.set("projectId", id); fd.set("name", String(fd.get("nome") || file.name));
+                setSending(true);
+                try {
+                  const response = await fetch("/api/documents/upload", { method: "POST", body: fd, credentials: "same-origin" });
+                  if (!response.ok) throw new Error(await response.text());
+                  await refetch(); setFile(null); setOpen(false); toast.success("Documento enviado com segurança!");
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Não foi possível enviar o documento.");
+                } finally { setSending(false); }
               }}
             >
-              <div className="grid place-items-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/40 p-8 text-center">
+              <label className="grid cursor-pointer place-items-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/40 p-8 text-center">
                 <UploadCloud className="size-8 text-muted-foreground" strokeWidth={1.5} />
-                <p className="text-sm text-muted-foreground">
-                  Arraste o arquivo aqui ou clique para selecionar
-                </p>
-              </div>
+                <p className="text-sm text-muted-foreground">{file ? file.name : "Clique para selecionar PDF, JPG, PNG ou WEBP (até 10 MB)"}</p>
+                <input type="file" className="sr-only" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+              </label>
               <div className="space-y-2">
                 <Label htmlFor="nome">Nome do documento</Label>
                 <Input id="nome" name="nome" placeholder="Certidão negativa.pdf" required />
@@ -141,7 +129,7 @@ function DocumentosProjeto() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {categoriasDocumentos.map((c) => (
+                    {financialCategories.map((c) => (
                       <SelectItem key={c} value={c}>
                         {c}
                       </SelectItem>
@@ -150,7 +138,7 @@ function DocumentosProjeto() {
                 </Select>
               </div>
               <DialogFooter>
-                <Button type="submit">Enviar</Button>
+                <Button type="submit" disabled={sending}>{sending ? "Enviando..." : "Enviar"}</Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -163,7 +151,7 @@ function DocumentosProjeto() {
           <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Categorias
           </p>
-          {["Todas", ...categoriasDocumentos].map((c) => (
+          {["Todas", ...financialCategories].map((c) => (
             <button
               key={c}
               onClick={() => setCat(c)}
@@ -197,10 +185,10 @@ function DocumentosProjeto() {
                 {visiveis.map((d) => (
                   <tr key={d.id} className="border-t border-border hover:bg-muted/40">
                     <td className="px-4 py-3">
-                      <span className="flex items-center gap-2 font-medium">
+                      <a href={d.url} className="flex items-center gap-2 font-medium text-brand hover:underline">
                         <FileText className="size-4 text-brand" strokeWidth={1.75} />
                         {d.nome}
-                      </span>
+                      </a>
                       <span className="pl-6 text-xs text-muted-foreground">{d.tamanho}</span>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{d.categoria}</td>

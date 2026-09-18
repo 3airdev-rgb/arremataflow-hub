@@ -22,12 +22,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { formatBRL, categoriasDocumentos } from "@/lib/mock-data";
+import { formatBRL } from "@/lib/format-currency";
+import { financialCategories as categoriasDocumentos } from "@/lib/financial-categories";
 import { formatDocument, validateDocument } from "@/lib/utils-validation";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { DatePickerField } from "@/components/ui/date-picker-field";
-import { type StatusKey } from "@/lib/mock-data";
-import { getLocalFinancialMovements, saveLocalFinancialMovements } from "@/lib/local-financial-movements";
+import { type StatusKey } from "@/lib/project-display";
+import { createFinancialMovement, deleteFinancialMovement, listFinancialMovements } from "@/lib/financial";
 
 export type Movimentacao = {
   id: string;
@@ -44,13 +45,6 @@ export type Movimentacao = {
   comprovanteUrls?: string[];
   tipo?: 'receita' | 'despesa';
 };
-
-const fileToDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = () => resolve(String(reader.result));
-  reader.onerror = () => reject(reader.error);
-  reader.readAsDataURL(file);
-});
 
 export const Route = createFileRoute("/projetos/$id/financeiro")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -296,9 +290,7 @@ function FinanceiroProjeto() {
   };
 
   useEffect(() => {
-    const movements = getLocalFinancialMovements(projetoId);
-    setReceitas(movements.filter((movement) => movement.tipo === "receita"));
-    setDespesas(movements.filter((movement) => movement.tipo === "despesa"));
+    void listFinancialMovements({ data: { projectId: projetoId } }).then((movements) => { setReceitas(movements.filter((movement) => movement.tipo === "receita") as Movimentacao[]); setDespesas(movements.filter((movement) => movement.tipo === "despesa") as Movimentacao[]); }).catch((error) => toast.error(error.message));
   }, [projetoId]);
 
   useEffect(() => setCategoriaMov(categoriaFiltro), [categoriaFiltro]);
@@ -329,13 +321,10 @@ function FinanceiroProjeto() {
     setDeleteOpen(true);
   };
 
-  const confirmarExclusao = (removerDoDoc = false) => {
+  const confirmarExclusao = async (removerDoDoc = false) => {
     if (!movParaExcluir) return;
-    const nextReceitas = receitas.filter((movement) => movement.id !== movParaExcluir);
-    const nextDespesas = despesas.filter((movement) => movement.id !== movParaExcluir);
-    setReceitas(nextReceitas);
-    setDespesas(nextDespesas);
-    saveLocalFinancialMovements(projetoId, [...nextReceitas, ...nextDespesas]);
+    try { await deleteFinancialMovement({ data: { projectId: projetoId, id: movParaExcluir } }); const movements = await listFinancialMovements({ data: { projectId: projetoId } }); setReceitas(movements.filter((movement) => movement.tipo === "receita") as Movimentacao[]); setDespesas(movements.filter((movement) => movement.tipo === "despesa") as Movimentacao[]); }
+    catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível excluir a movimentação."); return; }
 
     if (removerDoDoc) {
       toast.info("Movimentação e documento removidos.");
@@ -402,30 +391,9 @@ function FinanceiroProjeto() {
                     return;
                   }
 
-                  const docDigits = doc.replace(/\D/g, "");
-                  const docType = docDigits.length === 11 ? "CPF" : "CNPJ";
-                  const holderType = tipo === "receita" ? "Origem" : "Destinatário";
-                  const comprovanteUrl = arquivo ? await fileToDataUrl(arquivo) : null;
-
-                  const nova: Movimentacao = {
-                    id: `local-${Date.now()}`,
-                    descricao: desc,
-                    categoria: cat,
-                    data: new Date().toLocaleDateString("pt-BR"),
-                    valor: val,
-                    status: "pendente",
-                    comprovanteUrl,
-                    document_holder_document: doc || null,
-                    document_holder_type: holderType,
-                    document_type: doc ? (docType as "CPF" | "CNPJ") : null,
-                    tipo: tipo,
-                  };
-
-                  const nextReceitas = tipo === "receita" ? [nova, ...receitas] : receitas;
-                  const nextDespesas = tipo === "despesa" ? [nova, ...despesas] : despesas;
-                  setReceitas(nextReceitas);
-                  setDespesas(nextDespesas);
-                  saveLocalFinancialMovements(projetoId, [...nextReceitas, ...nextDespesas]);
+                  const created = await createFinancialMovement({ data: { projectId: projetoId, type: tipo, description: desc, category: cat, amount: val, holderDocument: doc || undefined } });
+                  if (arquivo) { const upload = new FormData(); upload.set("file", arquivo); upload.set("projectId", projetoId); upload.set("financialMovementId", created.id); upload.set("name", `Comprovante — ${desc}`); upload.set("category", cat); const response = await fetch("/api/documents/upload", { method: "POST", body: upload, credentials: "same-origin" }); if (!response.ok) throw new Error((await response.text()) || "Não foi possível enviar o comprovante."); }
+                  const movements = await listFinancialMovements({ data: { projectId: projetoId } }); setReceitas(movements.filter((movement) => movement.tipo === "receita") as Movimentacao[]); setDespesas(movements.filter((movement) => movement.tipo === "despesa") as Movimentacao[]);
 
                   setOpen(false);
                   setArquivo(null);

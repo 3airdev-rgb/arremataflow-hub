@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { House, Handshake, BriefcaseBusiness, Users, Plus, Trash2, Save, UserPlus, Search, CalendarIcon, CheckCircle2, UserCheck, CircleDollarSign } from "lucide-react";
 import { SectionCard } from "@/components/project-form-section-card";
 import { AppLayout } from "@/components/app-layout";
@@ -33,13 +34,14 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { projetos, usuarios, formatBRL } from "@/lib/mock-data";
+import { formatBRL } from "@/lib/format-currency";
 import { InvestorRegistrationModal, type UnifiedEntityData } from "@/components/investor-registration-modal";
 import { ImageManagementSection, type ProjetoFoto } from "@/components/image-management-section";
+import { uploadPendingProjectImages } from "@/lib/project-image-client";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { AdvisoryModeInfo } from "@/components/advisory-mode-info";
-import { saveLocalProject } from "@/lib/local-projects";
-import { inviteProjectMembers } from "@/lib/local-access";
+import { saveProject } from "@/lib/projects";
+import { createContact, listContacts } from "@/lib/contacts";
 
 export const Route = createFileRoute("/_authenticated/projetos/novo")({
   head: () => ({
@@ -59,30 +61,17 @@ export const Route = createFileRoute("/_authenticated/projetos/novo")({
   }),
   component: NovoProjeto,
 });
-
-
-
-
-async function salvarPessoa(data: UnifiedEntityData, tipo: "Investidor" | "Assessor" | "Leiloeiro") {
-  const key = "arremataflow:people";
-  const people = JSON.parse(localStorage.getItem(key) || "[]") as UnifiedEntityData[];
-  if (data.documento && people.some((person) => person.documento === data.documento)) {
-    toast.error(`${tipo} já cadastrado`, { description: "Este CPF ou CNPJ já existe no cadastro local." });
-    return;
-  }
-  localStorage.setItem(key, JSON.stringify([...people, { ...data, tipo }]));
-  toast.success(`${tipo} cadastrado com sucesso!`);
-}
-
 function NovoProjeto() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: usuarios = [] } = useQuery({ queryKey: ["contacts"], queryFn: () => listContacts() });
   const [fotosUpload, setFotosUpload] = useState<ProjetoFoto[]>([]);
   const [isInvestorModalOpen, setIsInvestorModalOpen] = useState(false);
   const [isAssessorModalOpen, setIsAssessorModalOpen] = useState(false);
   const [isResponsibleModalOpen, setIsResponsibleModalOpen] = useState(false);
   const [isLeiloeiroModalOpen, setIsLeiloeiroModalOpen] = useState(false);
-  const [participantes, setParticipantes] = useState<Array<{ nome: string; papel: string; percentual: string }>>([]);
-  const [assessoresVinculados, setAssessoresVinculados] = useState<Array<{ nome: string; papel: string; percentual: string }>>([]);
+  const [participantes, setParticipantes] = useState<Array<{ id: string; nome: string; papel: string; percentual: string }>>([]);
+  const [assessoresVinculados, setAssessoresVinculados] = useState<Array<{ id: string; nome: string; papel: string; percentual: string }>>([]);
   const [responsaveisVinculados, setResponsaveisVinculados] = useState<{id: string, nome: string}[]>([]);
   const [projecoesFinanceiras, setProjecoesFinanceiras] = useState({
     aquisicao: 0,
@@ -144,6 +133,13 @@ function NovoProjeto() {
   const assessoresDisponiveis = usuarios.filter(u => u.perfil === "Assessor" || u.perfil === "Administrador" || u.perfil === "Jurídico");
   const leiloeirosDisponiveis = usuarios.filter(u => u.perfil === "Leiloeiro");
 
+  async function salvarPessoa(data: UnifiedEntityData, tipo: "Investidor" | "Assessor" | "Leiloeiro") {
+    const created = await createContact({ data: { ...data, type: tipo } });
+    await queryClient.invalidateQueries({ queryKey: ["contacts"] });
+    toast.success(`${tipo} cadastrado com sucesso!`);
+    return created;
+  }
+
   return (
     <AppLayout title="Cadastro de Projeto" subtitle="Novo projeto imobiliário">
       <form
@@ -164,24 +160,12 @@ function NovoProjeto() {
           setSalvando(true);
           try {
             const parcelado = formaPagamento === "parcelado" || formaPagamento === "financiado";
-            const id = `local-${Date.now()}`;
-            const existingCount = projetos.length + JSON.parse(localStorage.getItem("arremataflow:projects") || "[]").length;
-            saveLocalProject({
-              id,
-              codigo: `AF-${new Date().getFullYear()}-${String(existingCount + 1).padStart(3, "0")}`,
-              nome: txt("end") ?? "Novo projeto",
-              endereco: txt("end") ?? "Endereço não informado",
-              cidade: txt("cidade") ?? "",
-              etapa: modalidade || "Aquisição",
-              status,
-              responsavel: responsaveisVinculados[0]?.nome || "Não atribuído",
-              investidores: participantes.map((participant) => participant.nome),
-              foto: fotosUpload.find((foto) => foto.is_main)?.url || fotosUpload[0]?.url || null,
-              updated_at: new Date().toISOString(),
+            const address = txt("end") ?? "Endereço não informado";
+            const projectData = {
               cep: txt("cep"), area: txt("area"), land_area: num("land_area"),
               built_area: num("built_area"), total_area: num("total_area"), matricula: txt("mat"),
               tipo_imovel: tipoImovel || null, iptu: txt("iptu"), observacoes: txt("obs"),
-              fotos: fotosUpload.map((foto) => foto.url), origem: origem || null,
+              fotos: [], origem: origem || null,
               valor_aquisicao: valorAquisicao,
               data_aquisicao: dataAquisicao ? format(dataAquisicao, "yyyy-MM-dd") : null,
               forma_pagamento: formaPagamento || null, leiloeiro_nome: leiloeiroVinculado?.nome ?? null,
@@ -196,17 +180,28 @@ function NovoProjeto() {
               projecoes_financeiras: modalidade === "completa"
                 ? { ...projecoesFinanceiras, assessoria: 0 }
                 : projecoesFinanceiras,
-            });
-
-            inviteProjectMembers(
-              { id, name: txt("end") ?? "Novo projeto" },
-              [
-                ...assessoresVinculados.map((assessor) => ({ nome: assessor.nome, perfil: "Assessor" as const })),
-                ...participantes.map((participant) => ({ nome: participant.nome, perfil: "Investidor" as const })),
+              investidores: participantes.map((participant) => participant.nome),
+              foto: null,
+            };
+            const savedProject = await saveProject({ data: {
+              name: address,
+              address,
+              city: txt("cidade") ?? "",
+              stage: modalidade || "Aquisição",
+                status: status as "nao_iniciado" | "pendente" | "andamento" | "aguardando" | "concluido" | "atrasado",
+              responsible: responsaveisVinculados[0]?.nome || "Não atribuído",
+              mainImage: null,
+              data: projectData,
+              links: [
+                ...participantes.map((item) => ({ contactId: item.id, role: "investor" as const, percentage: item.percentual })),
+                ...assessoresVinculados.map((item) => ({ contactId: item.id, role: "advisor" as const, percentage: item.percentual })),
+                ...responsaveisVinculados.map((item) => ({ contactId: item.id, role: "responsible" as const })),
+                ...(leiloeiroVinculado ? [{ contactId: leiloeiroVinculado.id, role: "auctioneer" as const }] : []),
               ],
-            );
+            } });
+            await uploadPendingProjectImages(savedProject.id, fotosUpload);
 
-            toast.success("Projeto salvo e convites locais gerados para os participantes!");
+            toast.success("Projeto salvo com sucesso!");
             navigate({ to: "/projetos" });
           } catch (err) {
             toast.error(err instanceof Error ? err.message : "Não foi possível salvar o projeto.");
@@ -657,7 +652,7 @@ function NovoProjeto() {
                                   value={assessor.nome}
                                   onSelect={() => {
                                     if (!assessoresVinculados.find(p => p.nome === assessor.nome)) {
-                                      setAssessoresVinculados([...assessoresVinculados, { nome: assessor.nome, papel: "Assessor", percentual: "" }]);
+                                      setAssessoresVinculados([...assessoresVinculados, { id: assessor.id, nome: assessor.nome, papel: "Assessor", percentual: "" }]);
                                       toast.success(`${assessor.nome} adicionado.`);
                                     } else {
                                       toast.error("Assessor já adicionado.");
@@ -746,7 +741,7 @@ function NovoProjeto() {
                             value={investidor.nome}
                             onSelect={() => {
                               if (!participantes.find(p => p.nome === investidor.nome)) {
-                                setParticipantes([...participantes, { nome: investidor.nome, papel: "Investidor", percentual: "" }]);
+                                setParticipantes([...participantes, { id: investidor.id, nome: investidor.nome, papel: "Investidor", percentual: "" }]);
                                 toast.success(`${investidor.nome} adicionado.`);
                               } else {
                                 toast.error("Investidor já adicionado.");
@@ -950,11 +945,11 @@ function NovoProjeto() {
             open={isInvestorModalOpen}
             onOpenChange={setIsInvestorModalOpen}
             onSave={async (data) => {
+              const created = await salvarPessoa(data, "Investidor");
               setParticipantes((prev) => [
                 ...prev,
-                { nome: data.nome, papel: "Investidor", percentual: "" },
+                { id: created.id, nome: created.nome, papel: "Investidor", percentual: "" },
               ]);
-              await salvarPessoa(data, "Investidor");
               toast.success(`Investidor ${data.nome} cadastrado e adicionado!`);
             }}
             type="Investidor"
@@ -964,11 +959,11 @@ function NovoProjeto() {
             open={isAssessorModalOpen}
             onOpenChange={setIsAssessorModalOpen}
             onSave={async (data) => {
+              const created = await salvarPessoa(data, "Assessor");
               setAssessoresVinculados((prev) => [
                 ...prev,
-                { nome: data.nome, papel: "Assessor", percentual: "" },
+                { id: created.id, nome: created.nome, papel: "Assessor", percentual: "" },
               ]);
-              await salvarPessoa(data, "Assessor");
               toast.success(`Assessor ${data.nome} cadastrado e adicionado!`);
             }}
             type="Assessor"
@@ -978,13 +973,11 @@ function NovoProjeto() {
             open={isResponsibleModalOpen}
             onOpenChange={setIsResponsibleModalOpen}
             onSave={async (data) => {
-              // Create a temporary ID for the UI
-              const tempId = Math.random().toString();
+              const created = await salvarPessoa(data, "Assessor");
               setResponsaveisVinculados((prev) => [
                 ...prev,
-                { id: tempId, nome: data.nome },
+                { id: created.id, nome: created.nome },
               ]);
-              await salvarPessoa(data, "Assessor");
               toast.success(`Assessor ${data.nome} cadastrado e vinculado como responsável!`);
             }}
             type="Assessor"
@@ -994,8 +987,8 @@ function NovoProjeto() {
             open={isLeiloeiroModalOpen}
             onOpenChange={setIsLeiloeiroModalOpen}
             onSave={async (data) => {
-              setLeiloeiroVinculado({ id: Math.random().toString(), nome: data.nome });
-              await salvarPessoa(data, "Leiloeiro");
+              const created = await salvarPessoa(data, "Leiloeiro");
+              setLeiloeiroVinculado({ id: created.id, nome: created.nome });
               toast.success(`Leiloeiro ${data.nome} cadastrado e vinculado!`);
             }}
             type="Leiloeiro"

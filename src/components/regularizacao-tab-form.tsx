@@ -15,20 +15,12 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
-import { formatBRL, formatBRLWithCents } from "@/lib/mock-data";
-import {
-  FINANCIAL_MOVEMENTS_UPDATED,
-  getLocalFinancialMovements,
-} from "@/lib/local-financial-movements";
-import { logProjectAudit } from "@/lib/local-project-audit";
-import {
-  getLocalJudicialActions,
-  setLocalJudicialActions,
-  type LocalJudicialAction,
-} from "@/lib/local-judicial-actions";
+import { formatBRLWithCents } from "@/lib/format-currency";
+import { listFinancialMovements } from "@/lib/financial";
+import { getProjectOperations, saveRegularization } from "@/lib/project-operations";
 
-type JudicialAction = LocalJudicialAction;
+type JudicialAction = { id?: string; tipo_acao: string; numero_processo: string; vara: string; ultima_movimentacao: string | null };
+type FinancialMovement = { id: string; tipo: string; categoria: string; descricao: string; valor: number; data: string };
 
 export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
   const navigate = useNavigate();
@@ -54,83 +46,19 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
   });
 
   const [acoesJudiciais, setAcoesJudiciais] = useState<JudicialAction[]>([]);
-  const [, setFinancialRevision] = useState(0);
-
-  useEffect(() => {
-    const refresh = (event: Event) => {
-      const detail = (event as CustomEvent<{ projectId?: string }>).detail;
-      if (!detail?.projectId || detail.projectId === projetoId) setFinancialRevision((value) => value + 1);
-    };
-    window.addEventListener(FINANCIAL_MOVEMENTS_UPDATED, refresh);
-    window.addEventListener("focus", refresh);
-    return () => {
-      window.removeEventListener(FINANCIAL_MOVEMENTS_UPDATED, refresh);
-      window.removeEventListener("focus", refresh);
-    };
-  }, [projetoId]);
+  const [financialMovements, setFinancialMovements] = useState<FinancialMovement[]>([]);
 
   // Load data
   useEffect(() => {
     async function loadData() {
-      // Don't attempt to load from Supabase if the ID is not a valid UUID (e.g. mock IDs like "1", "2", "3")
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projetoId);
-      
-      if (!isUuid) {
-        const storedData = window.localStorage.getItem(`regularizacao:${projetoId}`);
-        if (storedData) {
-          try {
-            setFormData((previous) => ({ ...previous, ...JSON.parse(storedData) }));
-          } catch {
-            window.localStorage.removeItem(`regularizacao:${projetoId}`);
-          }
-        }
-        setAcoesJudiciais(getLocalJudicialActions(projetoId));
-        setLoading(false);
-        return;
-      }
-
       try {
-        const { data: projData, error: projError } = await supabase
-          .from("projetos")
-          .select("*")
-          .eq("id", projetoId)
-          .single();
-
-        if (projError) throw projError;
-
-        if (projData) {
-          setFormData({
-            carta_arrematacao_status: (projData as any).carta_arrematacao_status || "",
-            averbacao_status: (projData as any).averbacao_status || "",
-            protocolo_cartorio: (projData as any).protocolo_cartorio || "",
-            iptu_status: (projData as any).iptu_status || "",
-            iptu_responsabilidade: (projData as any).iptu_responsabilidade || "",
-            iptu_valor: Number((projData as any).iptu_valor) || 0,
-            transferencia_cadastral_status: (projData as any).transferencia_cadastral_status || "",
-            itbi_valor: Number((projData as any).itbi_valor) || 0,
-            tem_condominio: (projData as any).tem_condominio || false,
-            condominio_debitos_anteriores: Number((projData as any).condominio_debitos_anteriores) || 0,
-            condominio_debitos_status: (projData as any).condominio_debitos_status || "",
-            condominio_responsabilidade: (projData as any).condominio_responsabilidade || "",
-            condominio_vencimento: (projData as any).condominio_vencimento || "",
-            condominio_taxa_mensal: Number((projData as any).condominio_taxa_mensal) || 0,
-          });
-        }
-
-        const { data: acoesData } = await supabase
-          .from("judicial_actions")
-          .select("*")
-          .eq("projeto_id", projetoId);
-
-        if (acoesData) {
-          setAcoesJudiciais(
-            acoesData.map((acao) => ({
-              ...acao,
-              numero_processo: acao.numero_processo || "",
-              vara: acao.vara || "",
-            }))
-          );
-        }
+        const [operations, movements] = await Promise.all([
+          getProjectOperations({ data: { projectId: projetoId } }),
+          listFinancialMovements({ data: { projectId: projetoId } }),
+        ]);
+        setFormData((previous) => ({ ...previous, ...(operations.regularization as Partial<typeof previous>) }));
+        setAcoesJudiciais(operations.regularizationActions);
+        setFinancialMovements(movements);
       } catch (err: any) {
         toast.error("Erro ao carregar dados: " + err.message);
       } finally {
@@ -140,15 +68,15 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
     loadData();
   }, [projetoId]);
 
-  const custosCartorio = getLocalFinancialMovements(projetoId)
+  const custosCartorio = financialMovements
     .filter((movement) => movement.tipo === "despesa" && movement.categoria === "Cartório")
     .reduce((total, movement) => total + movement.valor, 0);
-  const custosItbi = getLocalFinancialMovements(projetoId)
+  const custosItbi = financialMovements
     .filter((movement) => movement.tipo === "despesa"
       && movement.categoria === "Prefeitura"
       && movement.descricao.trim().toLocaleLowerCase("pt-BR").includes("itbi"))
     .reduce((total, movement) => total + movement.valor, 0);
-  const custosIptu = getLocalFinancialMovements(projetoId)
+  const custosIptu = financialMovements
     .filter((movement) => movement.tipo === "despesa"
       && movement.categoria === "Prefeitura"
       && movement.descricao.trim().toLocaleLowerCase("pt-BR").includes("iptu"))
@@ -156,7 +84,7 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
   const permiteLancamentoIptu = ["Arrematante", "Comprador", "Proprietário"]
     .includes(formData.iptu_responsabilidade);
   const iptuEditavel = formData.iptu_responsabilidade === "Vendedor";
-  const pagamentosCondominio = getLocalFinancialMovements(projetoId)
+  const pagamentosCondominio = financialMovements
     .filter((movement) => movement.tipo === "despesa"
       && movement.categoria === "Condomínio"
       && movement.descricao.trim().toLocaleLowerCase("pt-BR")
@@ -165,62 +93,8 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
   const handleSave = async () => {
     setSalvando(true);
     try {
-      // Check if project is mock
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projetoId);
-      
-      if (!isUuid) {
-        window.localStorage.setItem(`regularizacao:${projetoId}`, JSON.stringify(formData));
-        setLocalJudicialActions(projetoId, acoesJudiciais);
-        logProjectAudit(projetoId, "alterou os dados de regularização do projeto", "Edição");
-        toast.success("Alterações salvas com sucesso.");
-        setSalvando(false);
-        return;
-      }
-
-      // Update projects table
-      const { error: projError } = await supabase
-        .from("projetos")
-        .update({
-          carta_arrematacao_status: formData.carta_arrematacao_status,
-          averbacao_status: formData.averbacao_status,
-          protocolo_cartorio: formData.protocolo_cartorio,
-          iptu_status: formData.iptu_status,
-          iptu_responsabilidade: formData.iptu_responsabilidade,
-          iptu_valor: formData.iptu_valor,
-          transferencia_cadastral_status: formData.transferencia_cadastral_status,
-          itbi_valor: formData.itbi_valor,
-          tem_condominio: formData.tem_condominio,
-          condominio_debitos_anteriores: formData.condominio_debitos_anteriores,
-          condominio_debitos_status: formData.condominio_debitos_status,
-          condominio_responsabilidade: formData.condominio_responsabilidade,
-          condominio_vencimento: formData.condominio_vencimento || null,
-          condominio_taxa_mensal: formData.condominio_taxa_mensal,
-        } as any)
-        .eq("id", projetoId);
-
-      if (projError) throw projError;
-
-      // Sync judicial actions
-      // Simple approach: delete all and re-insert for this turn (or handle diff)
-      await supabase.from("judicial_actions").delete().eq("projeto_id", projetoId);
-      
-      if (acoesJudiciais.length > 0) {
-        const { error: acoesError } = await supabase
-          .from("judicial_actions")
-          .insert(
-            acoesJudiciais.map(acao => ({
-              projeto_id: projetoId,
-              tipo_acao: acao.tipo_acao,
-              numero_processo: acao.numero_processo,
-              vara: acao.vara,
-              ultima_movimentacao: acao.ultima_movimentacao,
-            }))
-          );
-        if (acoesError) throw acoesError;
-      }
-
+      await saveRegularization({ data: { projectId: projetoId, formData, actions: acoesJudiciais } });
       toast.success("Alterações salvas com sucesso.");
-      logProjectAudit(projetoId, "alterou os dados de regularização do projeto", "Edição");
     } catch (err: any) {
       toast.error("Erro ao salvar: " + err.message);
     } finally {
@@ -254,7 +128,7 @@ export function RegularizacaoTab({ projetoId }: { projetoId: string }) {
         aba: "financeiro",
         categoria: category,
         novaMovimentacao: "1",
-        descricao: description,
+        ...(description ? { descricao: description } : {}),
       },
     });
   };

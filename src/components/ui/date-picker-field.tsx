@@ -7,13 +7,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 
 type DatePickerFieldProps = {
-  value?: string | null;
+  value?: string | null | undefined;
   onValueChange: (value: string) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
-  min?: string;
-  max?: string;
+  min?: string | undefined;
+  max?: string | undefined;
   required?: boolean;
   "aria-label"?: string;
 };
@@ -62,7 +62,6 @@ export function DatePickerField({
             (minimum && isValid(minimum) && date < minimum)
             || (maximum && isValid(maximum) && date > maximum)
           )}
-          initialFocus
         />
       </PopoverContent>
     </Popover>

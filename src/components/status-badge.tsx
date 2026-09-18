@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { statusLabels, type StatusKey } from "@/lib/mock-data";
+import { statusLabels, type StatusKey } from "@/lib/project-display";
 
 const styles: Record<StatusKey, string> = {
   concluido: "bg-success-soft text-success border-success/25",

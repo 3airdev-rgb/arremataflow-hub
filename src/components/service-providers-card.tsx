@@ -15,7 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { formatBRL } from "@/lib/mock-data";
+import { formatBRL } from "@/lib/format-currency";
+import { getCommercialData, saveProvider as saveProviderRecord, saveProviderAssignment } from "@/lib/commercial";
 
 type Provider = {
   id: string;
@@ -108,37 +109,15 @@ export function ServiceProvidersCard({ projectId }: { projectId: string }) {
   const [editingAssignmentId, setEditingAssignmentId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    const savedProviders = localStorage.getItem("arremataflow:service-providers");
-    const savedAssignments = localStorage.getItem(`arremataflow:project:${projectId}:providers`);
-    if (savedProviders) setProviders(JSON.parse(savedProviders));
-    if (savedAssignments) setAssignments(JSON.parse(savedAssignments));
+    void getCommercialData({ data: { projectId } }).then((data) => { setProviders(data.providers as Provider[]); setAssignments(data.assignments as Assignment[]); });
   }, [projectId]);
 
-  React.useEffect(() => {
-    const hasStatusesToUpdate = assignments.some((assignment) =>
-      getOverdueDays(assignment) !== null && assignment.status !== "atrasado",
-    );
-    if (!hasStatusesToUpdate) return;
-    const next = assignments.map((assignment) =>
-      getOverdueDays(assignment) !== null ? { ...assignment, status: "atrasado" as WorkStatus } : assignment,
-    );
-    setAssignments(next);
-    localStorage.setItem(`arremataflow:project:${projectId}:providers`, JSON.stringify(next));
-  }, [assignments, projectId]);
+  const reload = async () => { const data = await getCommercialData({ data: { projectId } }); setProviders(data.providers as Provider[]); setAssignments(data.assignments as Assignment[]); };
 
-  const persistProviders = (next: Provider[]) => {
-    setProviders(next);
-    localStorage.setItem("arremataflow:service-providers", JSON.stringify(next));
-  };
-  const persistAssignments = (next: Assignment[]) => {
-    setAssignments(next);
-    localStorage.setItem(`arremataflow:project:${projectId}:providers`, JSON.stringify(next));
-  };
-
-  const updateAssignmentStatus = (assignmentId: string, status: WorkStatus) => {
-    persistAssignments(assignments.map((assignment) =>
-      assignment.id === assignmentId ? { ...assignment, status } : assignment,
-    ));
+  const updateAssignmentStatus = async (assignmentId: string, status: WorkStatus) => {
+    const assignment = assignments.find((item) => item.id === assignmentId); if (!assignment) return;
+    try { await saveProviderAssignment({ data: { ...assignment, projectId, status } }); await reload(); }
+    catch (error) { alert(error instanceof Error ? error.message : "Não foi possível atualizar o status."); }
   };
 
   const getScheduleTone = (assignment: Assignment) => {
@@ -168,27 +147,16 @@ export function ServiceProvidersCard({ projectId }: { projectId: string }) {
     setOpen(true);
   };
 
-  const saveProvider = () => {
+  const saveProvider = async () => {
     if (!providerForm.name || !providerForm.document || !providerForm.specialty) return;
-    const created = { ...providerForm, id: `provider-${Date.now()}` };
-    persistProviders([...providers, created]);
-    setProviderForm(emptyProvider);
-    beginAssignment(created);
+    try { const { id: _empty, ...payload } = providerForm; const created = await saveProviderRecord({ data: { ...payload, projectId } }) as Provider; await reload(); setProviderForm(emptyProvider); beginAssignment(created); }
+    catch (error) { alert(error instanceof Error ? error.message : "Não foi possível cadastrar o prestador."); }
   };
 
-  const saveAssignment = () => {
+  const saveAssignment = async () => {
     if (!selectedProvider || assignmentForm.responsibilities.length === 0) return;
-    const next = editingAssignmentId
-      ? assignments.map((assignment) => assignment.id === editingAssignmentId
-        ? { ...assignment, ...assignmentForm }
-        : assignment)
-      : [...assignments, {
-          ...assignmentForm, id: `assignment-${Date.now()}`, providerId: selectedProvider.id,
-        }];
-    persistAssignments(next);
-    setOpen(false);
-    setMode("list");
-    setEditingAssignmentId(null);
+    try { await saveProviderAssignment({ data: { id: editingAssignmentId || undefined, projectId, providerId: selectedProvider.id, ...assignmentForm } }); await reload(); setOpen(false); setMode("list"); setEditingAssignmentId(null); }
+    catch (error) { alert(error instanceof Error ? error.message : "Não foi possível vincular o prestador."); }
   };
 
   const filteredProviders = providers.filter((provider) =>

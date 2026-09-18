@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Save, FileText, CalendarIcon } from "lucide-react";
+import { Save, CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -8,17 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
-import { formatBRL } from "@/lib/mock-data";
-import { logProjectAudit } from "@/lib/local-project-audit";
-import {
-  getLocalJudicialActions,
-  setLocalJudicialActions,
-  type LocalJudicialAction,
-} from "@/lib/local-judicial-actions";
+import { getProjectOperations, savePossession } from "@/lib/project-operations";
+
+type JudicialAction = { id?: string; tipo_acao: string; numero_processo: string; vara: string; ultima_movimentacao: string | null };
 
 // formatCurrency and parseCurrency removed in favor of CurrencyInput component
 
@@ -36,9 +30,9 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
     locksmith_security_costs: 0,
     settlement_costs: 0,
   });
-  const [imissaoAction, setImissaoAction] = useState<LocalJudicialAction | null>(null);
+  const [imissaoAction, setImissaoAction] = useState<JudicialAction | null>(null);
 
-  const emptyImissaoAction = (): LocalJudicialAction => ({
+  const emptyImissaoAction = (): JudicialAction => ({
     tipo_acao: "Ação de Imissão na Posse",
     numero_processo: "",
     vara: "",
@@ -47,57 +41,10 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
 
   useEffect(() => {
     async function loadData() {
-      // Don't attempt to load from Supabase if the ID is not a valid UUID (e.g. mock IDs like "1", "2", "3")
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projetoId);
-      
-      if (!isUuid) {
-        const localAction = getLocalJudicialActions(projetoId).find(
-          (acao) => acao.tipo_acao === "Ação de Imissão na Posse"
-        );
-        setImissaoAction(localAction || null);
-        setLoading(false);
-        return;
-      }
-
       try {
-        const [{ data, error }, { data: actionsData, error: actionsError }] = await Promise.all([
-          supabase
-            .from("projetos")
-            .select("occupancy_status, possession_action_required, expected_possession_date, possession_completed_date, legal_costs, bailiff_costs, locksmith_security_costs, settlement_costs")
-            .eq("id", projetoId)
-            .single(),
-          supabase
-            .from("judicial_actions")
-            .select("*")
-            .eq("projeto_id", projetoId)
-            .eq("tipo_acao", "Ação de Imissão na Posse")
-            .maybeSingle(),
-        ]);
-
-        if (error) throw error;
-        if (actionsError) throw actionsError;
-
-        if (data) {
-          setFormData({
-            occupancy_status: data.occupancy_status || "",
-            possession_action_required: data.possession_action_required || false,
-            expected_possession_date: data.expected_possession_date || null,
-            possession_completed_date: data.possession_completed_date || null,
-            legal_costs: Number(data.legal_costs) || 0,
-            bailiff_costs: Number(data.bailiff_costs) || 0,
-            locksmith_security_costs: Number(data.locksmith_security_costs) || 0,
-            settlement_costs: Number(data.settlement_costs) || 0,
-          });
-        }
-        if (actionsData) {
-          setImissaoAction({
-            id: actionsData.id,
-            tipo_acao: actionsData.tipo_acao,
-            numero_processo: actionsData.numero_processo || "",
-            vara: actionsData.vara || "",
-            ultima_movimentacao: actionsData.ultima_movimentacao,
-          });
-        }
+        const operations = await getProjectOperations({ data: { projectId: projetoId } });
+        setFormData((previous) => ({ ...previous, ...(operations.possession as Partial<typeof previous>) }));
+        setImissaoAction(operations.possessionAction);
       } catch (err: any) {
         toast.error("Erro ao carregar dados da posse: " + err.message);
       } finally {
@@ -110,53 +57,8 @@ export function PosseTab({ projetoId }: { projetoId: string }) {
   const handleSave = async () => {
     setSalvando(true);
     try {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projetoId);
-      
-      if (!isUuid) {
-        if (formData.possession_action_required && imissaoAction) {
-          const actions = getLocalJudicialActions(projetoId);
-          const otherActions = actions.filter((acao) => acao.tipo_acao !== "Ação de Imissão na Posse");
-          setLocalJudicialActions(projetoId, [...otherActions, imissaoAction]);
-        }
-        toast.success("Alterações salvas com sucesso.");
-        logProjectAudit(projetoId, "alterou os dados de posse do projeto", "Edição");
-        setSalvando(false);
-        return;
-      }
-
-      const { error } = await supabase
-        .from("projetos")
-        .update({
-          occupancy_status: formData.occupancy_status,
-          possession_action_required: formData.possession_action_required,
-          expected_possession_date: formData.expected_possession_date,
-          possession_completed_date: formData.possession_completed_date,
-          legal_costs: formData.legal_costs,
-          bailiff_costs: formData.bailiff_costs,
-          locksmith_security_costs: formData.locksmith_security_costs,
-          settlement_costs: formData.settlement_costs,
-        })
-        .eq("id", projetoId);
-
-      if (error) throw error;
-
-      if (formData.possession_action_required && imissaoAction) {
-        const actionPayload = {
-          projeto_id: projetoId,
-          tipo_acao: "Ação de Imissão na Posse",
-          numero_processo: imissaoAction.numero_processo,
-          vara: imissaoAction.vara,
-          ultima_movimentacao: imissaoAction.ultima_movimentacao,
-        };
-
-        const { error: actionError } = imissaoAction.id
-          ? await supabase.from("judicial_actions").update(actionPayload).eq("id", imissaoAction.id)
-          : await supabase.from("judicial_actions").insert(actionPayload);
-
-        if (actionError) throw actionError;
-      }
+      await savePossession({ data: { projectId: projetoId, formData, action: imissaoAction } });
       toast.success("Alterações salvas com sucesso.");
-      logProjectAudit(projetoId, "alterou os dados de posse do projeto", "Edição");
     } catch (err: any) {
       toast.error("Erro ao salvar: " + err.message);
     } finally {

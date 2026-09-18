@@ -10,8 +10,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatBRL } from "@/lib/mock-data";
-import { logProjectAudit } from "@/lib/local-project-audit";
+import { formatBRL } from "@/lib/format-currency";
+import { COMMERCIAL_DATA_UPDATED, deletePortfolioEntry, getCommercialData, savePortfolioEntry } from "@/lib/commercial";
 import { formatDocument } from "@/lib/utils-validation";
 
 type PortfolioType = "Corretor" | "Imobiliária" | "Site";
@@ -43,17 +43,6 @@ export type PortfolioEntry = {
 };
 
 const states = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
-const storageKey = (projectId: string) => `arremataflow:project:${projectId}:sales-portfolio`;
-export const SALES_PORTFOLIO_UPDATED = "arremataflow:sales-portfolio-updated";
-
-export function getLocalSalesPortfolio(projectId: string): PortfolioEntry[] {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(localStorage.getItem(storageKey(projectId)) || "[]") as PortfolioEntry[];
-  } catch {
-    return [];
-  }
-}
 const normalizeUrl = (value: string) => {
   const trimmed = value.trim();
   if (!trimmed) return "";
@@ -90,26 +79,17 @@ export function SalesPortfolioCard({ projectId }: { projectId: string }) {
   const [viewEntry, setViewEntry] = useState<PortfolioEntry | null>(null);
 
   useEffect(() => {
-    try {
-      setEntries(getLocalSalesPortfolio(projectId));
-    } catch {
-      setEntries([]);
-    }
+    void getCommercialData({ data: { projectId } }).then((data) => setEntries(data.portfolio as PortfolioEntry[])).catch((error) => toast.error(error.message));
   }, [projectId]);
 
-  const persist = (next: PortfolioEntry[]) => {
-    setEntries(next);
-    localStorage.setItem(storageKey(projectId), JSON.stringify(next));
-    window.dispatchEvent(new CustomEvent(SALES_PORTFOLIO_UPDATED, { detail: { projectId } }));
-  };
+  const reload = async () => { setEntries((await getCommercialData({ data: { projectId } })).portfolio as PortfolioEntry[]); window.dispatchEvent(new CustomEvent(COMMERCIAL_DATA_UPDATED, { detail: { projectId } })); };
 
   const update = <K extends keyof PortfolioEntry>(field: K, value: PortfolioEntry[K]) =>
     setForm((current) => ({ ...current, [field]: value }));
 
-  const remove = (entry: PortfolioEntry) => {
-    persist(entries.filter((item) => item.id !== entry.id));
-    logProjectAudit(projectId, `excluiu ${entry.type.toLowerCase()} “${entry.name}” do portfólio de venda`, "Exclusão");
-    toast.success("Cadastro removido do portfólio.");
+  const remove = async (entry: PortfolioEntry) => {
+    try { await deletePortfolioEntry({ data: { projectId, id: entry.id } }); await reload(); toast.success("Cadastro removido do portfólio."); }
+    catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível remover o cadastro."); }
   };
 
   const beginEdit = (entry: PortfolioEntry) => {
@@ -142,7 +122,7 @@ export function SalesPortfolioCard({ projectId }: { projectId: string }) {
               <DialogTitle>{editingId ? "Editar cadastro de comercialização" : "Novo cadastro de comercialização"}</DialogTitle>
               <DialogDescription>Selecione o tipo e preencha as informações correspondentes.</DialogDescription>
             </DialogHeader>
-            <form className="space-y-4" onSubmit={(event) => {
+            <form className="space-y-4" onSubmit={async (event) => {
               event.preventDefault();
               const commissionValue = (form.advertisedValue || 0) * (form.commissionPercentage || 0) / 100;
               const currentAdvertisedValue = form.advertisedValue || 0;
@@ -166,22 +146,11 @@ export function SalesPortfolioCard({ projectId }: { projectId: string }) {
                 website: normalizeUrl(form.website || ""),
                 commissionValue,
                 priceHistory,
-                id: editingId || `portfolio-${Date.now()}`,
+                id: editingId || undefined,
               };
-              persist(editingId
-                ? entries.map((entry) => entry.id === editingId ? saved : entry)
-                : [saved, ...entries]);
-              logProjectAudit(
-                projectId,
-                editingId
-                  ? `editou ${form.type.toLowerCase()} “${form.name}” no portfólio de venda${priceChanged ? `, alterando o valor anunciado de ${formatBRL(previousAdvertisedValue)} para ${formatBRL(currentAdvertisedValue)}` : ""}`
-                  : `incluiu ${form.type.toLowerCase()} “${form.name}” no portfólio de venda`,
-                editingId ? "Edição" : "Inclusão",
-              );
-              setOpen(false);
-              setForm(emptyEntry("Corretor"));
-              setEditingId(null);
-              toast.success(editingId ? "Cadastro atualizado." : "Cadastro adicionado ao portfólio.");
+              try {
+                await savePortfolioEntry({ data: { projectId, id: saved.id, type: saved.type, name: saved.name, document: saved.document || "", creci: saved.creci || "", address: saved.address || "", city: saved.city || "", state: saved.state || "", email: saved.email || "", phone: saved.phone || "", website: saved.website || "", advertisedValue: saved.advertisedValue || 0, commissionPercentage: saved.commissionPercentage || 0, commissionValue: saved.commissionValue || 0, advertisementDate: saved.advertisementDate || "", advertisementCost: saved.advertisementCost || 0, priceHistory: saved.priceHistory || [], isPropertyAvailable: saved.isPropertyAvailable ?? true } }); await reload(); setOpen(false); setForm(emptyEntry("Corretor")); setEditingId(null); toast.success(editingId ? "Cadastro atualizado." : "Cadastro adicionado ao portfólio.");
+              } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível salvar o cadastro."); }
             }}>
               <div className="space-y-2">
                 <Label>Tipo de cadastro</Label>

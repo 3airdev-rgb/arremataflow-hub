@@ -1,7 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { Plus, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -124,30 +122,7 @@ export function InvestorRegistrationModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Check if document already exists in the database
-    if (formData.documento) {
-      try {
-        const { data: existingPerson, error } = await supabase
-          .from("pessoas")
-          .select("id")
-          .eq("documento", formData.documento)
-          .maybeSingle();
-          
-        if (error) throw error;
-        
-        if (existingPerson) {
-          toast.error("Investidor já Cadastrado", {
-            description: "Um registro com este CPF ou CNPJ já existe na base de dados.",
-            icon: <AlertCircle className="h-4 w-4" />,
-          });
-          return;
-        }
-      } catch (err) {
-        console.error("Erro ao verificar documento:", err);
-      }
-    }
-
-    onSave(formData);
+    await onSave(formData);
     onOpenChange(false);
     // Reset form
     setFormData({
@@ -175,7 +150,7 @@ export function InvestorRegistrationModal({
         <DialogHeader>
           <DialogTitle>Cadastro de {type}</DialogTitle>
           <DialogDescription>
-            Implemente um fluxo completo de registro de usuário com e-mail e senha no meu app.
+            Informe os dados cadastrais para vincular ao projeto.
           </DialogDescription>
         </DialogHeader>
 

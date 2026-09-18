@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { House, Handshake, BriefcaseBusiness, Users, Save, UserPlus, Search, Trash2, CalendarIcon, CheckCircle2, UserCheck, Plus, CircleDollarSign } from "lucide-react";
 import { SectionCard } from "@/components/project-form-section-card";
 import { AppLayout } from "@/components/app-layout";
@@ -14,15 +15,14 @@ import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { formatBRL, projetos, usuarios as mockUsuarios } from "@/lib/mock-data";
-import { getLocalProjects, saveLocalProject } from "@/lib/local-projects";
+import { formatBRL } from "@/lib/format-currency";
+import { getProject, saveProject } from "@/lib/projects";
+import { createContact, listContacts } from "@/lib/contacts";
 import { InvestorRegistrationModal, type UnifiedEntityData } from "@/components/investor-registration-modal";
 import { Calendar } from "@/components/ui/calendar";
 import { ImageManagementSection, type ProjetoFoto } from "@/components/image-management-section";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { inviteProjectMembers } from "@/lib/local-access";
-import { logProjectAudit } from "@/lib/local-project-audit";
 import { AdvisoryModeInfo } from "@/components/advisory-mode-info";
 
 export const Route = createFileRoute("/_authenticated/projetos/$id/editar")({
@@ -32,6 +32,8 @@ export const Route = createFileRoute("/_authenticated/projetos/$id/editar")({
 function EditarProjeto() {
   const { id } = useParams({ from: "/_authenticated/projetos/$id/editar" });
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: usuarios = [] } = useQuery({ queryKey: ["contacts"], queryFn: () => listContacts() });
   
   const [loading, setLoading] = useState(true);
   const [projeto, setProjeto] = useState<any>(null);
@@ -39,8 +41,8 @@ function EditarProjeto() {
   const [status, setStatus] = useState<string>("nao_iniciado");
   
   const [fotosUpload, setFotosUpload] = useState<ProjetoFoto[]>([]);
-  const [participantes, setParticipantes] = useState<{ nome: string; papel: string; percentual: string }[]>([]);
-  const [assessoresVinculados, setAssessoresVinculados] = useState<{ nome: string; papel: string; percentual: string }[]>([]);
+  const [participantes, setParticipantes] = useState<{ id: string; nome: string; papel: string; percentual: string }[]>([]);
+  const [assessoresVinculados, setAssessoresVinculados] = useState<{ id: string; nome: string; papel: string; percentual: string }[]>([]);
   const [responsaveisVinculados, setResponsaveisVinculados] = useState<{ id: string; nome: string }[]>([]);
   
   const [modalidade, setModalidade] = useState<string>("");
@@ -56,7 +58,6 @@ function EditarProjeto() {
   const [leiloeiroVinculado, setLeiloeiroVinculado] = useState<{ id: string; nome: string } | null>(null);
   const [valorFinanciado, setValorFinanciado] = useState<number>(0);
   const [quantidadeParcelas, setQuantidadeParcelas] = useState<number>(1);
-  const [usuarios, setUsuarios] = useState<any[]>([]);
   const [isInvestorModalOpen, setIsInvestorModalOpen] = useState(false);
   const [isAssessorModalOpen, setIsAssessorModalOpen] = useState(false);
   const [isResponsibleModalOpen, setIsResponsibleModalOpen] = useState(false);
@@ -73,23 +74,8 @@ function EditarProjeto() {
   });
 
   useEffect(() => {
-    function init() {
-      const localProject = getLocalProjects().find((item) => item.id === id);
-      const mockProject = projetos.find((item) => item.id === id);
-      const d: any = localProject || (mockProject ? {
-        ...mockProject,
-        valor_aquisicao: mockProject.valorAquisicao,
-        percentual_honorarios: 10,
-        valor_minimo: 0,
-        data_aquisicao: mockProject.dataAquisicao?.split("/").reverse().join("-"),
-        forma_pagamento: "",
-        tipo_imovel: "",
-        origem: "",
-        percentual_comissao: 5,
-        valor_parcelado: 0,
-        quantidade_parcelas: 1,
-        foto_principal: mockProject.foto,
-      } : null);
+    async function init() {
+      const d: any = await getProject({ data: { id } });
 
       if (d) {
         setProjeto(d);
@@ -126,18 +112,20 @@ function EditarProjeto() {
           venda: Number(d.projecoes_financeiras?.venda) || 0,
         });
 
-        const investorNames = d.investidores || d.participantes?.map((p: any) => p.nome) || [];
-        setParticipantes(investorNames.map((nome: string, index: number) => ({ nome, papel: "Investidor", percentual: index === 0 ? "100" : "0" })));
-        const assessorNames = d.assessores?.map((a: any) => a.nome || a) || [];
-        setAssessoresVinculados(assessorNames.map((nome: string) => ({ nome, papel: "Assessor", percentual: "100" })));
-        if (d.responsavel) setResponsaveisVinculados([{ id: `mock-${d.responsavel}`, nome: d.responsavel }]);
-        const photoUrls = d.fotos || (d.foto_principal ? [d.foto_principal] : []);
-        setFotosUpload(photoUrls.map((url: string, index: number) => ({ id: `local-photo-${index}`, url, file_path: "", file_name: `Imagem ${index + 1}`, display_order: index, is_main: index === 0 })));
+        const investorEntries = Array.isArray(d.participantes) ? d.participantes : [];
+        setParticipantes(investorEntries.map((item: any) => ({ id: item.id || "", nome: item.nome, papel: "Investidor", percentual: String(item.percentual || "") })));
+        const assessorEntries = Array.isArray(d.assessores) ? d.assessores : [];
+        setAssessoresVinculados(assessorEntries.filter((item: any) => typeof item === "object").map((item: any) => ({ id: item.id || "", nome: item.nome, papel: "Assessor", percentual: String(item.percentual || "") })));
+        const responsibleEntries = Array.isArray(d.responsaveis) ? d.responsaveis : [];
+        setResponsaveisVinculados(responsibleEntries.map((item: any) => ({ id: item.id || "", nome: item.nome })));
+        setFotosUpload(Array.isArray(d.projectImages) ? d.projectImages : []);
       }
-      setUsuarios(mockUsuarios.map((user) => ({ ...user, tipo: user.perfil })));
       setLoading(false);
     }
-    init();
+    void init().catch((error) => {
+      toast.error(error instanceof Error ? error.message : "Não foi possível carregar o projeto.");
+      setLoading(false);
+    });
   }, [id]);
 
   useEffect(() => {
@@ -160,11 +148,10 @@ function EditarProjeto() {
   const leiloeirosDisponiveis = usuarios.filter(u => u.tipo === "Leiloeiro");
 
   async function salvarPessoa(data: UnifiedEntityData, tipo: "Investidor" | "Assessor" | "Leiloeiro") {
-    const newPerson = { ...data, id: `local-person-${Date.now()}`, tipo };
-    setUsuarios(prev => [...prev, newPerson]);
-    const people = JSON.parse(localStorage.getItem("arremataflow:people") || "[]");
-    localStorage.setItem("arremataflow:people", JSON.stringify([...people, newPerson]));
+    const newPerson = await createContact({ data: { ...data, type: tipo } });
+    await queryClient.invalidateQueries({ queryKey: ["contacts"] });
     toast.success(`${tipo} cadastrado com sucesso!`);
+    return newPerson;
   }
 
   if (loading || !projeto) return <div className="p-8">Carregando...</div>;
@@ -177,19 +164,12 @@ function EditarProjeto() {
           setSalvando(true);
           try {
             const parcelado = formaPagamento === "parcelado" || formaPagamento === "financiado";
-            saveLocalProject({
+            const address = (fd.get("end") as string) || "Endereço não informado";
+            const mainImage = fotosUpload.find(f => f.is_main)?.url || fotosUpload[0]?.url || null;
+            const projectData = {
               ...projeto,
-              id,
-              codigo: projeto.codigo || `AF-${new Date().getFullYear()}-LOCAL`,
-              nome: (fd.get("end") as string) || projeto.nome,
-              status,
-              endereco: (fd.get("end") as string) || "Endereço não informado",
-              cidade: (fd.get("cidade") as string) || "",
-              etapa: modalidade || projeto.etapa || "Aquisição",
-              responsavel: responsaveisVinculados[0]?.nome || "Não atribuído",
               investidores: participantes.map(p => p.nome),
-              foto: fotosUpload.find(f => f.is_main)?.url || fotosUpload[0]?.url || null,
-              updated_at: new Date().toISOString(),
+              foto: mainImage,
               cep: fd.get("cep") as string,
               area: fd.get("area") as string,
               land_area: parseFloat((fd.get("land_area") as string)?.replace(/[^\d.,]/g, "").replace(",", ".")) || null,
@@ -220,24 +200,33 @@ function EditarProjeto() {
               projecoes_financeiras: modalidade === "completa"
                 ? { ...projecoesFinanceiras, assessoria: 0 }
                 : projecoesFinanceiras,
-            });
-
-            inviteProjectMembers(
-              { id, name: (fd.get("end") as string) || projeto.nome },
-              [
-                ...assessoresVinculados.map((assessor) => ({ nome: assessor.nome, perfil: "Assessor" as const })),
-                ...participantes.map((participant) => ({ nome: participant.nome, perfil: "Investidor" as const })),
+            };
+            await saveProject({ data: {
+              id,
+              name: address,
+              address,
+              city: (fd.get("cidade") as string) || "",
+              stage: modalidade || projeto.etapa || "Aquisição",
+                status: status as "nao_iniciado" | "pendente" | "andamento" | "aguardando" | "concluido" | "atrasado",
+              responsible: responsaveisVinculados[0]?.nome || "Não atribuído",
+              mainImage,
+              data: projectData,
+              links: [
+                ...participantes.filter((item) => item.id).map((item) => ({ contactId: item.id, role: "investor" as const, percentage: item.percentual })),
+                ...assessoresVinculados.filter((item) => item.id).map((item) => ({ contactId: item.id, role: "advisor" as const, percentage: item.percentual })),
+                ...responsaveisVinculados.filter((item) => item.id).map((item) => ({ contactId: item.id, role: "responsible" as const })),
+                ...(leiloeiroVinculado?.id ? [{ contactId: leiloeiroVinculado.id, role: "auctioneer" as const }] : []),
               ],
-            );
+            } });
 
-            toast.success("Projeto atualizado e convites locais sincronizados!");
-            logProjectAudit(id, "editou os dados cadastrais e as projeções financeiras do projeto", "Edição");
+            toast.success("Projeto atualizado com sucesso!");
             navigate({ to: "/projetos" });
           } catch (err: any) { toast.error(err.message); } finally { setSalvando(false); }
         }}>
         <SectionCard icon={House} title="Imóvel" description="Dados cadastrais e localização">
           <div className="mb-6">
             <ImageManagementSection 
+              projetoId={id}
               initialImages={fotosUpload}
               onImagesChange={(imgs) => setFotosUpload(imgs)}
             />
@@ -553,7 +542,7 @@ function EditarProjeto() {
                 <Popover><PopoverTrigger asChild><Button variant="outline" role="combobox" className="w-full justify-between">Procurar por nome...<Search className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></PopoverTrigger>
                   <PopoverContent className="w-[400px] p-0" align="start"><Command><CommandInput placeholder="Digite o nome do assessor..." /><CommandList><CommandEmpty>Nenhum assessor encontrado.</CommandEmpty><CommandGroup>
                     {assessoresDisponiveis.map((assessor) => <CommandItem key={assessor.id} value={assessor.nome} onSelect={() => {
-                      if (!assessoresVinculados.find((item) => item.nome === assessor.nome)) setAssessoresVinculados([...assessoresVinculados, { nome: assessor.nome, papel: "Assessor", percentual: "" }]);
+                      if (!assessoresVinculados.find((item) => item.id === assessor.id)) setAssessoresVinculados([...assessoresVinculados, { id: assessor.id, nome: assessor.nome, papel: "Assessor", percentual: "" }]);
                       else toast.error("Assessor já adicionado.");
                     }}><CheckCircle2 className="mr-2 h-4 w-4" />{assessor.nome} ({assessor.email})</CommandItem>)}
                   </CommandGroup></CommandList></Command></PopoverContent>
@@ -665,8 +654,8 @@ function EditarProjeto() {
           open={isInvestorModalOpen}
           onOpenChange={setIsInvestorModalOpen}
           onSave={async (data) => {
-            setParticipantes((prev) => [...prev, { nome: data.nome, papel: "Investidor", percentual: "" }]);
-            await salvarPessoa(data, "Investidor");
+            const created = await salvarPessoa(data, "Investidor");
+            setParticipantes((prev) => [...prev, { id: created.id, nome: created.nome, papel: "Investidor", percentual: "" }]);
           }}
           type="Investidor"
         />
@@ -674,8 +663,8 @@ function EditarProjeto() {
           open={isAssessorModalOpen}
           onOpenChange={setIsAssessorModalOpen}
           onSave={async (data) => {
-            setAssessoresVinculados((prev) => [...prev, { nome: data.nome, papel: "Assessor", percentual: "" }]);
-            await salvarPessoa(data, "Assessor");
+            const created = await salvarPessoa(data, "Assessor");
+            setAssessoresVinculados((prev) => [...prev, { id: created.id, nome: created.nome, papel: "Assessor", percentual: "" }]);
           }}
           type="Assessor"
         />
@@ -683,9 +672,8 @@ function EditarProjeto() {
           open={isResponsibleModalOpen}
           onOpenChange={setIsResponsibleModalOpen}
           onSave={async (data) => {
-            const tempId = `temp-${Math.random()}`;
-            setResponsaveisVinculados((prev) => [...prev, { id: tempId, nome: data.nome }]);
-            await salvarPessoa(data, "Assessor");
+            const created = await salvarPessoa(data, "Assessor");
+            setResponsaveisVinculados((prev) => [...prev, { id: created.id, nome: created.nome }]);
           }}
           type="Assessor"
         />
@@ -693,9 +681,8 @@ function EditarProjeto() {
           open={isLeiloeiroModalOpen}
           onOpenChange={setIsLeiloeiroModalOpen}
           onSave={async (data) => {
-            const tempId = `temp-${Math.random()}`;
-            setLeiloeiroVinculado({ id: tempId, nome: data.nome });
-            await salvarPessoa(data, "Leiloeiro");
+            const created = await salvarPessoa(data, "Leiloeiro");
+            setLeiloeiroVinculado({ id: created.id, nome: created.nome });
           }}
           type="Leiloeiro"
         />

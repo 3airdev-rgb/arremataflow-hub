@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -12,11 +13,20 @@ import {
   Menu,
   X,
   Building2,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { getCurrentLocalUser } from "@/lib/local-access";
+import { getOrganizationSettings } from "@/lib/organization-settings";
+import { getCurrentOrganizationUser } from "@/lib/organization-users";
+import { unreadNotificationCount } from "@/lib/tasks";
+import { listUserOrganizations, selectActiveOrganization } from "@/lib/active-organization";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -32,16 +42,51 @@ export function AppLayout({
   title,
   subtitle,
   actions,
+  companyName,
   children,
 }: {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
+  companyName?: string;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const [currentUser] = useState(getCurrentLocalUser);
+  const queryClient = useQueryClient();
+  const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { data: organization } = useQuery({
+    queryKey: ["active-organization"],
+    queryFn: () => getOrganizationSettings(),
+  });
+  const { data: companyAccess } = useQuery({
+    queryKey: ["user-organizations"],
+    queryFn: () => listUserOrganizations(),
+  });
+  const switchCompany = useMutation({
+    mutationFn: (organizationId: string) => selectActiveOrganization({ data: { organizationId } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries();
+      await router.navigate({ to: "/dashboard" });
+    },
+  });
+  const { data: serverUser } = useQuery({
+    queryKey: ["current-organization-user"],
+    queryFn: () => getCurrentOrganizationUser(),
+  });
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ["unread-notifications"],
+    queryFn: () => unreadNotificationCount(),
+    refetchInterval: 30_000,
+  });
+  const currentUser = serverUser ? {
+    nome: serverUser.name,
+    perfil: serverUser.role === "owner" || serverUser.role === "admin"
+      ? "Administrador"
+      : serverUser.role === "advisor" ? "Assessor" : "Investidor",
+  } : { nome: "Usuário", perfil: "Visualizador" };
+  const selectedCompany = companyAccess?.organizations.find((item) => item.id === companyAccess.activeOrganizationId);
+  const activeCompanyName = selectedCompany?.name || companyName || organization?.name || "Empresa";
   const visibleNav = currentUser.perfil === "Administrador"
     ? nav
     : currentUser.perfil === "Investidor"
@@ -130,14 +175,40 @@ export function AppLayout({
             </div>
           ) : null}
           <div className="ml-auto flex items-center gap-3">
-            {showCompanyContext ? (
+            {companyAccess && companyAccess.organizations.length > 1 ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="hidden max-w-64 gap-2 rounded-full px-3 text-xs text-muted-foreground sm:flex" disabled={switchCompany.isPending} aria-label={`Empresa ativa: ${activeCompanyName}. Alterar empresa`}>
+                    <Building2 className="size-3.5 shrink-0" />
+                    <span className="truncate">{activeCompanyName}</span>
+                    <ChevronsUpDown className="size-3.5 shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72">
+                  <DropdownMenuLabel>Selecionar empresa</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {companyAccess.organizations.map((item) => (
+                    <DropdownMenuItem key={item.id} onSelect={() => item.id !== companyAccess.activeOrganizationId && switchCompany.mutate(item.id)} className="gap-2">
+                      <Check className={cn("size-4", item.id === companyAccess.activeOrganizationId ? "opacity-100" : "opacity-0")} />
+                      <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
               <span className="hidden items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground sm:flex">
-                <Building2 className="size-3.5" /> Arremata Capital LTDA
+                <Building2 className="size-3.5" /> {activeCompanyName}
               </span>
-            ) : null}
-            <Button variant="ghost" size="icon" className="relative" aria-label="Notificações">
-              <Bell className="size-4.5" />
-              <span className="absolute right-2 top-2 size-2 rounded-full bg-destructive" />
+            )}
+            <Button asChild variant="ghost" size="icon">
+              <Link to="/notificacoes" className="relative" aria-label={`Notificações${unreadCount ? `: ${unreadCount} não lida${unreadCount === 1 ? "" : "s"}` : ""}`}>
+                <Bell className="size-4.5" />
+                {unreadCount > 0 ? (
+                  <span className="absolute right-0.5 top-0.5 grid min-h-4 min-w-4 place-items-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                ) : null}
+              </Link>
             </Button>
             <div className="flex items-center gap-2">
               <span className="grid size-8 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">

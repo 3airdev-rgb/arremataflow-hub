@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/app-layout";
 import { StatusBadge } from "@/components/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { projetos, formatBRL } from "@/lib/mock-data";
-import { canAccessProject, getCurrentLocalUser } from "@/lib/local-access";
+import { listParticipantProjects } from "@/lib/projects";
 
 export const Route = createFileRoute("/assessores")({
   head: () => ({
@@ -19,9 +19,11 @@ export const Route = createFileRoute("/assessores")({
 });
 
 function PainelAssessor() {
-  const [currentUser] = useState(getCurrentLocalUser);
   const [statusFilter, setStatusFilter] = useState("todos");
-  const projetosDoAssessor = projetos.filter((project) => canAccessProject(project, currentUser));
+  const { data: projetosDoAssessor = [], isPending } = useQuery({
+    queryKey: ["participant-projects", "advisor"],
+    queryFn: () => listParticipantProjects({ data: { role: "advisor" } }),
+  });
   const statusOrder: Record<string, number> = {
     atrasado: 1, pendente: 2, aguardando: 3, andamento: 4, concluido: 5, nao_iniciado: 6,
   };
@@ -30,7 +32,7 @@ function PainelAssessor() {
     .sort((a, b) => (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99));
 
   return (
-    <AppLayout title="Painel do Assessor" subtitle={`${currentUser.nome} · ${projetosDoAssessor.length} projeto(s) disponível(is)`}>
+    <AppLayout title="Painel do Assessor" subtitle={`${projetosDoAssessor.length} projeto(s) disponível(is)`}>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold">Projetos vinculados</h3>
@@ -70,14 +72,16 @@ function PainelAssessor() {
               <div className="mt-5 grid gap-4 sm:grid-cols-3">
                 <div className="rounded-lg bg-muted p-3"><p className="text-xs text-muted-foreground">Capital investido</p><p className="font-semibold">{formatBRL(project.capitalInvestido)}</p></div>
                 <div className="rounded-lg bg-primary-soft p-3"><p className="text-xs text-brand">Resultado projetado</p><p className="font-semibold text-brand">{formatBRL(project.resultadoProjetado)}</p></div>
-                <div className="rounded-lg bg-success-soft p-3"><p className="text-xs text-success">Minha cota</p><p className="font-semibold text-success">45%</p></div>
+                <div className="rounded-lg bg-success-soft p-3"><p className="text-xs text-success">Participação</p><p className="font-semibold text-success">{project.participationPercentage == null ? "—" : `${project.participationPercentage}%`}</p></div>
               </div>
             </div>
           </Link>
         ))}
       </div>
 
-      {projetosVisiveis.length === 0 ? <div className="surface-card mt-5 p-8 text-center text-sm text-muted-foreground">Nenhum projeto encontrado para o status selecionado.</div> : null}
+      {!isPending && projetosVisiveis.length === 0 ? <div className="surface-card mt-5 p-8 text-center text-sm text-muted-foreground">Nenhum projeto encontrado para o status selecionado.</div> : null}
     </AppLayout>
   );
 }
+
+const formatBRL = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);

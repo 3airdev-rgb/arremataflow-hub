@@ -676,16 +676,19 @@ Busca global para projetos, imóveis, investidores e documentos
 
 Feedback visual imediato para ações concluídas
 
-Interface otimizada para grandes volumes de dados sem perder clareza
-não vou conectar banco de dados agora. use dados mock.
+Interface otimizada para grandes volumes de dados sem perder clareza.
+
+Os dados da aplicação são persistidos no PostgreSQL e isolados por empresa ativa.
 
 ## Development
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Para executar localmente, utilize Node.js, pnpm, Docker Desktop e o PostgreSQL definido em `compose.yaml`.
 
 ```sh
 git clone <this-repository-url>
 cd <repository-name>
-npm i
-npm run dev
+pnpm install
+pnpm db:local:up
+pnpm db:migrate
+pnpm dev
 ```

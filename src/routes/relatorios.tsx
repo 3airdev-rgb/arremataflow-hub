@@ -1,364 +1,98 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AppLayout } from "@/components/app-layout";
-import { 
-  FileBarChart, 
-  Filter, 
-  FileText, 
-  FileSpreadsheet, 
-  ChevronRight,
-  Calculator,
-  Briefcase,
-  History,
-  ClipboardList,
-  FolderOpen,
-  Database,
-  ChevronsUpDown,
-  Check,
-} from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { DatePickerField } from "@/components/ui/date-picker-field";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Calculator, Briefcase, History, FileText, Database, FolderOpen, FileSpreadsheet, Eye, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { formatBRL, projetos } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
-import { logProjectAudit } from "@/lib/local-project-audit";
+import { AppLayout } from "@/components/app-layout";
+import { Button } from "@/components/ui/button";
+import { DatePickerField } from "@/components/ui/date-picker-field";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { generateReport, listReportHistory, listReportProjects, reportKeys } from "@/lib/reports";
 
-export const Route = createFileRoute("/relatorios")({
-  component: Relatorios,
-});
+export const Route = createFileRoute("/relatorios")({ component: Relatorios });
+type ReportKey = (typeof reportKeys)[number];
+type Result = Awaited<ReturnType<typeof generateReport>>;
 
-const categoriasRelatorios = [
-  {
-    titulo: "Financeiro",
-    icon: Calculator,
-    cor: "text-blue-600",
-    bg: "bg-blue-50",
-    itens: [
-      "Receitas por período",
-      "Despesas por período",
-      "Fluxo de caixa",
-      "Honorários",
-      "Distribuição de resultados",
-      "Capital investido por projeto",
-    ],
-  },
-  {
-    titulo: "Operacional",
-    icon: Briefcase,
-    cor: "text-green-600",
-    bg: "bg-green-50",
-    itens: [
-      "Relatório de Atividades",
-      "Relatório de Tarefas",
-      "Projetos em andamento",
-      "Projetos encerrados",
-      "Projetos por modalidade",
-      "Projetos por status",
-    ],
-  },
-  {
-    titulo: "Auditoria",
-    icon: History,
-    cor: "text-orange-600",
-    bg: "bg-orange-50",
-    itens: [
-      "Histórico de Ações",
-      "Alterações Financeiras",
-      "Alterações de Percentuais",
-      "Log de Auditoria",
-    ],
-  },
-  {
-    titulo: "Contratos",
-    icon: FileText,
-    cor: "text-purple-600",
-    bg: "bg-purple-50",
-    itens: [
-      "Contrato de Assessoria",
-      "Contrato de Investimento",
-      "Termos e documentos vinculados",
-    ],
-  },
-  {
-    titulo: "Cadastros",
-    icon: Database,
-    cor: "text-cyan-600",
-    bg: "bg-cyan-50",
-    itens: ["Usuários", "Investidores", "Assessores", "Projetos"],
-  },
-  {
-    titulo: "Documentos",
-    icon: FolderOpen,
-    cor: "text-indigo-600",
-    bg: "bg-indigo-50",
-    itens: [
-      "Relação de documentos",
-      "Documentos pendentes",
-      "Documentos vencidos",
-      "Documentos por categoria",
-    ],
-  },
+const categories: Array<{ title: string; icon: typeof Calculator; tone: string; items: Array<[ReportKey, string]> }> = [
+  { title: "Financeiro", icon: Calculator, tone: "text-blue-600 bg-blue-50", items: [["revenues", "Receitas por período"], ["expenses", "Despesas por período"], ["cash_flow", "Fluxo de caixa"], ["invested_capital", "Capital investido por projeto"]] },
+  { title: "Operacional", icon: Briefcase, tone: "text-green-600 bg-green-50", items: [["tasks", "Relatório de tarefas"], ["active_projects", "Projetos em andamento"], ["completed_projects", "Projetos encerrados"], ["projects_by_status", "Projetos por status"], ["projects_by_modality", "Projetos por modalidade"]] },
+  { title: "Auditoria", icon: History, tone: "text-orange-600 bg-orange-50", items: [["audit", "Histórico de ações"], ["financial_changes", "Alterações financeiras"]] },
+  { title: "Contratos", icon: FileText, tone: "text-purple-600 bg-purple-50", items: [["contracts", "Contratos, termos e documentos vinculados"]] },
+  { title: "Cadastros", icon: Database, tone: "text-cyan-600 bg-cyan-50", items: [["users", "Usuários"], ["investors", "Investidores"], ["advisors", "Assessores"], ["projects", "Projetos"]] },
+  { title: "Documentos", icon: FolderOpen, tone: "text-indigo-600 bg-indigo-50", items: [["documents", "Relação de documentos"]] },
 ];
+const labels = Object.fromEntries(categories.flatMap((category) => category.items)) as Record<ReportKey, string>;
+const today = new Date().toISOString().slice(0, 10);
+const yearStart = `${new Date().getFullYear()}-01-01`;
 
-const receitasSimuladas: Array<{
-  id: string;
-  data: string;
-  projeto: string;
-  codigo: string;
-  categoria: string;
-  descricao: string;
-  valor: number;
-}> = [];
+const safeCsvCell = (value: string | number) => {
+  let text = String(value ?? "");
+  if (/^[=+\-@]/.test(text)) text = `'${text}`;
+  return `"${text.replaceAll('"', '""')}"`;
+};
+const escapeHtml = (value: string | number) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
 
 function Relatorios() {
-  const [receitasOpen, setReceitasOpen] = useState(false);
-  const [projectPickerOpen, setProjectPickerOpen] = useState(false);
-  const [todosProjetos, setTodosProjetos] = useState(true);
-  const [projetoSelecionado, setProjetoSelecionado] = useState("");
-  const [situacao, setSituacao] = useState("ativos");
-  const [periodo, setPeriodo] = useState("year");
-  const [dataInicial, setDataInicial] = useState("2026-01-01");
-  const [dataFinal, setDataFinal] = useState("2026-08-28");
-  const projetosPorSituacao = projetos.filter((projeto) => situacao === "todos"
-    || (situacao === "concluidos" ? projeto.status === "concluido" : !["concluido", "nao_iniciado"].includes(projeto.status)));
-  const receitasFiltradas = receitasSimuladas.filter((receita) => {
-    const projeto = projetos.find((item) => item.codigo === receita.codigo);
-    const atendeProjeto = todosProjetos || receita.codigo === projetoSelecionado;
-    const atendeSituacao = situacao === "todos"
-      || (situacao === "concluidos" ? projeto?.status === "concluido" : projeto && !["concluido", "nao_iniciado"].includes(projeto.status));
-    return atendeProjeto && Boolean(atendeSituacao) && receita.data >= dataInicial && receita.data <= dataFinal;
-  });
-  const totalReceitas = receitasFiltradas.reduce((total, receita) => total + receita.valor, 0);
+  const queryClient = useQueryClient();
+  const [projectId, setProjectId] = useState("all"), [status, setStatus] = useState<"active" | "completed" | "all">("active");
+  const [startDate, setStartDate] = useState(yearStart), [endDate, setEndDate] = useState(today);
+  const [result, setResult] = useState<Result | null>(null), [activeKey, setActiveKey] = useState<ReportKey>("revenues");
+  const [open, setOpen] = useState(false), [busy, setBusy] = useState<string | null>(null);
+  const { data: projects = [] } = useQuery({ queryKey: ["report-projects"], queryFn: () => listReportProjects() });
+  const { data: history = [] } = useQuery({ queryKey: ["report-history"], queryFn: () => listReportHistory() });
 
-  const aplicarPeriodo = (value: string) => {
-    setPeriodo(value);
-    if (value === "custom") return;
-    const hoje = new Date();
-    const final = hoje.toISOString().slice(0, 10);
-    const inicio = value === "month"
-      ? new Date(hoje.getFullYear(), hoje.getMonth(), 1)
-      : value === "quarter"
-        ? new Date(hoje.getFullYear(), Math.floor(hoje.getMonth() / 3) * 3, 1)
-        : new Date(hoje.getFullYear(), 0, 1);
-    setDataInicial(inicio.toISOString().slice(0, 10));
-    setDataFinal(final);
+  const run = async (key: ReportKey, format: "view" | "pdf" | "csv") => {
+    if (startDate > endDate) { toast.error("A data inicial não pode ser posterior à data final."); return; }
+    setBusy(`${key}:${format}`);
+    try {
+      const data = await generateReport({ data: { reportKey: key, projectId: projectId === "all" ? null : projectId, status, startDate, endDate, format } });
+      setResult(data); setActiveKey(key);
+      if (format === "view") setOpen(true);
+      if (format === "csv") downloadCsv(key, data);
+      if (format === "pdf") printReport(key, data);
+      await queryClient.invalidateQueries({ queryKey: ["report-history"] });
+      toast.success(`${labels[key]} gerado com ${data.rows.length} registro(s).`);
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível gerar o relatório."); }
+    finally { setBusy(null); }
   };
 
-  const alterarDataInicial = (value: string) => {
-    if (dataFinal && value > dataFinal) {
-      toast.error("A data inicial não pode ser posterior à data final.");
-      return;
-    }
-    setDataInicial(value);
+  const downloadCsv = (key: ReportKey, data: Result) => {
+    const csv = [data.columns.map(safeCsvCell).join(";"), ...data.rows.map((row) => data.columns.map((column) => safeCsvCell(row[column] ?? "")).join(";"))].join("\r\n");
+    const url = URL.createObjectURL(new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" }));
+    const anchor = document.createElement("a"); anchor.href = url; anchor.download = `${key}-${today}.csv`; anchor.click(); URL.revokeObjectURL(url);
+  };
+  const printReport = (key: ReportKey, data: Result) => {
+    const popup = window.open("", "_blank");
+    if (!popup) { toast.error("Permita a abertura de janelas para gerar o PDF."); return; }
+    popup.opener = null;
+    const header = data.columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("");
+    const body = data.rows.map((row) => `<tr>${data.columns.map((column) => `<td>${escapeHtml(row[column] ?? "")}</td>`).join("")}</tr>`).join("");
+    popup.document.write(`<!doctype html><html><head><title>${escapeHtml(labels[key])}</title><style>body{font-family:Arial;padding:28px;color:#10263b}h1{font-size:20px}p{color:#667085;font-size:12px}table{width:100%;border-collapse:collapse;font-size:11px;margin-top:20px}th,td{border:1px solid #ddd;padding:7px;text-align:left}th{background:#eef4f7}@media print{body{padding:0}}</style></head><body><h1>${escapeHtml(labels[key])}</h1><p>Período: ${escapeHtml(startDate)} a ${escapeHtml(endDate)} · ${data.rows.length} registro(s)</p><table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`);
+    popup.document.close();
   };
 
-  const alterarDataFinal = (value: string) => {
-    if (dataInicial && value < dataInicial) {
-      toast.error("A data final não pode ser anterior à data inicial.");
-      return;
-    }
-    setDataFinal(value);
-  };
+  return <AppLayout title="Relatórios" subtitle="Dados reais, exportações e histórico de emissões">
+    <div className="space-y-6">
+      <section className="surface-card p-4"><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-2"><label className="text-sm font-medium">Projeto</label><Select value={projectId} onValueChange={setProjectId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos os projetos autorizados</SelectItem>{projects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name} · {project.code}</SelectItem>)}</SelectContent></Select></div>
+        <div className="space-y-2"><label className="text-sm font-medium">Situação</label><Select value={status} onValueChange={(value) => setStatus(value as typeof status)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="active">Ativos</SelectItem><SelectItem value="completed">Concluídos</SelectItem><SelectItem value="all">Todos</SelectItem></SelectContent></Select></div>
+        <div className="space-y-2"><label className="text-sm font-medium">Data inicial</label><DatePickerField value={startDate} max={endDate} onValueChange={setStartDate} aria-label="Data inicial" /></div>
+        <div className="space-y-2"><label className="text-sm font-medium">Data final</label><DatePickerField value={endDate} min={startDate} onValueChange={setEndDate} aria-label="Data final" /></div>
+      </div></section>
 
-  const handleAction = (relatorio: string, type: "view" | "pdf" | "excel") => {
-    const affectedProjects = todosProjetos
-      ? projetosPorSituacao
-      : projetos.filter((project) => project.codigo === projetoSelecionado);
-    const actionLabel = type === "view"
-      ? `visualizou o relatório “${relatorio}”`
-      : `emitiu o relatório “${relatorio}” em ${type.toUpperCase()}`;
-    affectedProjects.forEach((project) => logProjectAudit(project.id, actionLabel, "Relatório"));
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">{categories.map((category) => <section key={category.title} className="surface-card overflow-hidden">
+        <div className="flex items-center gap-3 border-b bg-muted/30 px-4 py-3"><span className={`rounded-lg p-2 ${category.tone}`}><category.icon className="size-5" /></span><h2 className="text-base font-semibold">{category.title}</h2></div>
+        <ul className="divide-y">{category.items.map(([key, label]) => <li key={key} className="p-4"><p className="text-sm font-medium">{label}</p><div className="mt-3 flex flex-wrap gap-1">
+          <Button variant="ghost" size="sm" disabled={Boolean(busy)} onClick={() => void run(key, "view")}><Eye className="mr-1 size-3.5" />Visualizar</Button>
+          <Button variant="ghost" size="sm" disabled={Boolean(busy)} onClick={() => void run(key, "pdf")}><Printer className="mr-1 size-3.5" />PDF</Button>
+          <Button variant="ghost" size="sm" disabled={Boolean(busy)} onClick={() => void run(key, "csv")}><FileSpreadsheet className="mr-1 size-3.5" />Planilha</Button>
+        </div></li>)}</ul>
+      </section>)}</div>
 
-    if (relatorio === "Receitas por período" && type === "view") {
-      setReceitasOpen(true);
-      return;
-    }
-    const messages = {
-      view: `Visualizando: ${relatorio}`,
-      pdf: `Exportando PDF: ${relatorio}`,
-      excel: `Exportando Excel: ${relatorio}`,
-    };
-    toast.info(messages[type]);
-  };
+      <section className="surface-card p-5"><h2 className="text-base font-semibold">Histórico de relatórios</h2><div className="mt-4 overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/60 text-left text-xs uppercase text-muted-foreground"><tr><th className="px-3 py-2">Data</th><th className="px-3 py-2">Relatório</th><th className="px-3 py-2">Formato</th><th className="px-3 py-2">Registros</th><th className="px-3 py-2">Usuário</th></tr></thead><tbody className="divide-y">{history.map((item) => <tr key={item.id}><td className="px-3 py-2">{new Date(item.generatedAt).toLocaleString("pt-BR")}</td><td className="px-3 py-2">{labels[item.reportKey as ReportKey] || item.reportKey}</td><td className="px-3 py-2 uppercase">{item.format}</td><td className="px-3 py-2">{item.rowCount}</td><td className="px-3 py-2">{item.userName}</td></tr>)}{history.length === 0 ? <tr><td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">Nenhum relatório emitido.</td></tr> : null}</tbody></table></div></section>
+    </div>
 
-  return (
-    <AppLayout title="Relatórios" subtitle="Gestão analítica e exportação de dados do sistema">
-      <div className="space-y-6">
-        {/* Filtros Superiores */}
-        <div className="surface-card p-4">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="space-y-2 lg:col-span-2">
-              <label className="text-sm font-medium">Projeto</label>
-              <div className="flex items-center gap-3">
-                <Popover open={projectPickerOpen} onOpenChange={setProjectPickerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" role="combobox" disabled={todosProjetos} className="min-w-0 flex-1 justify-between font-normal">
-                      <span className="truncate">{projetoSelecionado ? projetos.find((projeto) => projeto.codigo === projetoSelecionado)?.nome : "Buscar projeto..."}</span>
-                      <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Digite o nome do projeto..." />
-                      <CommandList><CommandEmpty>Nenhum projeto encontrado.</CommandEmpty><CommandGroup>
-                        {projetosPorSituacao.map((projeto) => <CommandItem key={projeto.id} value={`${projeto.nome} ${projeto.codigo}`} onSelect={() => { setProjetoSelecionado(projeto.codigo); setProjectPickerOpen(false); }}>
-                          <Check className={cn("mr-2 size-4", projetoSelecionado === projeto.codigo ? "opacity-100" : "opacity-0")} />
-                          <span>{projeto.nome}</span><span className="ml-auto text-xs text-muted-foreground">{projeto.codigo}</span>
-                        </CommandItem>)}
-                      </CommandGroup></CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                <label className="flex shrink-0 items-center gap-2 text-sm"><Checkbox checked={todosProjetos} onCheckedChange={(checked) => setTodosProjetos(checked === true)} />Todos</label>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Situação</label>
-              <Select value={situacao} onValueChange={(value) => { setSituacao(value); setProjetoSelecionado(""); }}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="ativos">Ativos</SelectItem><SelectItem value="concluidos">Concluídos</SelectItem><SelectItem value="todos">Todos</SelectItem></SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Período</label>
-              <Select value={periodo} onValueChange={aplicarPeriodo}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="month">Este mês</SelectItem><SelectItem value="quarter">Este trimestre</SelectItem><SelectItem value="year">Este ano</SelectItem><SelectItem value="custom">Personalizado</SelectItem></SelectContent>
-              </Select>
-            </div>
-
-            {periodo === "custom" ? <div className="grid gap-4 border-t border-border pt-4 sm:grid-cols-2 lg:col-span-2">
-              <div className="space-y-2"><label className="text-sm font-medium">Data inicial</label><DatePickerField value={dataInicial} max={dataFinal} aria-label="Data inicial" onValueChange={alterarDataInicial} /></div>
-              <div className="space-y-2"><label className="text-sm font-medium">Data final</label><DatePickerField value={dataFinal} min={dataInicial} aria-label="Data final" onValueChange={alterarDataFinal} /></div>
-            </div> : null}
-          </div>
-        </div>
-
-        {/* Grade de Relatórios */}
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {categoriasRelatorios.map((cat) => (
-            <div key={cat.titulo} className="surface-card flex flex-col overflow-hidden">
-              <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-4 py-3">
-                <div className={`rounded-lg p-2 ${cat.bg}`}>
-                  <cat.icon className={`size-5 ${cat.cor}`} />
-                </div>
-                <h3 className="text-base font-semibold">{cat.titulo}</h3>
-              </div>
-              <div className="flex-1 divide-y divide-border/50">
-                {cat.itens.map((item) => (
-                    <div
-                      key={item}
-                      className="group flex flex-col gap-3 px-4 py-3 hover:bg-muted/30"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-foreground/80 group-hover:text-brand">
-                          {item}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => handleAction(item, "view")}
-                        >
-                          <FileText className="mr-1 size-3" />
-                          Visualizar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => handleAction(item, "pdf")}
-                        >
-                          <FileText className="mr-1 size-3" />
-                          PDF
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => handleAction(item, "excel")}
-                        >
-                          <FileSpreadsheet className="mr-1 size-3" />
-                          Excel
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <Dialog open={receitasOpen} onOpenChange={setReceitasOpen}>
-        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Relatório de Receitas por Período</DialogTitle>
-            <DialogDescription>Simulação consolidada das receitas registradas nos projetos.</DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-4 border-y border-border py-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <label htmlFor="receitas-data-inicial" className="text-sm font-medium">Data inicial</label>
-              <DatePickerField value={dataInicial} max={dataFinal} aria-label="Data inicial" onValueChange={setDataInicial} />
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="receitas-data-final" className="text-sm font-medium">Data final</label>
-              <DatePickerField value={dataFinal} min={dataInicial} aria-label="Data final" onValueChange={setDataFinal} />
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg bg-success-soft p-4"><p className="text-xs text-success">Total de receitas</p><p className="mt-1 text-xl font-semibold text-success">{formatBRL(totalReceitas)}</p></div>
-            <div className="rounded-lg bg-muted p-4"><p className="text-xs text-muted-foreground">Lançamentos</p><p className="mt-1 text-xl font-semibold">{receitasFiltradas.length}</p></div>
-            <div className="rounded-lg bg-primary-soft p-4"><p className="text-xs text-brand">Média por lançamento</p><p className="mt-1 text-xl font-semibold text-brand">{formatBRL(receitasFiltradas.length ? totalReceitas / receitasFiltradas.length : 0)}</p></div>
-          </div>
-
-          <div className="overflow-hidden rounded-lg border border-border">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/60 text-left text-xs uppercase text-muted-foreground">
-                  <tr><th className="px-4 py-3">Data</th><th className="px-4 py-3">Projeto</th><th className="px-4 py-3">Categoria</th><th className="px-4 py-3">Descrição</th><th className="px-4 py-3 text-right">Valor</th></tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {receitasFiltradas.map((receita) => (
-                    <tr key={receita.id}>
-                      <td className="whitespace-nowrap px-4 py-3">{new Date(`${receita.data}T12:00:00`).toLocaleDateString("pt-BR")}</td>
-                      <td className="px-4 py-3"><p className="font-medium">{receita.projeto}</p><p className="text-xs text-muted-foreground">{receita.codigo}</p></td>
-                      <td className="px-4 py-3">{receita.categoria}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{receita.descricao}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-success">{formatBRL(receita.valor)}</td>
-                    </tr>
-                  ))}
-                  {receitasFiltradas.length === 0 ? <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">Nenhuma receita encontrada no período selecionado.</td></tr> : null}
-                </tbody>
-                <tfoot className="border-t-2 border-border bg-success-soft/50 font-semibold"><tr><td colSpan={4} className="px-4 py-3">Total do período</td><td className="px-4 py-3 text-right text-success">{formatBRL(totalReceitas)}</td></tr></tfoot>
-              </table>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="outline" onClick={() => handleAction("Receitas por período", "pdf")}><FileText className="mr-2 size-4" />Gerar PDF</Button>
-            <Button variant="outline" onClick={() => handleAction("Receitas por período", "excel")}><FileSpreadsheet className="mr-2 size-4" />Exportar Excel</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </AppLayout>
-  );
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto"><DialogHeader><DialogTitle>{labels[activeKey]}</DialogTitle><DialogDescription>{result?.rows.length || 0} registro(s), gerado em {result ? new Date(result.generatedAt).toLocaleString("pt-BR") : ""}.</DialogDescription></DialogHeader>{result ? <div className="overflow-x-auto rounded-lg border"><table className="w-full text-sm"><thead className="bg-muted/60 text-left text-xs uppercase text-muted-foreground"><tr>{result.columns.map((column) => <th key={column} className="whitespace-nowrap px-3 py-2">{column}</th>)}</tr></thead><tbody className="divide-y">{result.rows.map((row, index) => <tr key={index}>{result.columns.map((column) => <td key={column} className="whitespace-nowrap px-3 py-2">{row[column]}</td>)}</tr>)}{result.rows.length === 0 ? <tr><td colSpan={result.columns.length || 1} className="px-3 py-8 text-center text-muted-foreground">Nenhum registro encontrado para os filtros.</td></tr> : null}</tbody></table></div> : null}</DialogContent></Dialog>
+  </AppLayout>;
 }

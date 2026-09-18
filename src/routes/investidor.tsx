@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/app-layout";
 import { StatusBadge } from "@/components/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { projetos, formatBRL } from "@/lib/mock-data";
-import { canAccessProject, getCurrentLocalUser } from "@/lib/local-access";
+import { listParticipantProjects } from "@/lib/projects";
 
 export const Route = createFileRoute("/investidor")({
   head: () => ({
@@ -23,8 +23,10 @@ export const Route = createFileRoute("/investidor")({
 });
 
 function PortalInvestidor() {
-  const [currentUser] = useState(getCurrentLocalUser);
-  const meus = projetos.filter((project) => canAccessProject(project, currentUser));
+  const { data: meus = [], isPending } = useQuery({
+    queryKey: ["participant-projects", "investor"],
+    queryFn: () => listParticipantProjects({ data: { role: "investor" } }),
+  });
   const [statusFilter, setStatusFilter] = useState("todos");
   const statusOrder: Record<string, number> = {
     atrasado: 1,
@@ -38,7 +40,7 @@ function PortalInvestidor() {
     .filter((project) => statusFilter === "todos" || project.status === statusFilter)
     .sort((a, b) => (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99));
   return (
-    <AppLayout title="Portal do Investidor" subtitle={`${currentUser.nome} · ${meus.length} projeto(s) disponível(is)`}>
+    <AppLayout title="Portal do Investidor" subtitle={`${meus.length} projeto(s) disponível(is)`}>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold">Projetos vinculados</h3>
@@ -111,7 +113,7 @@ function PortalInvestidor() {
                 </div>
                 <div className="rounded-lg bg-success-soft p-3">
                   <p className="text-xs text-success">Minha cota</p>
-                  <p className="font-semibold text-success">45%</p>
+                  <p className="font-semibold text-success">{project.participationPercentage == null ? "—" : `${project.participationPercentage}%`}</p>
                 </div>
               </div>
             </div>
@@ -119,7 +121,7 @@ function PortalInvestidor() {
         ))}
       </div>
 
-      {projetosVisiveis.length === 0 ? (
+      {!isPending && projetosVisiveis.length === 0 ? (
         <div className="surface-card mt-5 p-8 text-center text-sm text-muted-foreground">
           Nenhum projeto encontrado para o status selecionado.
         </div>
@@ -128,3 +130,5 @@ function PortalInvestidor() {
     </AppLayout>
   );
 }
+
+const formatBRL = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);

@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { uploadProjectImageFile } from "@/lib/project-image-client";
 import {
   DndContext,
   closestCenter,
@@ -58,6 +58,7 @@ export interface ProjetoFoto {
   display_order: number;
   uploading?: boolean;
   progress?: number;
+  file?: File;
 }
 
 interface ImageManagementSectionProps {
@@ -67,17 +68,20 @@ interface ImageManagementSectionProps {
 }
 
 const MAX_IMAGES = 10;
-const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
-const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const EMPTY_IMAGES: ProjetoFoto[] = [];
 
 export function ImageManagementSection({ 
   projetoId, 
   onImagesChange,
-  initialImages = []
+  initialImages = EMPTY_IMAGES
 }: ImageManagementSectionProps) {
   const [images, setImages] = useState<ProjetoFoto[]>(initialImages);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+  useEffect(() => { setImages(initialImages); }, [initialImages]);
 
   useEffect(() => {
     onImagesChange(images);
@@ -107,10 +111,6 @@ export function ImageManagementSection({
       return;
     }
 
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData.user?.id;
-
-
     for (const file of filesArray) {
       if (!ALLOWED_TYPES.includes(file.type)) {
         toast.error(`Formato de arquivo não suportado: ${file.name}`);
@@ -118,7 +118,7 @@ export function ImageManagementSection({
       }
 
       if (file.size > MAX_FILE_SIZE) {
-        toast.error(`Arquivo muito grande: ${file.name} (Máx. 3MB)`);
+        toast.error(`Arquivo muito grande: ${file.name} (Máx. 5MB)`);
         continue;
       }
 
@@ -134,30 +134,19 @@ export function ImageManagementSection({
         display_order: images.length,
         uploading: true,
         progress: 0,
+        file,
       };
 
       setImages(prev => [...prev, newPhoto]);
 
       try {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `${userId}/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('projeto_fotos')
-          .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('projeto_fotos')
-          .getPublicUrl(filePath);
-
-        setImages(prev => prev.map(img => 
-          img.id === tempId 
-            ? { ...img, url: publicUrl, file_path: filePath, uploading: false } 
-            : img
-        ));
+        if (!projetoId) {
+          setImages(prev => prev.map(img => img.id === tempId ? { ...img, uploading: false } : img));
+        } else {
+          const uploaded = await uploadProjectImageFile(projetoId, file);
+          URL.revokeObjectURL(tempUrl);
+          setImages(prev => prev.map(img => img.id === tempId ? uploaded : img));
+        }
         
         toast.success(`${file.name} enviado com sucesso.`);
       } catch (error: any) {
@@ -166,7 +155,13 @@ export function ImageManagementSection({
         setImages(prev => prev.filter(img => img.id !== tempId));
       }
     }
-  }, [images]);
+  }, [images, projetoId]);
+
+  const persistOrder = async (next: ProjetoFoto[]) => {
+    if (!projetoId || next.some((image) => image.file)) return;
+    const response = await fetch("/api/project-images/order", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: projetoId, ids: next.map((image) => image.id) }) });
+    if (!response.ok) toast.error((await response.text()) || "Não foi possível salvar a ordem das fotos.");
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -179,11 +174,13 @@ export function ImageManagementSection({
         const newArray = arrayMove(items, oldIndex, newIndex);
         
         // Update order and is_main (first one is main)
-        return newArray.map((item, index) => ({
+        const next = newArray.map((item, index) => ({
           ...item,
           display_order: index,
           is_main: index === 0
         }));
+        void persistOrder(next);
+        return next;
       });
     }
   };
@@ -194,11 +191,13 @@ export function ImageManagementSection({
       if (targetIndex === -1) return prev;
       
       const newArray = arrayMove(prev, targetIndex, 0);
-      return newArray.map((img, index) => ({
+      const next = newArray.map((img, index) => ({
         ...img,
         display_order: index,
         is_main: index === 0
       }));
+      void persistOrder(next);
+      return next;
     });
     setSelectedIndex(0);
     toast.success("Imagem principal alterada.");
@@ -209,8 +208,11 @@ export function ImageManagementSection({
     if (!imgToDelete) return;
 
     try {
-      if (imgToDelete.file_path) {
-        await supabase.storage.from('projeto_fotos').remove([imgToDelete.file_path]);
+      if (projetoId && !imgToDelete.file) {
+        const response = await fetch(`/api/project-images/${imgToDelete.id}`, { method: "DELETE", credentials: "same-origin" });
+        if (!response.ok) throw new Error((await response.text()) || "Não foi possível excluir a imagem.");
+      } else if (imgToDelete.url.startsWith("blob:")) {
+        URL.revokeObjectURL(imgToDelete.url);
       }
       
       const newImages = images.filter(img => img.id !== id);
@@ -245,7 +247,7 @@ export function ImageManagementSection({
             id="image-upload"
             className="hidden"
             multiple
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
             onChange={(e) => handleUpload(e.target.files)}
           />
           <Button 

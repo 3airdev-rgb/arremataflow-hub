@@ -4,7 +4,7 @@ import { Building2, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createFirstAccessPassword, localLogin } from "@/lib/local-access";
+import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -30,7 +30,6 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [recuperar, setRecuperar] = useState(false);
   const [enviado, setEnviado] = useState(false);
-  const [modo, setModo] = useState<"entrar" | "criar">("entrar");
   const [erro, setErro] = useState<string | null>(null);
 
 
@@ -68,8 +67,21 @@ function LoginPage() {
           {recuperar ? (
             <form
               className="space-y-5"
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
+                const form = e.currentTarget;
+                const email = (form.elements.namedItem("email-rec") as HTMLInputElement).value;
+                setLoading(true);
+                setErro(null);
+                const { error } = await authClient.requestPasswordReset({
+                  email,
+                  redirectTo: `${window.location.origin}/redefinir-senha`,
+                });
+                setLoading(false);
+                if (error) {
+                  setErro("Não foi possível processar a solicitação agora.");
+                  return;
+                }
                 setEnviado(true);
               }}
             >
@@ -88,8 +100,12 @@ function LoginPage() {
                   Solicitação registrada com sucesso.
                 </p>
               ) : null}
-              <Button type="submit" className="w-full">
-                Enviar link
+              {erro ? (
+                <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{erro}</p>
+              ) : null}
+              <Button type="submit" className="w-full" disabled={loading || enviado}>
+                {loading ? <Loader2 className="size-4 animate-spin" /> : null}
+                Enviar link seguro
               </Button>
               <button
                 type="button"
@@ -102,36 +118,30 @@ function LoginPage() {
           ) : (
             <form
               className="space-y-5"
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 const form = e.currentTarget;
                 const email = (form.elements.namedItem("email") as HTMLInputElement).value;
                 const senha = (form.elements.namedItem("senha") as HTMLInputElement).value;
                 setLoading(true);
                 setErro(null);
-                const result = modo === "entrar"
-                  ? localLogin(email, senha)
-                  : createFirstAccessPassword(email, senha);
+                const { error } = await authClient.signIn.email({
+                  email,
+                  password: senha,
+                  rememberMe: false,
+                });
                 setLoading(false);
-                if (!result.ok) {
-                  setErro(result.message);
+                if (error) {
+                  setErro("E-mail ou senha inválidos.");
                   return;
                 }
-                navigate({
-                  to: result.user.perfil === "Investidor"
-                    ? "/investidor"
-                    : result.user.perfil === "Assessor"
-                      ? "/assessores"
-                      : "/projetos",
-                });
+                navigate({ to: "/projetos" });
               }}
             >
               <div>
-                <h1 className="text-2xl">{modo === "entrar" ? "Entrar" : "Criar conta"}</h1>
+                <h1 className="text-2xl">Entrar</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {modo === "entrar"
-                    ? "Entre com seu e-mail e senha."
-                    : "No primeiro acesso, use o e-mail que recebeu o convite e crie sua senha."}
+                  Entre com seu e-mail e senha.
                 </p>
               </div>
               <div className="space-y-2">
@@ -140,23 +150,17 @@ function LoginPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="senha">Senha</Label>
-                <Input id="senha" name="senha" type="password" minLength={6} required />
+                <Input id="senha" name="senha" type="password" minLength={12} required autoComplete="current-password" />
               </div>
               {erro ? (
                 <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{erro}</p>
               ) : null}
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? <Loader2 className="size-4 animate-spin" /> : null}
-                {modo === "entrar" ? "Entrar" : "Criar conta"}
+                Entrar
               </Button>
               <div className="flex items-center justify-between text-sm">
-                <button
-                  type="button"
-                  className="text-brand hover:underline"
-                  onClick={() => setModo(modo === "entrar" ? "criar" : "entrar")}
-                >
-                  {modo === "entrar" ? "Primeiro acesso: criar senha" : "Já tenho senha"}
-                </button>
+                <span className="text-muted-foreground">Primeiro acesso somente por convite</span>
                 <button
                   type="button"
                   className="text-brand hover:underline"

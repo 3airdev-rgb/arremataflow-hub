@@ -22,8 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { formatBRL } from "@/lib/mock-data";
-import { logProjectAudit } from "@/lib/local-project-audit";
+import { formatBRL } from "@/lib/format-currency";
+import { COMMERCIAL_DATA_UPDATED, getCommercialData, saveProposal } from "@/lib/commercial";
 
 type PortfolioOrigin = { id: string; name: string; type: string };
 export type Proposal = {
@@ -43,19 +43,6 @@ export type Proposal = {
   createdAt: string;
 };
 
-const portfolioKey = (projectId: string) => `arremataflow:project:${projectId}:sales-portfolio`;
-const proposalsKey = (projectId: string) => `arremataflow:project:${projectId}:sales-proposals`;
-export const SALES_PROPOSALS_UPDATED = "arremataflow:sales-proposals-updated";
-
-export function getLocalSalesProposals(projectId: string): Proposal[] {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(localStorage.getItem(proposalsKey(projectId)) || "[]") as Proposal[];
-  } catch {
-    return [];
-  }
-}
-
 export function SalesProposalsCard({ projectId }: { projectId: string }) {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [origins, setOrigins] = useState<PortfolioOrigin[]>([]);
@@ -74,22 +61,14 @@ export function SalesProposalsCard({ projectId }: { projectId: string }) {
   const [viewProposal, setViewProposal] = useState<Proposal | null>(null);
 
   useEffect(() => {
-    try {
-      setProposals(getLocalSalesProposals(projectId));
-    } catch {
-      setProposals([]);
-    }
+    void getCommercialData({ data: { projectId } }).then((data) => { setProposals(data.proposals as Proposal[]); setOrigins(data.portfolio as PortfolioOrigin[]); }).catch((error) => toast.error(error.message));
   }, [projectId]);
 
-  const loadOrigins = () => {
-    try {
-      const stored = JSON.parse(
-        localStorage.getItem(portfolioKey(projectId)) || "[]",
-      ) as PortfolioOrigin[];
-      setOrigins(stored);
-    } catch {
-      setOrigins([]);
-    }
+  const loadOrigins = async () => {
+    const data = await getCommercialData({ data: { projectId } });
+    setOrigins(data.portfolio as PortfolioOrigin[]);
+    setProposals(data.proposals as Proposal[]);
+    window.dispatchEvent(new CustomEvent(COMMERCIAL_DATA_UPDATED, { detail: { projectId } }));
   };
 
   const reset = () => {
@@ -159,47 +138,14 @@ export function SalesProposalsCard({ projectId }: { projectId: string }) {
             </DialogHeader>
             <form
               className="space-y-4"
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault();
                 const origin = origins.find((item) => item.id === originId);
                 const originName = originId === "outros" ? otherName : origin?.name || "";
-                const existing = proposals.find((proposal) => proposal.id === editingId);
-                const nextNumber =
-                  existing?.number ??
-                  proposals.reduce((highest, proposal) => Math.max(highest, proposal.number), 0) +
-                    1;
-                const proposal: Proposal = {
-                  id: editingId || `proposal-${Date.now()}`,
-                  number: nextNumber,
-                  originId,
-                  originName,
-                  otherName,
-                  otherPhone,
-                  value,
-                  ...(counterofferValue !== null ? { counterofferValue } : {}),
-                  taxValue,
-                  ...(finalSaleValue !== null ? { finalSaleValue } : {}),
-                  condition,
-                  observations,
-                  status,
-                  createdAt: existing?.createdAt || new Date().toISOString(),
-                };
-                const next = (
-                  editingId
-                    ? proposals.map((item) => (item.id === editingId ? proposal : item))
-                    : [...proposals, proposal]
-                ).sort((a, b) => a.number - b.number);
-                setProposals(next);
-                localStorage.setItem(proposalsKey(projectId), JSON.stringify(next));
-                window.dispatchEvent(new CustomEvent(SALES_PROPOSALS_UPDATED, { detail: { projectId } }));
-                logProjectAudit(
-                  projectId,
-                  `${editingId ? "editou" : "incluiu"} a proposta nº ${nextNumber}, no valor de ${formatBRL(value)}`,
-                  editingId ? "Edição" : "Inclusão",
-                );
-                setOpen(false);
-                reset();
-                toast.success(editingId ? "Proposta atualizada." : "Proposta cadastrada.");
+                try {
+                  await saveProposal({ data: { id: editingId || undefined, projectId, originId, originName, otherName, otherPhone, value, counterofferValue, taxValue, finalSaleValue, condition, observations, status } });
+                  await loadOrigins(); setOpen(false); reset(); toast.success(editingId ? "Proposta atualizada." : "Proposta cadastrada.");
+                } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível salvar a proposta."); }
               }}
             >
               <Field label="Origem da Proposta">

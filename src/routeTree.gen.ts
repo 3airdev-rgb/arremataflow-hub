@@ -21,6 +21,7 @@ import { Route as NotificacoesRouteImport } from './routes/notificacoes'
 import { Route as ObrasRouteImport } from './routes/obras'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PosseRouteImport } from './routes/posse'
+import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as RegularizacaoRouteImport } from './routes/regularizacao'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as ResultadosRouteImport } from './routes/resultados'
@@ -30,6 +31,12 @@ import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as ProjetosIndexRouteImport } from './routes/projetos.index'
 import { Route as AuthenticatedProjetosEditarRouteImport } from './routes/_authenticated/projetos..editar'
 import { Route as AuthenticatedProjetosNovoRouteImport } from './routes/_authenticated/projetos.novo'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiDocumentsIdRouteImport } from './routes/api/documents.$id'
+import { Route as ApiDocumentsUploadRouteImport } from './routes/api/documents.upload'
+import { Route as ApiProjectImagesIdRouteImport } from './routes/api/project-images.$id'
+import { Route as ApiProjectImagesOrderRouteImport } from './routes/api/project-images.order'
+import { Route as ApiProjectImagesUploadRouteImport } from './routes/api/project-images.upload'
 import { Route as ProjetosIdIndexRouteImport } from './routes/projetos.$id.index'
 import { Route as ProjetosIdDocumentosRouteImport } from './routes/projetos.$id.documentos'
 import { Route as ProjetosIdFinanceiroRouteImport } from './routes/projetos.$id.financeiro'
@@ -95,6 +102,11 @@ const PosseRoute = PosseRouteImport.update({
   path: '/posse',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
+  id: '/redefinir-senha',
+  path: '/redefinir-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegularizacaoRoute = RegularizacaoRouteImport.update({
   id: '/regularizacao',
   path: '/regularizacao',
@@ -142,6 +154,36 @@ const AuthenticatedProjetosNovoRoute =
     path: '/projetos/novo',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDocumentsIdRoute = ApiDocumentsIdRouteImport.update({
+  id: '/api/documents/$id',
+  path: '/api/documents/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDocumentsUploadRoute = ApiDocumentsUploadRouteImport.update({
+  id: '/api/documents/upload',
+  path: '/api/documents/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProjectImagesIdRoute = ApiProjectImagesIdRouteImport.update({
+  id: '/api/project-images/$id',
+  path: '/api/project-images/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProjectImagesOrderRoute = ApiProjectImagesOrderRouteImport.update({
+  id: '/api/project-images/order',
+  path: '/api/project-images/order',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProjectImagesUploadRoute = ApiProjectImagesUploadRouteImport.update({
+  id: '/api/project-images/upload',
+  path: '/api/project-images/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjetosIdIndexRoute = ProjetosIdIndexRouteImport.update({
   id: '/projetos/$id/',
   path: '/projetos/$id/',
@@ -181,6 +223,7 @@ export interface FileRoutesByFullPath {
   '/obras': typeof ObrasRoute
   '/perfil': typeof PerfilRoute
   '/posse': typeof PosseRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/regularizacao': typeof RegularizacaoRoute
   '/relatorios': typeof RelatoriosRoute
   '/resultados': typeof ResultadosRoute
@@ -190,6 +233,12 @@ export interface FileRoutesByFullPath {
   '/projetos/': typeof ProjetosIndexRoute
   '/projetos/editar': typeof AuthenticatedProjetosEditarRoute
   '/projetos/novo': typeof AuthenticatedProjetosNovoRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/documents/$id': typeof ApiDocumentsIdRoute
+  '/api/documents/upload': typeof ApiDocumentsUploadRoute
+  '/api/project-images/$id': typeof ApiProjectImagesIdRoute
+  '/api/project-images/order': typeof ApiProjectImagesOrderRoute
+  '/api/project-images/upload': typeof ApiProjectImagesUploadRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
   '/projetos/$id/financeiro': typeof ProjetosIdFinanceiroRoute
   '/projetos/$id/tarefas': typeof ProjetosIdTarefasRoute
@@ -208,6 +257,7 @@ export interface FileRoutesByTo {
   '/obras': typeof ObrasRoute
   '/perfil': typeof PerfilRoute
   '/posse': typeof PosseRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/regularizacao': typeof RegularizacaoRoute
   '/relatorios': typeof RelatoriosRoute
   '/resultados': typeof ResultadosRoute
@@ -217,6 +267,12 @@ export interface FileRoutesByTo {
   '/projetos': typeof ProjetosIndexRoute
   '/projetos/editar': typeof AuthenticatedProjetosEditarRoute
   '/projetos/novo': typeof AuthenticatedProjetosNovoRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/documents/$id': typeof ApiDocumentsIdRoute
+  '/api/documents/upload': typeof ApiDocumentsUploadRoute
+  '/api/project-images/$id': typeof ApiProjectImagesIdRoute
+  '/api/project-images/order': typeof ApiProjectImagesOrderRoute
+  '/api/project-images/upload': typeof ApiProjectImagesUploadRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
   '/projetos/$id/financeiro': typeof ProjetosIdFinanceiroRoute
   '/projetos/$id/tarefas': typeof ProjetosIdTarefasRoute
@@ -237,6 +293,7 @@ export interface FileRoutesById {
   '/obras': typeof ObrasRoute
   '/perfil': typeof PerfilRoute
   '/posse': typeof PosseRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/regularizacao': typeof RegularizacaoRoute
   '/relatorios': typeof RelatoriosRoute
   '/resultados': typeof ResultadosRoute
@@ -246,6 +303,12 @@ export interface FileRoutesById {
   '/projetos/': typeof ProjetosIndexRoute
   '/_authenticated/projetos/editar': typeof AuthenticatedProjetosEditarRoute
   '/_authenticated/projetos/novo': typeof AuthenticatedProjetosNovoRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/documents/$id': typeof ApiDocumentsIdRoute
+  '/api/documents/upload': typeof ApiDocumentsUploadRoute
+  '/api/project-images/$id': typeof ApiProjectImagesIdRoute
+  '/api/project-images/order': typeof ApiProjectImagesOrderRoute
+  '/api/project-images/upload': typeof ApiProjectImagesUploadRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
   '/projetos/$id/financeiro': typeof ProjetosIdFinanceiroRoute
   '/projetos/$id/tarefas': typeof ProjetosIdTarefasRoute
@@ -266,6 +329,7 @@ export interface FileRouteTypes {
     | '/obras'
     | '/perfil'
     | '/posse'
+    | '/redefinir-senha'
     | '/regularizacao'
     | '/relatorios'
     | '/resultados'
@@ -275,6 +339,12 @@ export interface FileRouteTypes {
     | '/projetos/'
     | '/projetos/editar'
     | '/projetos/novo'
+    | '/api/auth/$'
+    | '/api/documents/$id'
+    | '/api/documents/upload'
+    | '/api/project-images/$id'
+    | '/api/project-images/order'
+    | '/api/project-images/upload'
     | '/projetos/$id/documentos'
     | '/projetos/$id/financeiro'
     | '/projetos/$id/tarefas'
@@ -293,6 +363,7 @@ export interface FileRouteTypes {
     | '/obras'
     | '/perfil'
     | '/posse'
+    | '/redefinir-senha'
     | '/regularizacao'
     | '/relatorios'
     | '/resultados'
@@ -302,6 +373,12 @@ export interface FileRouteTypes {
     | '/projetos'
     | '/projetos/editar'
     | '/projetos/novo'
+    | '/api/auth/$'
+    | '/api/documents/$id'
+    | '/api/documents/upload'
+    | '/api/project-images/$id'
+    | '/api/project-images/order'
+    | '/api/project-images/upload'
     | '/projetos/$id/documentos'
     | '/projetos/$id/financeiro'
     | '/projetos/$id/tarefas'
@@ -321,6 +398,7 @@ export interface FileRouteTypes {
     | '/obras'
     | '/perfil'
     | '/posse'
+    | '/redefinir-senha'
     | '/regularizacao'
     | '/relatorios'
     | '/resultados'
@@ -330,6 +408,12 @@ export interface FileRouteTypes {
     | '/projetos/'
     | '/_authenticated/projetos/editar'
     | '/_authenticated/projetos/novo'
+    | '/api/auth/$'
+    | '/api/documents/$id'
+    | '/api/documents/upload'
+    | '/api/project-images/$id'
+    | '/api/project-images/order'
+    | '/api/project-images/upload'
     | '/projetos/$id/documentos'
     | '/projetos/$id/financeiro'
     | '/projetos/$id/tarefas'
@@ -350,6 +434,7 @@ export interface RootRouteChildren {
   ObrasRoute: typeof ObrasRoute
   PerfilRoute: typeof PerfilRoute
   PosseRoute: typeof PosseRoute
+  RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   RegularizacaoRoute: typeof RegularizacaoRoute
   RelatoriosRoute: typeof RelatoriosRoute
   ResultadosRoute: typeof ResultadosRoute
@@ -357,6 +442,12 @@ export interface RootRouteChildren {
   AdminConfiguracoesRoute: typeof AdminConfiguracoesRoute
   AdminUsuariosRoute: typeof AdminUsuariosRoute
   ProjetosIndexRoute: typeof ProjetosIndexRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiDocumentsIdRoute: typeof ApiDocumentsIdRoute
+  ApiDocumentsUploadRoute: typeof ApiDocumentsUploadRoute
+  ApiProjectImagesIdRoute: typeof ApiProjectImagesIdRoute
+  ApiProjectImagesOrderRoute: typeof ApiProjectImagesOrderRoute
+  ApiProjectImagesUploadRoute: typeof ApiProjectImagesUploadRoute
   ProjetosIdDocumentosRoute: typeof ProjetosIdDocumentosRoute
   ProjetosIdFinanceiroRoute: typeof ProjetosIdFinanceiroRoute
   ProjetosIdTarefasRoute: typeof ProjetosIdTarefasRoute
@@ -449,6 +540,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PosseRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/redefinir-senha': {
+      id: '/redefinir-senha'
+      path: '/redefinir-senha'
+      fullPath: '/redefinir-senha'
+      preLoaderRoute: typeof RedefinirSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/regularizacao': {
       id: '/regularizacao'
       path: '/regularizacao'
@@ -511,6 +609,48 @@ declare module '@tanstack/react-router' {
       fullPath: '/projetos/novo'
       preLoaderRoute: typeof AuthenticatedProjetosNovoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/documents/$id': {
+      id: '/api/documents/$id'
+      path: '/api/documents/$id'
+      fullPath: '/api/documents/$id'
+      preLoaderRoute: typeof ApiDocumentsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/documents/upload': {
+      id: '/api/documents/upload'
+      path: '/api/documents/upload'
+      fullPath: '/api/documents/upload'
+      preLoaderRoute: typeof ApiDocumentsUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/project-images/$id': {
+      id: '/api/project-images/$id'
+      path: '/api/project-images/$id'
+      fullPath: '/api/project-images/$id'
+      preLoaderRoute: typeof ApiProjectImagesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/project-images/order': {
+      id: '/api/project-images/order'
+      path: '/api/project-images/order'
+      fullPath: '/api/project-images/order'
+      preLoaderRoute: typeof ApiProjectImagesOrderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/project-images/upload': {
+      id: '/api/project-images/upload'
+      path: '/api/project-images/upload'
+      fullPath: '/api/project-images/upload'
+      preLoaderRoute: typeof ApiProjectImagesUploadRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/projetos/$id/': {
       id: '/projetos/$id/'
@@ -578,6 +718,7 @@ const rootRouteChildren: RootRouteChildren = {
   ObrasRoute: ObrasRoute,
   PerfilRoute: PerfilRoute,
   PosseRoute: PosseRoute,
+  RedefinirSenhaRoute: RedefinirSenhaRoute,
   RegularizacaoRoute: RegularizacaoRoute,
   RelatoriosRoute: RelatoriosRoute,
   ResultadosRoute: ResultadosRoute,
@@ -585,6 +726,12 @@ const rootRouteChildren: RootRouteChildren = {
   AdminConfiguracoesRoute: AdminConfiguracoesRoute,
   AdminUsuariosRoute: AdminUsuariosRoute,
   ProjetosIndexRoute: ProjetosIndexRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiDocumentsIdRoute: ApiDocumentsIdRoute,
+  ApiDocumentsUploadRoute: ApiDocumentsUploadRoute,
+  ApiProjectImagesIdRoute: ApiProjectImagesIdRoute,
+  ApiProjectImagesOrderRoute: ApiProjectImagesOrderRoute,
+  ApiProjectImagesUploadRoute: ApiProjectImagesUploadRoute,
   ProjetosIdDocumentosRoute: ProjetosIdDocumentosRoute,
   ProjetosIdFinanceiroRoute: ProjetosIdFinanceiroRoute,
   ProjetosIdTarefasRoute: ProjetosIdTarefasRoute,

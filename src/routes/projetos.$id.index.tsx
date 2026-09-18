@@ -1,5 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { MapPin, Wallet, TrendingUp, BadgeDollarSign, ExternalLink, Pencil, Calculator } from "lucide-react";
 import { toast } from "sonner";
 import { AppLayout } from "@/components/app-layout";
@@ -10,40 +11,21 @@ import { Progress } from "@/components/ui/progress";
 import { RegularizacaoTab } from "@/components/regularizacao-tab-form";
 import { PosseTab } from "@/components/posse-tab-form";
 import { ServiceProvidersCard } from "@/components/service-providers-card";
-import { canAccessProject, getCurrentLocalUser } from "@/lib/local-access";
-import {
-  FINANCIAL_MOVEMENTS_UPDATED,
-  getLocalFinancialMovements,
-} from "@/lib/local-financial-movements";
-import { getLocalProjects } from "@/lib/local-projects";
-import {
-  getProjectAudit,
-  PROJECT_AUDIT_UPDATED,
-  type ProjectAuditEvent,
-} from "@/lib/local-project-audit";
+import { getCurrentOrganizationUser } from "@/lib/organization-users";
+import { getProject } from "@/lib/projects";
+import { listFinancialMovements } from "@/lib/financial";
+import { listProjectDocuments } from "@/lib/documents";
+import { listProjectAudit, listProjectTasks } from "@/lib/tasks";
 import { NewFinancialMovementDialog } from "@/components/new-financial-movement-dialog";
-import {
-  getLocalSalesPortfolio,
-  SALES_PORTFOLIO_UPDATED,
-  SalesPortfolioCard,
-} from "@/components/sales-portfolio-card";
-import {
-  getLocalSalesProposals,
-  SALES_PROPOSALS_UPDATED,
-  SalesProposalsCard,
-} from "@/components/sales-proposals-card";
+import { SalesPortfolioCard } from "@/components/sales-portfolio-card";
+import { SalesProposalsCard } from "@/components/sales-proposals-card";
+import { COMMERCIAL_DATA_UPDATED, calculateDistribution as calculateDistributionOnServer, getCommercialData } from "@/lib/commercial";
 import {
   ComprovantesFinanceiros,
   DemonstrativoResultado,
   type Movimentacao,
 } from "@/routes/projetos.$id.financeiro";
-import {
-  projetos,
-  tarefas,
-  documentos,
-  formatBRL,
-  formatBRLWithCents,
-} from "@/lib/mock-data";
+import { formatBRL, formatBRLWithCents } from "@/lib/format-currency";
 
 export const Route = createFileRoute("/projetos/$id/")({
   validateSearch: (search: Record<string, unknown>): {
@@ -59,8 +41,8 @@ export const Route = createFileRoute("/projetos/$id/")({
       : {}),
     ...(typeof search["descricao"] === "string" ? { descricao: search["descricao"] } : {}),
   }),
-  loader: ({ params }) => {
-    const projeto = projetos.find((p) => p.id === params.id);
+  loader: async ({ params }) => {
+    const projeto = await getProject({ data: { id: params.id } });
     if (!projeto) throw notFound();
     return { projeto };
   },
@@ -117,7 +99,6 @@ type DistributionSnapshot = {
   calculatedAt: string;
 };
 
-const distributionKey = (projectId: string) => `arremataflow:project:${projectId}:distribution`;
 
 function Bloco({ titulo, itens }: { titulo: string; itens: { label: string; valor: string }[] }) {
   return (
@@ -146,14 +127,10 @@ function FinancialProjectTab({
   defaultCategory?: string;
   defaultDescription?: string;
 }) {
-  const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
-
-  useEffect(() => {
-    const refresh = () => setMovimentacoes(getLocalFinancialMovements(projetoId));
-    refresh();
-    window.addEventListener("focus", refresh);
-    return () => window.removeEventListener("focus", refresh);
-  }, [projetoId]);
+  const { data: movimentacoes = [], refetch } = useQuery({
+    queryKey: ["financial-movements", projetoId],
+    queryFn: () => listFinancialMovements({ data: { projectId: projetoId } }),
+  });
 
   const receitasProjeto = movimentacoes.filter((movement) => movement.tipo === "receita");
   const despesasProjeto = movimentacoes.filter((movement) => movement.tipo === "despesa");
@@ -170,10 +147,10 @@ function FinancialProjectTab({
         </div>
         <NewFinancialMovementDialog
           projetoId={projetoId}
-          defaultOpen={openNewMovement}
-          defaultCategory={defaultCategory}
-          defaultDescription={defaultDescription}
-          onSaved={() => setMovimentacoes(getLocalFinancialMovements(projetoId))}
+          {...(openNewMovement !== undefined ? { defaultOpen: openNewMovement } : {})}
+          {...(defaultCategory ? { defaultCategory } : {})}
+          {...(defaultDescription ? { defaultDescription } : {})}
+          onSaved={async () => { await refetch(); }}
         />
       </div>
 
@@ -201,18 +178,10 @@ function FinancialProjectTab({
 }
 
 function ProjectAuditHistory({ projetoId }: { projetoId: string }) {
-  const [events, setEvents] = useState<ProjectAuditEvent[]>([]);
-
-  useEffect(() => {
-    const refresh = () => setEvents(getProjectAudit(projetoId));
-    const handleUpdate = (event: Event) => {
-      const customEvent = event as CustomEvent<{ projectId: string }>;
-      if (customEvent.detail.projectId === projetoId) refresh();
-    };
-    refresh();
-    window.addEventListener(PROJECT_AUDIT_UPDATED, handleUpdate);
-    return () => window.removeEventListener(PROJECT_AUDIT_UPDATED, handleUpdate);
-  }, [projetoId]);
+  const { data: events = [] } = useQuery({
+    queryKey: ["project-audit", projetoId],
+    queryFn: () => listProjectAudit({ data: { projectId: projetoId } }),
+  });
 
   const formatAuditDate = (value: string) => new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
@@ -296,10 +265,22 @@ function FichaProjeto() {
     commissionValue: 0,
   });
   const [distribution, setDistribution] = useState<DistributionSnapshot | null>(null);
-  const currentUser = getCurrentLocalUser();
-  const canView = canAccessProject(projeto, currentUser);
-  const canEdit = currentUser.perfil === "Administrador" || currentUser.permissions.includes("Editar projetos");
-  const tarefasProjeto = tarefas.filter((t) => t.projeto === projeto.codigo);
+  const { data: projectFinancialMovements = [] } = useQuery({
+    queryKey: ["financial-movements", projeto.id],
+    queryFn: () => listFinancialMovements({ data: { projectId: projeto.id } }),
+  });
+  const { data: projectDocuments = [] } = useQuery({
+    queryKey: ["project-documents", projeto.id],
+    queryFn: () => listProjectDocuments({ data: { projectId: projeto.id } }),
+  });
+  const { data: tarefasProjeto = [] } = useQuery({
+    queryKey: ["project-tasks", projeto.id],
+    queryFn: () => listProjectTasks({ data: { projectId: projeto.id } }),
+  });
+  const { data: authenticatedUser } = useQuery({ queryKey: ["current-organization-user"], queryFn: () => getCurrentOrganizationUser() });
+  const { data: commercialData, refetch: refetchCommercial } = useQuery({ queryKey: ["commercial-data", projeto.id], queryFn: () => getCommercialData({ data: { projectId: projeto.id } }) });
+  useEffect(() => { const refresh = (event: Event) => { const id = (event as CustomEvent<{ projectId?: string }>).detail?.projectId; if (!id || id === projeto.id) void refetchCommercial(); }; window.addEventListener(COMMERCIAL_DATA_UPDATED, refresh); return () => window.removeEventListener(COMMERCIAL_DATA_UPDATED, refresh); }, [projeto.id, refetchCommercial]);
+  const canEdit = ["owner", "admin"].includes(authenticatedUser?.role || "");
   const normalizedAdvisoryMode = projectAdvisoryMode
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -317,17 +298,16 @@ function FichaProjeto() {
 
   useEffect(() => {
     const refreshFinancialSummary = () => {
-      const localProject = getLocalProjects().find((item) => item.id === projeto.id);
-      const acquisitionValue = Number(localProject?.["valor_aquisicao"] ?? projeto.valorAquisicao) || 0;
+      const acquisitionValue = Number(projeto.valorAquisicao) || 0;
       const advisoryFees = isCompleteAdvisory
         ? 0
-        : Number(localProject?.["valor_honorarios"] ?? projeto.honorarios) || 0;
-      const projections = (localProject?.["projecoes_financeiras"] || {}) as Record<string, unknown>;
-      const projectedRevenue = Number(projections.venda) || 0;
+        : Number(projeto.honorarios) || 0;
+      const projections = (projeto.projecoes_financeiras || {}) as Record<string, unknown>;
+      const projectedRevenue = Number(projections["venda"]) || 0;
       const projectedExpenses = Object.entries(projections)
         .filter(([field]) => field !== "venda" && !(isCompleteAdvisory && field === "assessoria"))
         .reduce((total, [, value]) => total + (Number(value) || 0), 0);
-      const actualExpenses = getLocalFinancialMovements(projeto.id)
+      const actualExpenses = projectFinancialMovements
         .filter((movement) => movement.tipo === "despesa")
         .reduce((total, movement) => total + (Number(movement.valor) || 0), 0);
 
@@ -345,30 +325,15 @@ function FichaProjeto() {
     };
 
     refreshFinancialSummary();
-    window.addEventListener(FINANCIAL_MOVEMENTS_UPDATED, handleFinancialUpdate);
     window.addEventListener("storage", refreshFinancialSummary);
     window.addEventListener("focus", refreshFinancialSummary);
     return () => {
-      window.removeEventListener(FINANCIAL_MOVEMENTS_UPDATED, handleFinancialUpdate);
       window.removeEventListener("storage", refreshFinancialSummary);
       window.removeEventListener("focus", refreshFinancialSummary);
     };
-  }, [projeto.id, projeto.valorAquisicao, projeto.honorarios, isCompleteAdvisory]);
+  }, [projeto.id, projeto.valorAquisicao, projeto.honorarios, isCompleteAdvisory, projectFinancialMovements]);
 
-  useEffect(() => {
-    const refreshAdvisoryMode = () => {
-      const localProject = getLocalProjects().find((item) => item.id === projeto.id);
-      setProjectAdvisoryMode(String(localProject?.modalidade || projeto.modalidade));
-    };
-
-    refreshAdvisoryMode();
-    window.addEventListener("storage", refreshAdvisoryMode);
-    window.addEventListener("focus", refreshAdvisoryMode);
-    return () => {
-      window.removeEventListener("storage", refreshAdvisoryMode);
-      window.removeEventListener("focus", refreshAdvisoryMode);
-    };
-  }, [projeto.id, projeto.modalidade]);
+  useEffect(() => { setProjectAdvisoryMode(String(projeto.modalidade)); }, [projeto.modalidade]);
 
   useEffect(() => {
     const tabIsVisible = visibleTabs.some((tab) => slug(tab) === activeTab);
@@ -377,13 +342,12 @@ function FichaProjeto() {
 
   useEffect(() => {
     const refreshSalesIndicators = () => {
-      const portfolio = getLocalSalesPortfolio(projeto.id);
-      const proposals = getLocalSalesProposals(projeto.id);
+      const portfolio = (commercialData?.portfolio || []) as any[];
+      const proposals = (commercialData?.proposals || []) as any[];
       const advertisedValues = portfolio
         .map((entry) => Number(entry.advertisedValue) || 0)
         .filter((value) => value > 0);
-      const localProject = getLocalProjects().find((item) => item.id === projeto.id);
-      const projections = localProject?.["projecoes_financeiras"] as { venda?: unknown } | undefined;
+      const projections = projeto.projecoes_financeiras as { venda?: unknown } | undefined;
       const isAvailable = portfolio
         .some((entry) => entry.isPropertyAvailable ?? true);
       const acceptedProposal = [...proposals]
@@ -410,70 +374,17 @@ function FichaProjeto() {
       });
     };
 
-    const handlePortfolioUpdate = (event: Event) => {
-      const detail = (event as CustomEvent<{ projectId?: string }>).detail;
-      if (!detail?.projectId || detail.projectId === projeto.id) refreshSalesIndicators();
-    };
-
     refreshSalesIndicators();
-    window.addEventListener(SALES_PORTFOLIO_UPDATED, handlePortfolioUpdate);
-    window.addEventListener(SALES_PROPOSALS_UPDATED, handlePortfolioUpdate);
-    window.addEventListener("storage", refreshSalesIndicators);
-    window.addEventListener("focus", refreshSalesIndicators);
-    return () => {
-      window.removeEventListener(SALES_PORTFOLIO_UPDATED, handlePortfolioUpdate);
-      window.removeEventListener(SALES_PROPOSALS_UPDATED, handlePortfolioUpdate);
-      window.removeEventListener("storage", refreshSalesIndicators);
-      window.removeEventListener("focus", refreshSalesIndicators);
-    };
-  }, [projeto.id]);
+  }, [commercialData, projeto.projecoes_financeiras]);
 
   useEffect(() => {
-    try {
-      setDistribution(JSON.parse(localStorage.getItem(distributionKey(projeto.id)) || "null"));
-    } catch {
-      setDistribution(null);
-    }
-  }, [projeto.id]);
+    setDistribution((commercialData?.distributions?.[0] as DistributionSnapshot | undefined) || null);
+  }, [commercialData]);
 
-  const calculateDistribution = () => {
+  const calculateDistribution = async () => {
     if (!salesSettlement.hasAcceptedProposal) return;
-    const localProject = getLocalProjects().find((item) => item.id === projeto.id);
-    const result = salesSettlement.finalSaleValue
-      - salesSettlement.taxValue
-      - salesSettlement.commissionValue
-      - financialSummary.investedCapital;
-    const advisoryShare = result * 0.5;
-    const investorShare = result * 0.5;
-    const storedInvestors = (localProject?.["participantes"] || []) as Array<{ nome?: string; percentual?: string | number }>;
-    const storedAssessors = (localProject?.["assessores"] || []) as Array<{ nome?: string; percentual?: string | number }>;
-    const fallbackInvestors = projeto.investidores.map((nome) => ({
-      nome,
-      percentual: projeto.investidores.length ? 100 / projeto.investidores.length : 0,
-    }));
-    const fallbackAssessors = projeto.assessores.map((nome) => ({
-      nome,
-      percentual: projeto.assessores.length ? 100 / projeto.assessores.length : 0,
-    }));
-    const distribute = (
-      participants: Array<{ nome?: string; percentual?: string | number }>,
-      share: number,
-    ): DistributionParticipant[] => participants.filter((item) => item.nome).map((item) => {
-      const percentual = Number(item.percentual) || 0;
-      return { nome: item.nome!, percentual, valor: share * (percentual / 100) };
-    });
-    const snapshot: DistributionSnapshot = {
-      result,
-      advisoryShare,
-      investorShare,
-      investors: distribute(storedInvestors.length ? storedInvestors : fallbackInvestors, investorShare),
-      assessors: distribute(storedAssessors.length ? storedAssessors : fallbackAssessors, advisoryShare),
-      calculatedAt: new Date().toISOString(),
-    };
-    localStorage.setItem(distributionKey(projeto.id), JSON.stringify(snapshot));
-    setDistribution(snapshot);
-    logProjectAudit(projeto.id, "apurou e calculou a distribuição de resultados", "Apuração");
-    toast.success("Resultados apurados com sucesso.");
+    try { const snapshot = await calculateDistributionOnServer({ data: { projectId: projeto.id } }); setDistribution(snapshot as DistributionSnapshot); await refetchCommercial(); toast.success("Resultados apurados com sucesso."); }
+    catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível apurar os resultados."); }
   };
 
   const projectedVsAdvertised = salesIndicators.estimated > 0
@@ -484,16 +395,6 @@ function FichaProjeto() {
     : salesIndicators.isAvailable
       ? { label: "Imóvel disponibilizado para venda", className: "bg-brand" }
       : { label: "Imóvel não disponibilizado para venda", className: "bg-red-600" };
-
-  if (!canView) {
-    return (
-      <AppLayout title="Acesso restrito" subtitle="Este projeto não está vinculado ao seu usuário">
-        <div className="surface-card p-8 text-center text-muted-foreground">
-          Você não possui permissão para visualizar este projeto.
-        </div>
-      </AppLayout>
-    );
-  }
 
   return (
     <AppLayout title={projeto.nome} subtitle={`${projeto.codigo} · ${projeto.modalidade}`}>
@@ -638,7 +539,7 @@ function FichaProjeto() {
           <div className="surface-card p-5 lg:col-span-2">
             <h3 className="mb-4 text-base font-semibold">Galeria do imóvel</h3>
             <div className="flex gap-3 overflow-x-auto pb-1">
-              {projeto.fotos.map((f, i) => (
+              {(projeto.fotos as string[]).map((f: string, i: number) => (
                 <img
                   key={f}
                   src={f}
@@ -667,8 +568,8 @@ function FichaProjeto() {
           <FinancialProjectTab
             projetoId={projeto.id}
             openNewMovement={novaMovimentacao === "1"}
-            defaultCategory={categoria}
-            defaultDescription={descricao}
+            {...(categoria ? { defaultCategory: categoria } : {})}
+            {...(descricao ? { defaultDescription: descricao } : {})}
           />
         </TabsContent>
 
@@ -680,21 +581,22 @@ function FichaProjeto() {
                 <Link
                   to="/projetos/$id/documentos"
                   params={{ id: projeto.id }}
-                  search={{ retorno: `/projetos/${projeto.id}?aba=documentos` }}
+                  search={{ categoria: undefined, retorno: `/projetos/${projeto.id}?aba=documentos` }}
                 >
                   Gestão documental <ExternalLink className="size-4" />
                 </Link>
               </Button>
             </div>
             <ul className="divide-y divide-border text-sm">
-              {documentos.slice(0, 5).map((d) => (
+              {projectDocuments.slice(0, 5).map((d) => (
                 <li key={d.id} className="flex justify-between py-2.5">
-                  <span className="font-medium">{d.nome}</span>
+                  <a href={d.url} className="font-medium text-brand hover:underline">{d.nome}</a>
                   <span className="text-muted-foreground">
                     {d.categoria} · {d.versao} · {d.data}
                   </span>
                 </li>
               ))}
+              {projectDocuments.length === 0 ? <li className="py-5 text-sm text-muted-foreground">Nenhum documento enviado.</li> : null}
             </ul>
           </div>
         </TabsContent>
@@ -712,7 +614,7 @@ function FichaProjeto() {
               ) : null}
             </div>
             <ul className="divide-y divide-border">
-              {(tarefasProjeto.length ? tarefasProjeto : tarefas.slice(0, 3)).map((t) => (
+              {tarefasProjeto.slice(0, 3).map((t) => (
                 <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
                   <div>
                     <p className="text-sm font-medium">{t.titulo}</p>
@@ -720,9 +622,10 @@ function FichaProjeto() {
                       {t.responsavel} · vence {t.prazo}
                     </p>
                   </div>
-                  <StatusBadge status={t.status} />
+                  <StatusBadge status={t.status as "atrasado" | "pendente" | "aguardando" | "andamento" | "nao_iniciado" | "concluido"} />
                 </li>
               ))}
+              {tarefasProjeto.length === 0 ? <li className="py-5 text-sm text-muted-foreground">Nenhuma tarefa cadastrada.</li> : null}
             </ul>
           </div>
         </TabsContent>
@@ -853,7 +756,7 @@ function FichaProjeto() {
                  {distribution ? (
                    <div className="flex gap-4 py-2">
                      <span className="w-24">{new Intl.DateTimeFormat("pt-BR").format(new Date(distribution.calculatedAt))}</span>
-                     <span className="font-medium text-foreground">Distribuição processada por {currentUser.nome}</span>
+                     <span className="font-medium text-foreground">Distribuição processada por {authenticatedUser?.name || "usuário autenticado"}</span>
                    </div>
                  ) : (
                    <p>Nenhuma apuração realizada.</p>
