@@ -1,2 +1,4 @@
 trustLockfile: true
 nodeLinker: hoisted
+onlyBuiltDependencies:
+  - esbuild
