@@ -71,3 +71,38 @@ jobs:
 
       - name: Validar imagem Docker de produção
         run: docker build --tag arremataflow:ci .
+
+  container-smoke-test:
+    name: Aplicação e PostgreSQL em contêineres
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Preparar variáveis locais de teste
+        run: |
+          cp .env.example .env
+          cp .env.docker.example .env.docker
+
+      - name: Subir aplicação e banco
+        run: docker compose --env-file .env.docker up --detach --build --wait --wait-timeout 180
+
+      - name: Validar saúde da aplicação
+        run: |
+          curl --fail --silent --show-error http://127.0.0.1:8081/health/live
+          curl --fail --silent --show-error http://127.0.0.1:8081/health/ready
+
+      - name: Reiniciar aplicação e validar recuperação
+        run: |
+          docker compose --env-file .env.docker restart app
+          timeout 90 sh -c 'until curl --fail --silent http://127.0.0.1:8081/health/ready; do sleep 2; done'
+
+      - name: Exibir diagnóstico em caso de falha
+        if: failure()
+        run: docker compose --env-file .env.docker logs --no-color
+
+      - name: Encerrar contêineres de teste
+        if: always()
+        run: docker compose --env-file .env.docker down --volumes
