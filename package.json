@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "start": "node .output/server/index.mjs",
     "build:dev": "vite build --mode development",
     "setup:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-local-environment.ps1",
     "db:generate": "drizzle-kit generate",

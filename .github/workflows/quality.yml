@@ -68,3 +68,6 @@ jobs:
 
       - name: Compilar versão de produção
         run: pnpm build
+
+      - name: Validar imagem Docker de produção
+        run: docker build --tag arremataflow:ci .
