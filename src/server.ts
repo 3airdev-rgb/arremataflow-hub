@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { pool } from "./db/index.server";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -48,6 +49,27 @@ function withSecurityHeaders(response: Response) {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
+async function healthResponse(request: Request) {
+  const path = new URL(request.url).pathname;
+  if (path === "/health/live") {
+    return Response.json({ status: "up" }, { headers: { "cache-control": "no-store" } });
+  }
+  if (path !== "/health/ready") return null;
+
+  try {
+    await Promise.race([
+      pool.query("select 1"),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Database health check timed out.")), 3_000)),
+    ]);
+    return Response.json({ status: "ready" }, { headers: { "cache-control": "no-store" } });
+  } catch {
+    return Response.json({ status: "unavailable" }, {
+      status: 503,
+      headers: { "cache-control": "no-store", "retry-after": "5" },
+    });
+  }
+}
+
 async function getServerEntry(): Promise<ServerEntry> {
   if (!serverEntryPromise) {
     serverEntryPromise = import("@tanstack/react-start/server-entry").then(
@@ -86,6 +108,8 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const health = await healthResponse(request);
+      if (health) return withSecurityHeaders(health);
       const limited = authRateLimit(request);
       if (limited) return withSecurityHeaders(limited);
       const handler = await getServerEntry();

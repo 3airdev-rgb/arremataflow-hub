@@ -20,4 +20,19 @@ export const pool = globalDatabase.arremataflowPool ?? new Pool({
 
 if (process.env["NODE_ENV"] !== "production") globalDatabase.arremataflowPool = pool;
 
+if (process.env["NODE_ENV"] === "production") {
+  let closing = false;
+  const closePool = async () => {
+    if (closing) return;
+    closing = true;
+    try {
+      await pool.end();
+    } catch (error) {
+      console.error("Falha ao encerrar as conexões com o banco.", error);
+    }
+  };
+  process.once("SIGTERM", () => void closePool());
+  process.once("SIGINT", () => void closePool());
+}
+
 export const db = drizzle(pool, { schema });
