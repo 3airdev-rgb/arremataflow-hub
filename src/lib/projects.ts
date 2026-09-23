@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
+import type { Schema } from "@/db/types";
 
 const projectStatuses = [
   "atrasado",
@@ -606,182 +607,189 @@ export const getProjectMilestoneProgress = createServerFn({ method: "GET" })
       )
       .limit(1);
     if (!project) throw new Error("Projeto não encontrado.");
-
-    const [
-      operationalRows,
-      taskRows,
-      documentRows,
-      financialRows,
-      inspectionRows,
-      portfolioRows,
-      proposalRows,
-      assignmentRows,
-      possessionActions,
-    ] = await Promise.all([
-      db
-        .select({
-          regularization: schema.projectOperationalData.regularization,
-          possession: schema.projectOperationalData.possession,
-        })
-        .from(schema.projectOperationalData)
-        .where(
-          and(
-            eq(schema.projectOperationalData.projectId, data.projectId),
-            eq(schema.projectOperationalData.organizationId, membership.organizationId),
-          ),
-        )
-        .limit(1),
-      db
-        .select({ status: schema.tasks.status })
-        .from(schema.tasks)
-        .where(
-          and(
-            eq(schema.tasks.projectId, data.projectId),
-            eq(schema.tasks.organizationId, membership.organizationId),
-          ),
-        ),
-      db
-        .select({ id: schema.documents.id })
-        .from(schema.documents)
-        .where(
-          and(
-            eq(schema.documents.projectId, data.projectId),
-            eq(schema.documents.organizationId, membership.organizationId),
-          ),
-        )
-        .limit(1),
-      db
-        .select({ id: schema.financialMovements.id })
-        .from(schema.financialMovements)
-        .where(
-          and(
-            eq(schema.financialMovements.projectId, data.projectId),
-            eq(schema.financialMovements.organizationId, membership.organizationId),
-          ),
-        )
-        .limit(1),
-      db
-        .select({ status: schema.propertyInspections.status })
-        .from(schema.propertyInspections)
-        .where(
-          and(
-            eq(schema.propertyInspections.projectId, data.projectId),
-            eq(schema.propertyInspections.organizationId, membership.organizationId),
-          ),
-        ),
-      db
-        .select({ id: schema.salesPortfolio.id })
-        .from(schema.salesPortfolio)
-        .where(
-          and(
-            eq(schema.salesPortfolio.projectId, data.projectId),
-            eq(schema.salesPortfolio.organizationId, membership.organizationId),
-          ),
-        )
-        .limit(1),
-      db
-        .select({ status: schema.salesProposals.status })
-        .from(schema.salesProposals)
-        .where(
-          and(
-            eq(schema.salesProposals.projectId, data.projectId),
-            eq(schema.salesProposals.organizationId, membership.organizationId),
-          ),
-        ),
-      db
-        .select({ data: schema.projectProviderAssignments.data })
-        .from(schema.projectProviderAssignments)
-        .where(
-          and(
-            eq(schema.projectProviderAssignments.projectId, data.projectId),
-            eq(schema.projectProviderAssignments.organizationId, membership.organizationId),
-          ),
-        ),
-      db
-        .select({ id: schema.judicialActions.id })
-        .from(schema.judicialActions)
-        .where(
-          and(
-            eq(schema.judicialActions.projectId, data.projectId),
-            eq(schema.judicialActions.organizationId, membership.organizationId),
-            eq(schema.judicialActions.scope, "possession"),
-          ),
-        )
-        .limit(1),
-    ]);
-
-    const projectData = project.data || {};
-    const regularization = operationalRows[0]?.regularization || {};
-    const possession = operationalRows[0]?.possession || {};
-    const milestones: Array<{ label: string; completed: boolean }> = [
-      {
-        label: "Aquisição cadastrada",
-        completed:
-          Number(projectData["valor_aquisicao"]) > 0 &&
-          Boolean(projectData["origem"]) &&
-          Boolean(projectData["forma_pagamento"]),
-      },
-      {
-        label: "Carta de arrematação emitida",
-        completed: ["Emitida", "Registrada"].includes(
-          String(regularization["carta_arrematacao_status"] || ""),
-        ),
-      },
-      {
-        label: "Averbação finalizada",
-        completed: regularization["averbacao_status"] === "Finalizada",
-      },
-      {
-        label: "Protocolo de cartório registrado",
-        completed: Boolean(String(regularization["protocolo_cartorio"] || "").trim()),
-      },
-      { label: "IPTU quitado", completed: regularization["iptu_status"] === "Quitado" },
-      {
-        label: "Transferência na Prefeitura finalizada",
-        completed: regularization["transferencia_cadastral_status"] === "Finalizada",
-      },
-      { label: "Posse realizada", completed: Boolean(possession["possession_completed_date"]) },
-      { label: "Movimentação financeira registrada", completed: financialRows.length > 0 },
-      { label: "Documento anexado", completed: documentRows.length > 0 },
-      { label: "Imóvel anunciado para venda", completed: portfolioRows.length > 0 },
-      {
-        label: "Venda concluída",
-        completed: proposalRows.some((proposal) => proposal.status === "Aceita"),
-      },
-    ];
-
-    if (possession["possession_action_required"] === true)
-      milestones.push({
-        label: "Ação de imissão cadastrada",
-        completed: possessionActions.length > 0,
-      });
-    if (possession["property_inspection_required"] === true)
-      milestones.push({
-        label: "Vistoria concluída",
-        completed: inspectionRows.some((inspection) => inspection.status === "completed"),
-      });
-    taskRows.forEach((task, index) =>
-      milestones.push({
-        label: `Tarefa ${index + 1} concluída`,
-        completed: task.status === "concluido",
-      }),
-    );
-    assignmentRows.forEach((assignment, index) =>
-      milestones.push({
-        label: `Etapa de obra ${index + 1} concluída`,
-        completed: assignment.data?.["status"] === "concluido",
-      }),
-    );
-
-    const completed = milestones.filter((milestone) => milestone.completed).length;
-    const total = milestones.length;
-    return {
-      percentage: total ? Math.round((completed / total) * 100) : 0,
-      completed,
-      total,
-      milestones,
-    };
+    return milestoneProgressFor(ctx, project);
   });
+
+async function milestoneProgressFor(
+  ctx: Awaited<ReturnType<typeof context>>,
+  project: Schema["projects"]["$inferSelect"],
+) {
+  const { db, schema, membership } = ctx;
+  const [
+    operationalRows,
+    taskRows,
+    documentRows,
+    financialRows,
+    inspectionRows,
+    portfolioRows,
+    proposalRows,
+    assignmentRows,
+    possessionActions,
+  ] = await Promise.all([
+    db
+      .select({
+        regularization: schema.projectOperationalData.regularization,
+        possession: schema.projectOperationalData.possession,
+      })
+      .from(schema.projectOperationalData)
+      .where(
+        and(
+          eq(schema.projectOperationalData.projectId, project.id),
+          eq(schema.projectOperationalData.organizationId, membership.organizationId),
+        ),
+      )
+      .limit(1),
+    db
+      .select({ status: schema.tasks.status })
+      .from(schema.tasks)
+      .where(
+        and(
+          eq(schema.tasks.projectId, project.id),
+          eq(schema.tasks.organizationId, membership.organizationId),
+        ),
+      ),
+    db
+      .select({ id: schema.documents.id })
+      .from(schema.documents)
+      .where(
+        and(
+          eq(schema.documents.projectId, project.id),
+          eq(schema.documents.organizationId, membership.organizationId),
+        ),
+      )
+      .limit(1),
+    db
+      .select({ id: schema.financialMovements.id })
+      .from(schema.financialMovements)
+      .where(
+        and(
+          eq(schema.financialMovements.projectId, project.id),
+          eq(schema.financialMovements.organizationId, membership.organizationId),
+        ),
+      )
+      .limit(1),
+    db
+      .select({ status: schema.propertyInspections.status })
+      .from(schema.propertyInspections)
+      .where(
+        and(
+          eq(schema.propertyInspections.projectId, project.id),
+          eq(schema.propertyInspections.organizationId, membership.organizationId),
+        ),
+      ),
+    db
+      .select({ id: schema.salesPortfolio.id })
+      .from(schema.salesPortfolio)
+      .where(
+        and(
+          eq(schema.salesPortfolio.projectId, project.id),
+          eq(schema.salesPortfolio.organizationId, membership.organizationId),
+        ),
+      )
+      .limit(1),
+    db
+      .select({ status: schema.salesProposals.status })
+      .from(schema.salesProposals)
+      .where(
+        and(
+          eq(schema.salesProposals.projectId, project.id),
+          eq(schema.salesProposals.organizationId, membership.organizationId),
+        ),
+      ),
+    db
+      .select({ data: schema.projectProviderAssignments.data })
+      .from(schema.projectProviderAssignments)
+      .where(
+        and(
+          eq(schema.projectProviderAssignments.projectId, project.id),
+          eq(schema.projectProviderAssignments.organizationId, membership.organizationId),
+        ),
+      ),
+    db
+      .select({ id: schema.judicialActions.id })
+      .from(schema.judicialActions)
+      .where(
+        and(
+          eq(schema.judicialActions.projectId, project.id),
+          eq(schema.judicialActions.organizationId, membership.organizationId),
+          eq(schema.judicialActions.scope, "possession"),
+        ),
+      )
+      .limit(1),
+  ]);
+
+  const projectData = project.data || {};
+  const regularization = operationalRows[0]?.regularization || {};
+  const possession = operationalRows[0]?.possession || {};
+  const milestones: Array<{ label: string; completed: boolean }> = [
+    {
+      label: "Aquisição cadastrada",
+      completed:
+        Number(projectData["valor_aquisicao"]) > 0 &&
+        Boolean(projectData["origem"]) &&
+        Boolean(projectData["forma_pagamento"]),
+    },
+    {
+      label: "Carta de arrematação emitida",
+      completed: ["Emitida", "Registrada"].includes(
+        String(regularization["carta_arrematacao_status"] || ""),
+      ),
+    },
+    {
+      label: "Averbação finalizada",
+      completed: regularization["averbacao_status"] === "Finalizada",
+    },
+    {
+      label: "Protocolo de cartório registrado",
+      completed: Boolean(String(regularization["protocolo_cartorio"] || "").trim()),
+    },
+    { label: "IPTU quitado", completed: regularization["iptu_status"] === "Quitado" },
+    {
+      label: "Transferência na Prefeitura finalizada",
+      completed: regularization["transferencia_cadastral_status"] === "Finalizada",
+    },
+    { label: "Posse realizada", completed: Boolean(possession["possession_completed_date"]) },
+    { label: "Movimentação financeira registrada", completed: financialRows.length > 0 },
+    { label: "Documento anexado", completed: documentRows.length > 0 },
+    { label: "Imóvel anunciado para venda", completed: portfolioRows.length > 0 },
+    {
+      label: "Venda concluída",
+      completed: proposalRows.some((proposal) => proposal.status === "Aceita"),
+    },
+  ];
+
+  if (possession["possession_action_required"] === true)
+    milestones.push({
+      label: "Ação de imissão cadastrada",
+      completed: possessionActions.length > 0,
+    });
+  if (possession["property_inspection_required"] === true)
+    milestones.push({
+      label: "Vistoria concluída",
+      completed: inspectionRows.some((inspection) => inspection.status === "completed"),
+    });
+  taskRows.forEach((task, index) =>
+    milestones.push({
+      label: `Tarefa ${index + 1} concluída`,
+      completed: task.status === "concluido",
+    }),
+  );
+  assignmentRows.forEach((assignment, index) =>
+    milestones.push({
+      label: `Etapa de obra ${index + 1} concluída`,
+      completed: assignment.data?.["status"] === "concluido",
+    }),
+  );
+
+  const completed = milestones.filter((milestone) => milestone.completed).length;
+  const total = milestones.length;
+  return {
+    percentage: total ? Math.round((completed / total) * 100) : 0,
+    completed,
+    total,
+    milestones,
+  };
+}
 
 export const listParticipantProjects = createServerFn({ method: "GET" })
   .validator(z.object({ role: z.enum(["investor", "advisor"]) }))
@@ -816,17 +824,19 @@ export const listParticipantProjects = createServerFn({ method: "GET" })
       .orderBy(desc(schema.projects.updatedAt));
 
     const seen = new Set<string>();
-    return base
-      .filter((row) => {
-        if (seen.has(row.project.id)) return false;
-        seen.add(row.project.id);
-        return true;
-      })
-      .map((row) => ({
+    const unique = base.filter((row) => {
+      if (seen.has(row.project.id)) return false;
+      seen.add(row.project.id);
+      return true;
+    });
+    return Promise.all(
+      unique.map(async (row) => ({
         ...normalize(row.project),
+        progresso: (await milestoneProgressFor(ctx, row.project)).percentage,
         participationPercentage: row.percentage ? Number(row.percentage) : null,
         participantName: row.contactName || session.user.name,
-      }));
+      })),
+    );
   });
 
 export const saveProject = createServerFn({ method: "POST" })
