@@ -5,10 +5,12 @@ import { AppLayout } from "@/components/app-layout";
 import { listNotifications, markNotificationRead } from "@/lib/tasks";
 
 export const Route = createFileRoute("/notificacoes")({
-  head: () => ({ meta: [
-    { title: "Notificações | ArremataFlow" },
-    { name: "description", content: "Central de notificações da sua empresa." },
-  ] }),
+  head: () => ({
+    meta: [
+      { title: "Notificações | ArremataFlow" },
+      { name: "description", content: "Central de notificações da sua empresa." },
+    ],
+  }),
   component: NotificacoesPage,
 });
 
@@ -18,7 +20,10 @@ function NotificacoesPage() {
     queryKey: ["notifications"],
     queryFn: () => listNotifications(),
   });
-  const formatDate = (value: Date | string) => new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+  const formatDate = (value: Date | string) =>
+    new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(
+      new Date(value),
+    );
   const markAsRead = async (id: string, alreadyRead: boolean) => {
     if (alreadyRead) return;
     await markNotificationRead({ data: { id } });
@@ -46,15 +51,31 @@ function NotificacoesPage() {
                   aria-label={`${notification.read ? "Lida" : "Não lida"}: ${notification.title}`}
                 >
                   <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-background text-brand">
-                    {notification.read ? <MailOpen className="size-4" /> : <Mail className="size-4" />}
+                    {notification.read ? (
+                      <MailOpen className="size-4" />
+                    ) : (
+                      <Mail className="size-4" />
+                    )}
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className={notification.read ? "text-sm" : "text-sm font-semibold"}>{notification.title}</p>
-                      <time className="text-xs text-muted-foreground" dateTime={new Date(notification.createdAt).toISOString()}>{formatDate(notification.createdAt)}</time>
+                      <p className={notification.read ? "text-sm" : "text-sm font-semibold"}>
+                        {notification.title}
+                      </p>
+                      <time
+                        className="text-xs text-muted-foreground"
+                        dateTime={new Date(notification.createdAt).toISOString()}
+                      >
+                        {formatDate(notification.createdAt)}
+                      </time>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">{notification.message}</p>
-                    {notification.projectName ? <p className="mt-1 text-xs font-medium text-brand">{notification.projectName}{notification.projectCode ? ` · ${notification.projectCode}` : ""}</p> : null}
+                    {notification.projectName ? (
+                      <p className="mt-1 text-xs font-medium text-brand">
+                        {notification.projectName}
+                        {notification.projectCode ? ` · ${notification.projectCode}` : ""}
+                      </p>
+                    ) : null}
                   </div>
                 </a>
               </li>
@@ -64,7 +85,9 @@ function NotificacoesPage() {
           <div className="p-10 text-center">
             <Bell className="mx-auto size-8 text-muted-foreground/60" />
             <p className="mt-3 text-sm font-medium">Nenhuma notificação.</p>
-            <p className="mt-1 text-sm text-muted-foreground">Novas tarefas e avisos aparecerão aqui.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Novas tarefas e avisos aparecerão aqui.
+            </p>
           </div>
         )}
       </section>

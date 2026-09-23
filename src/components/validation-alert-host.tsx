@@ -1,16 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription,
-  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { VALIDATION_ALERT_EVENT } from "@/lib/validation-feedback";
 
 function fieldLabel(element: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) {
-  return element.labels?.[0]?.textContent?.trim()
-    || element.getAttribute("aria-label")
-    || element.getAttribute("placeholder")
-    || element.name
-    || "campo obrigatório";
+  return (
+    element.labels?.[0]?.textContent?.trim() ||
+    element.getAttribute("aria-label") ||
+    element.getAttribute("placeholder") ||
+    element.name ||
+    "campo obrigatório"
+  );
 }
 
 export function ValidationAlertHost() {
@@ -25,11 +32,18 @@ export function ValidationAlertHost() {
     };
     const onInvalid = (event: Event) => {
       const element = event.target;
-      if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement)) return;
+      if (!(
+        element instanceof HTMLInputElement ||
+        element instanceof HTMLSelectElement ||
+        element instanceof HTMLTextAreaElement
+      ))
+        return;
       event.preventDefault();
       if (suppressInvalid.current) return;
       suppressInvalid.current = true;
-      window.setTimeout(() => { suppressInvalid.current = false; }, 100);
+      window.setTimeout(() => {
+        suppressInvalid.current = false;
+      }, 100);
       pendingFocus.current = element;
       const label = fieldLabel(element).replace(/\s+/g, " ");
       const instruction = element.validity.valueMissing
@@ -57,7 +71,9 @@ export function ValidationAlertHost() {
           <AlertDialogTitle>Verifique os dados informados</AlertDialogTitle>
           <AlertDialogDescription className="whitespace-pre-line">{message}</AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter><AlertDialogAction onClick={close}>Corrigir dados</AlertDialogAction></AlertDialogFooter>
+        <AlertDialogFooter>
+          <AlertDialogAction onClick={close}>Corrigir dados</AlertDialogAction>
+        </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );

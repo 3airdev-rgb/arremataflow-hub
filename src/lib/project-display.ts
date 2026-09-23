@@ -1,4 +1,5 @@
-export type StatusKey = "atrasado" | "pendente" | "aguardando" | "andamento" | "nao_iniciado" | "concluido";
+export type StatusKey =
+  "atrasado" | "pendente" | "aguardando" | "andamento" | "nao_iniciado" | "concluido";
 
 export const statusLabels: Record<StatusKey, string> = {
   atrasado: "Atrasado",

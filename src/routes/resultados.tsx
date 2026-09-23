@@ -6,9 +6,17 @@ export const Route = createFileRoute("/resultados")({
   head: () => ({
     meta: [
       { title: "Resultados | ArremataFlow" },
-      { name: "description", content: "Resultados projetados e realizados, com distribuição por investidor e assessoria." },
+      {
+        name: "description",
+        content:
+          "Resultados projetados e realizados, com distribuição por investidor e assessoria.",
+      },
       { property: "og:title", content: "Resultados | ArremataFlow" },
-      { property: "og:description", content: "Resultados projetados e realizados, com distribuição por investidor e assessoria." },
+      {
+        property: "og:description",
+        content:
+          "Resultados projetados e realizados, com distribuição por investidor e assessoria.",
+      },
     ],
   }),
   component: () => (

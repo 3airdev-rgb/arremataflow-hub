@@ -10,7 +10,9 @@ type ServerEntry = {
 
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 type RateEntry = { count: number; resetAt: number };
-const globalSecurity = globalThis as typeof globalThis & { arremataflowRateLimits?: Map<string, RateEntry> };
+const globalSecurity = globalThis as typeof globalThis & {
+  arremataflowRateLimits?: Map<string, RateEntry>;
+};
 const rateLimits = globalSecurity.arremataflowRateLimits ?? new Map<string, RateEntry>();
 globalSecurity.arremataflowRateLimits = rateLimits;
 
@@ -24,31 +26,53 @@ function trustedProxyHops() {
 function clientAddress(request: Request) {
   const hops = trustedProxyHops();
   if (hops === 0) return "direct";
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",").map((part) => part.trim()).filter(Boolean) ?? [];
+  const forwarded =
+    request.headers
+      .get("x-forwarded-for")
+      ?.split(",")
+      .map((part) => part.trim())
+      .filter(Boolean) ?? [];
   return forwarded[forwarded.length - hops] ?? "unknown";
 }
 
 function authRateLimit(request: Request) {
   if (request.method !== "POST") return null;
   const path = new URL(request.url).pathname;
-  const policy = path.includes("/api/auth/sign-in") ? { max: 10, window: 15 * 60_000 }
-    : path.includes("/api/auth/forget-password") ? { max: 5, window: 60 * 60_000 }
-      : path.includes("/api/auth/reset-password") ? { max: 10, window: 60 * 60_000 } : null;
+  const policy = path.includes("/api/auth/sign-in")
+    ? { max: 10, window: 15 * 60_000 }
+    : path.includes("/api/auth/forget-password")
+      ? { max: 5, window: 60 * 60_000 }
+      : path.includes("/api/auth/reset-password")
+        ? { max: 10, window: 60 * 60_000 }
+        : null;
   if (!policy) return null;
-  if (Number(request.headers.get("content-length") || 0) > 64 * 1024) return new Response("Requisição muito grande.", { status: 413 });
-  const now = Date.now(), key = `${clientAddress(request)}:${path}`;
+  if (Number(request.headers.get("content-length") || 0) > 64 * 1024)
+    return new Response("Requisição muito grande.", { status: 413 });
+  const now = Date.now(),
+    key = `${clientAddress(request)}:${path}`;
   const current = rateLimits.get(key);
-  const entry = !current || current.resetAt <= now ? { count: 1, resetAt: now + policy.window } : { ...current, count: current.count + 1 };
+  const entry =
+    !current || current.resetAt <= now
+      ? { count: 1, resetAt: now + policy.window }
+      : { ...current, count: current.count + 1 };
   rateLimits.set(key, entry);
-  if (rateLimits.size > 10_000) for (const [storedKey, value] of rateLimits) if (value.resetAt <= now) rateLimits.delete(storedKey);
+  if (rateLimits.size > 10_000)
+    for (const [storedKey, value] of rateLimits)
+      if (value.resetAt <= now) rateLimits.delete(storedKey);
   if (entry.count <= policy.max) return null;
-  return new Response("Muitas tentativas. Aguarde antes de tentar novamente.", { status: 429, headers: { "Retry-After": String(Math.ceil((entry.resetAt - now) / 1000)) } });
+  return new Response("Muitas tentativas. Aguarde antes de tentar novamente.", {
+    status: 429,
+    headers: { "Retry-After": String(Math.ceil((entry.resetAt - now) / 1000)) },
+  });
 }
 
 function withSecurityHeaders(response: Response) {
   const headers = new Headers(response.headers);
   const development = process.env["NODE_ENV"] !== "production";
-  headers.set("Content-Security-Policy", `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'${development ? " 'unsafe-eval'" : ""}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'${development ? " ws: http: https:" : ""}${development ? "" : "; upgrade-insecure-requests"}`);
+  headers.set(
+    "Content-Security-Policy",
+    `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'${development ? " 'unsafe-eval'" : ""}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'${development ? " ws: http: https:" : ""}${development ? "" : "; upgrade-insecure-requests"}`,
+  );
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("X-Frame-Options", "DENY");
@@ -56,7 +80,11 @@ function withSecurityHeaders(response: Response) {
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
   headers.set("Cross-Origin-Resource-Policy", "same-origin");
   if (!development) headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
 async function healthResponse(request: Request) {
@@ -69,14 +97,19 @@ async function healthResponse(request: Request) {
   try {
     await Promise.race([
       pool.query("select 1"),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("Database health check timed out.")), 3_000)),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Database health check timed out.")), 3_000),
+      ),
     ]);
     return Response.json({ status: "ready" }, { headers: { "cache-control": "no-store" } });
   } catch {
-    return Response.json({ status: "unavailable" }, {
-      status: 503,
-      headers: { "cache-control": "no-store", "retry-after": "5" },
-    });
+    return Response.json(
+      { status: "unavailable" },
+      {
+        status: 503,
+        headers: { "cache-control": "no-store", "retry-after": "5" },
+      },
+    );
   }
 }
 
@@ -127,10 +160,12 @@ export default {
       return withSecurityHeaders(await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
-      return withSecurityHeaders(new Response(renderErrorPage(), {
-        status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      }));
+      return withSecurityHeaders(
+        new Response(renderErrorPage(), {
+          status: 500,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+      );
     }
   },
 };

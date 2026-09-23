@@ -135,17 +135,15 @@ export async function uploadProjectImage(request: Request) {
           .update(schema.projects)
           .set({ mainImage: `/api/project-images/${row.id}`, updatedAt: new Date() })
           .where(eq(schema.projects.id, projectId));
-      await tx
-        .insert(schema.auditLogs)
-        .values({
-          organizationId: membership.organizationId,
-          projectId,
-          actorId: session.user.id,
-          action: "project_image.uploaded",
-          entityType: "project_image",
-          entityId: row.id,
-          metadata: { sizeBytes: row.sizeBytes, sha256: row.sha256 },
-        });
+      await tx.insert(schema.auditLogs).values({
+        organizationId: membership.organizationId,
+        projectId,
+        actorId: session.user.id,
+        action: "project_image.uploaded",
+        entityType: "project_image",
+        entityId: row.id,
+        metadata: { sizeBytes: row.sizeBytes, sha256: row.sha256 },
+      });
       return row;
     });
     return Response.json(responsePhoto(created), { status: 201 });
@@ -217,17 +215,15 @@ export async function deleteProjectImage(request: Request, id: string) {
         updatedAt: new Date(),
       })
       .where(eq(schema.projects.id, image.projectId));
-    await tx
-      .insert(schema.auditLogs)
-      .values({
-        organizationId: membership.organizationId,
-        projectId: image.projectId,
-        actorId: session.user.id,
-        action: "project_image.deleted",
-        entityType: "project_image",
-        entityId: image.id,
-        metadata: { originalName: image.originalName },
-      });
+    await tx.insert(schema.auditLogs).values({
+      organizationId: membership.organizationId,
+      projectId: image.projectId,
+      actorId: session.user.id,
+      action: "project_image.deleted",
+      entityType: "project_image",
+      entityId: image.id,
+      metadata: { originalName: image.originalName },
+    });
   });
   const root = storageRoot(),
     target = path.resolve(root, image.storageKey);
@@ -273,17 +269,15 @@ export async function orderProjectImages(request: Request) {
       .update(schema.projects)
       .set({ mainImage: `/api/project-images/${parsed.data.ids[0]}`, updatedAt: new Date() })
       .where(eq(schema.projects.id, parsed.data.projectId));
-    await tx
-      .insert(schema.auditLogs)
-      .values({
-        organizationId: membership.organizationId,
-        projectId: parsed.data.projectId,
-        actorId: session.user.id,
-        action: "project_images.reordered",
-        entityType: "project",
-        entityId: parsed.data.projectId,
-        metadata: { count: rows.length },
-      });
+    await tx.insert(schema.auditLogs).values({
+      organizationId: membership.organizationId,
+      projectId: parsed.data.projectId,
+      actorId: session.user.id,
+      action: "project_images.reordered",
+      entityType: "project",
+      entityId: parsed.data.projectId,
+      metadata: { count: rows.length },
+    });
   });
   return Response.json({ ok: true });
 }

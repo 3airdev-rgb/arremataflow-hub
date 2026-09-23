@@ -9,13 +9,21 @@ try {
   const organization = (await client.query("select id from organizations limit 1")).rows[0];
   if (!user || !organization) throw new Error("Usuário ou empresa de teste ausente.");
 
-  const project = (await client.query(
-    "insert into projects(organization_id, code, name, address, created_by) values($1, 'TEST-OPS', 'Teste operações', 'Local', $2) returning id",
-    [organization.id, user.id],
-  )).rows[0];
+  const project = (
+    await client.query(
+      "insert into projects(organization_id, code, name, address, created_by) values($1, 'TEST-OPS', 'Teste operações', 'Local', $2) returning id",
+      [organization.id, user.id],
+    )
+  ).rows[0];
   await client.query(
     "insert into project_operational_data(organization_id, project_id, regularization, possession, updated_by) values($1, $2, $3, $4, $5)",
-    [organization.id, project.id, { iptu_status: "Quitado", iptu_valor: 100 }, { occupancy_status: "Desocupada" }, user.id],
+    [
+      organization.id,
+      project.id,
+      { iptu_status: "Quitado", iptu_valor: 100 },
+      { occupancy_status: "Desocupada" },
+      user.id,
+    ],
   );
   await client.query(
     "insert into judicial_actions(organization_id, project_id, scope, action_type, process_number, court, created_by) values($1, $2, 'regularization', 'Ação de Cobrança', '123', '1ª Vara', $3)",

@@ -58,10 +58,12 @@ export function DatePickerField({
           mode="single"
           selected={validSelected}
           onSelect={(date) => onValueChange(date ? format(date, "yyyy-MM-dd") : "")}
-          disabled={(date) => Boolean(
-            (minimum && isValid(minimum) && date < minimum)
-            || (maximum && isValid(maximum) && date > maximum)
-          )}
+          disabled={(date) =>
+            Boolean(
+              (minimum && isValid(minimum) && date < minimum) ||
+              (maximum && isValid(maximum) && date > maximum),
+            )
+          }
         />
       </PopoverContent>
     </Popover>

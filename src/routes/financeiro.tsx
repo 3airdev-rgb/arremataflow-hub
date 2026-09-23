@@ -6,9 +6,15 @@ export const Route = createFileRoute("/financeiro")({
   head: () => ({
     meta: [
       { title: "Financeiro | ArremataFlow" },
-      { name: "description", content: "Receitas, despesas, tributos e fluxo de caixa consolidado da carteira." },
+      {
+        name: "description",
+        content: "Receitas, despesas, tributos e fluxo de caixa consolidado da carteira.",
+      },
       { property: "og:title", content: "Financeiro | ArremataFlow" },
-      { property: "og:description", content: "Receitas, despesas, tributos e fluxo de caixa consolidado da carteira." },
+      {
+        property: "og:description",
+        content: "Receitas, despesas, tributos e fluxo de caixa consolidado da carteira.",
+      },
     ],
   }),
   component: () => (

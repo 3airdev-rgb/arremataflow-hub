@@ -10,13 +10,15 @@ if (!databaseUrl) {
 
 const globalDatabase = globalThis as typeof globalThis & { arremataflowPool?: Pool };
 
-export const pool = globalDatabase.arremataflowPool ?? new Pool({
-  connectionString: databaseUrl,
-  max: 10,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 10_000,
-  ssl: process.env["DATABASE_SSL"] === "true" ? { rejectUnauthorized: true } : undefined,
-});
+export const pool =
+  globalDatabase.arremataflowPool ??
+  new Pool({
+    connectionString: databaseUrl,
+    max: 10,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+    ssl: process.env["DATABASE_SSL"] === "true" ? { rejectUnauthorized: true } : undefined,
+  });
 
 if (process.env["NODE_ENV"] !== "production") globalDatabase.arremataflowPool = pool;
 

@@ -26,10 +26,24 @@ try {
     "Planos incompletos.",
   );
   const displayOrder = ["starter", "professional", "custom"];
-  assert([...plans.rows].sort((a, b) => displayOrder.indexOf(a.id) - displayOrder.indexOf(b.id)).map((row) => row.id).join(",") === "starter,professional,custom", "Ordem dos cards incorreta.");
-  await client.query("update plans set monthly_price = 89.90, annual_price = 899.00 where id = 'starter'");
-  const savedPrices = await client.query("select monthly_price, annual_price from plans where id = 'starter'");
-  assert(Number(savedPrices.rows[0].monthly_price) === 89.9 && Number(savedPrices.rows[0].annual_price) === 899, "Preços mensal e anual não persistiram.");
+  assert(
+    [...plans.rows]
+      .sort((a, b) => displayOrder.indexOf(a.id) - displayOrder.indexOf(b.id))
+      .map((row) => row.id)
+      .join(",") === "starter,professional,custom",
+    "Ordem dos cards incorreta.",
+  );
+  await client.query(
+    "update plans set monthly_price = 89.90, annual_price = 899.00 where id = 'starter'",
+  );
+  const savedPrices = await client.query(
+    "select monthly_price, annual_price from plans where id = 'starter'",
+  );
+  assert(
+    Number(savedPrices.rows[0].monthly_price) === 89.9 &&
+      Number(savedPrices.rows[0].annual_price) === 899,
+    "Preços mensal e anual não persistiram.",
+  );
   const company = await client.query("select o.id, o.created_by from organizations o limit 1");
   assert(company.rowCount === 1, "Empresa de teste não encontrada.");
   const organizationId = company.rows[0].id;

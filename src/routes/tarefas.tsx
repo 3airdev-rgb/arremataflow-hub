@@ -6,9 +6,15 @@ export const Route = createFileRoute("/tarefas")({
   head: () => ({
     meta: [
       { title: "Tarefas | ArremataFlow" },
-      { name: "description", content: "Todas as tarefas da empresa agrupadas por projeto, prazo e responsável." },
+      {
+        name: "description",
+        content: "Todas as tarefas da empresa agrupadas por projeto, prazo e responsável.",
+      },
       { property: "og:title", content: "Tarefas | ArremataFlow" },
-      { property: "og:description", content: "Todas as tarefas da empresa agrupadas por projeto, prazo e responsável." },
+      {
+        property: "og:description",
+        content: "Todas as tarefas da empresa agrupadas por projeto, prazo e responsável.",
+      },
     ],
   }),
   component: () => (

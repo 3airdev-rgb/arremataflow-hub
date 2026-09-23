@@ -6,9 +6,15 @@ export const Route = createFileRoute("/perfil")({
   head: () => ({
     meta: [
       { title: "Perfil | ArremataFlow" },
-      { name: "description", content: "Dados pessoais, preferências de notificação e projetos sob sua responsabilidade." },
+      {
+        name: "description",
+        content: "Dados pessoais, preferências de notificação e projetos sob sua responsabilidade.",
+      },
       { property: "og:title", content: "Perfil | ArremataFlow" },
-      { property: "og:description", content: "Dados pessoais, preferências de notificação e projetos sob sua responsabilidade." },
+      {
+        property: "og:description",
+        content: "Dados pessoais, preferências de notificação e projetos sob sua responsabilidade.",
+      },
     ],
   }),
   component: () => (

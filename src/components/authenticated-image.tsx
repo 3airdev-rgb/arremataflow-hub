@@ -41,7 +41,13 @@ export function AuthenticatedImage({ src, alt, className, loading }: Authenticat
     };
   }, [src]);
 
-  return objectUrl
-    ? <img src={objectUrl} alt={alt} className={className} loading={loading} />
-    : <div className={cn(className, "bg-muted")} role="img" aria-label={alt || "Imagem indisponível"} />;
+  return objectUrl ? (
+    <img src={objectUrl} alt={alt} className={className} loading={loading} />
+  ) : (
+    <div
+      className={cn(className, "bg-muted")}
+      role="img"
+      aria-label={alt || "Imagem indisponível"}
+    />
+  );
 }

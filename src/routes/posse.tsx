@@ -6,9 +6,15 @@ export const Route = createFileRoute("/posse")({
   head: () => ({
     meta: [
       { title: "Posse | ArremataFlow" },
-      { name: "description", content: "Situação de ocupação, custos e documentos relativos à imissão na posse." },
+      {
+        name: "description",
+        content: "Situação de ocupação, custos e documentos relativos à imissão na posse.",
+      },
       { property: "og:title", content: "Posse | ArremataFlow" },
-      { property: "og:description", content: "Situação de ocupação, custos e documentos relativos à imissão na posse." },
+      {
+        property: "og:description",
+        content: "Situação de ocupação, custos e documentos relativos à imissão na posse.",
+      },
     ],
   }),
   component: () => (

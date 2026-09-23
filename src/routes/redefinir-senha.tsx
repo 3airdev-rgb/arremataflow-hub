@@ -40,9 +40,12 @@ function ResetPasswordPage() {
           <div className="space-y-4">
             <h1 className="text-2xl">Link inválido ou expirado</h1>
             <p className="text-sm text-muted-foreground">
-              Solicite um novo link de acesso. Por segurança, cada link pode ser usado apenas uma vez.
+              Solicite um novo link de acesso. Por segurança, cada link pode ser usado apenas uma
+              vez.
             </p>
-            <Button asChild className="w-full"><Link to="/">Voltar ao login</Link></Button>
+            <Button asChild className="w-full">
+              <Link to="/">Voltar ao login</Link>
+            </Button>
           </div>
         ) : (
           <form
@@ -51,7 +54,8 @@ function ResetPasswordPage() {
               event.preventDefault();
               const form = event.currentTarget;
               const password = (form.elements.namedItem("password") as HTMLInputElement).value;
-              const confirmation = (form.elements.namedItem("confirmation") as HTMLInputElement).value;
+              const confirmation = (form.elements.namedItem("confirmation") as HTMLInputElement)
+                .value;
               setError(null);
               if (password !== confirmation) {
                 setError("As senhas informadas não coincidem.");
@@ -73,13 +77,31 @@ function ResetPasswordPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Nova senha</Label>
-              <Input id="password" name="password" type="password" minLength={12} autoComplete="new-password" required />
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                minLength={12}
+                autoComplete="new-password"
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmation">Confirmar nova senha</Label>
-              <Input id="confirmation" name="confirmation" type="password" minLength={12} autoComplete="new-password" required />
+              <Input
+                id="confirmation"
+                name="confirmation"
+                type="password"
+                minLength={12}
+                autoComplete="new-password"
+                required
+              />
             </div>
-            {error ? <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}
+            {error ? (
+              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </p>
+            ) : null}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? <Loader2 className="size-4 animate-spin" /> : null}
               Salvar nova senha
@@ -90,4 +112,3 @@ function ResetPasswordPage() {
     </main>
   );
 }
-

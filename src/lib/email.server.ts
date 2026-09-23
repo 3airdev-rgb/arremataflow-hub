@@ -5,13 +5,17 @@ type TransactionalEmail = {
 };
 
 export function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;",
-  })[character]!);
+  return value.replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;",
+      })[character]!,
+  );
 }
 
 export async function sendTransactionalEmail(message: TransactionalEmail) {
@@ -34,7 +38,12 @@ export async function sendTransactionalEmail(message: TransactionalEmail) {
       requireTLS: port === 587,
       auth: { user, pass: password.replace(/\s/g, "") },
     });
-    await transporter.sendMail({ from, to: message.to, subject: message.subject, html: message.html });
+    await transporter.sendMail({
+      from,
+      to: message.to,
+      subject: message.subject,
+      html: message.html,
+    });
     return;
   }
 

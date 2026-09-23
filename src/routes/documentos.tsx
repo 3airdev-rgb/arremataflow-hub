@@ -6,9 +6,17 @@ export const Route = createFileRoute("/documentos")({
   head: () => ({
     meta: [
       { title: "Documentos | ArremataFlow" },
-      { name: "description", content: "Documentos de todos os projetos com versionamento, categoria e trilha de auditoria." },
+      {
+        name: "description",
+        content:
+          "Documentos de todos os projetos com versionamento, categoria e trilha de auditoria.",
+      },
       { property: "og:title", content: "Documentos | ArremataFlow" },
-      { property: "og:description", content: "Documentos de todos os projetos com versionamento, categoria e trilha de auditoria." },
+      {
+        property: "og:description",
+        content:
+          "Documentos de todos os projetos com versionamento, categoria e trilha de auditoria.",
+      },
     ],
   }),
   component: () => (

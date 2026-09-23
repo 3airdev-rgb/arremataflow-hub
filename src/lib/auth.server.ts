@@ -14,7 +14,6 @@ if (typeof betterAuth !== "function") {
   throw new Error("AUTH_BOOTSTRAP_ERROR: betterAuth is unavailable in the production bundle.");
 }
 
-
 const secret = process.env["BETTER_AUTH_SECRET"];
 
 if (!secret || secret.length < 32) {
@@ -70,11 +69,17 @@ const authOptions = {
   advanced: {
     useSecureCookies: process.env["NODE_ENV"] === "production",
   },
-  trustedOrigins: [...new Set([
-    process.env["BETTER_AUTH_URL"],
-    process.env["APP_PUBLIC_URL"],
-    ...(process.env["AUTH_TRUSTED_ORIGINS"] || "").split(","),
-  ].map((origin) => origin?.trim()).filter((origin): origin is string => Boolean(origin)))],
+  trustedOrigins: [
+    ...new Set(
+      [
+        process.env["BETTER_AUTH_URL"],
+        process.env["APP_PUBLIC_URL"],
+        ...(process.env["AUTH_TRUSTED_ORIGINS"] || "").split(","),
+      ]
+        .map((origin) => origin?.trim())
+        .filter((origin): origin is string => Boolean(origin)),
+    ),
+  ],
 } satisfies BetterAuthOptions;
 
 export const auth = (() => {

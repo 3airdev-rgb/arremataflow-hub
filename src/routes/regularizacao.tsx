@@ -6,9 +6,17 @@ export const Route = createFileRoute("/regularizacao")({
   head: () => ({
     meta: [
       { title: "Regularização | ArremataFlow" },
-      { name: "description", content: "Acompanhe averbações, certidões, débitos condominiais e ações judiciais em andamento." },
+      {
+        name: "description",
+        content:
+          "Acompanhe averbações, certidões, débitos condominiais e ações judiciais em andamento.",
+      },
       { property: "og:title", content: "Regularização | ArremataFlow" },
-      { property: "og:description", content: "Acompanhe averbações, certidões, débitos condominiais e ações judiciais em andamento." },
+      {
+        property: "og:description",
+        content:
+          "Acompanhe averbações, certidões, débitos condominiais e ações judiciais em andamento.",
+      },
     ],
   }),
   component: () => (
