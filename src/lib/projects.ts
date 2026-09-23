@@ -796,7 +796,6 @@ export const listParticipantProjects = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const ctx = await context();
     const { db, schema, membership, session } = ctx;
-    const isManager = ["owner", "admin"].includes(membership.role);
     const base = await db
       .select({
         project: schema.projects,
@@ -805,20 +804,18 @@ export const listParticipantProjects = createServerFn({ method: "GET" })
         contactEmail: schema.contacts.email,
       })
       .from(schema.projects)
-      .leftJoin(
+      .innerJoin(
         schema.projectParticipants,
         and(
           eq(schema.projectParticipants.projectId, schema.projects.id),
           eq(schema.projectParticipants.role, data.role),
         ),
       )
-      .leftJoin(schema.contacts, eq(schema.contacts.id, schema.projectParticipants.contactId))
+      .innerJoin(schema.contacts, eq(schema.contacts.id, schema.projectParticipants.contactId))
       .where(
         and(
           eq(schema.projects.organizationId, membership.organizationId),
-          isManager
-            ? undefined
-            : sql`lower(${schema.contacts.email}) = lower(${session.user.email})`,
+          sql`lower(${schema.contacts.email}) = lower(${session.user.email})`,
         ),
       )
       .orderBy(desc(schema.projects.updatedAt));
