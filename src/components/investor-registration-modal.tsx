@@ -1,0 +1,626 @@
+import { useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { showValidationAlert } from "@/lib/validation-feedback";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+export interface UnifiedEntityData {
+  nome: string;
+  documento: string; // CPF ou CNPJ
+  dataNascimento?: string;
+  estadoCivil?: string;
+  celulares: string[];
+  endereco?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cep?: string;
+  email: string;
+  banco?: string;
+  agencia?: string;
+  conta?: string;
+  website?: string;
+  cidade?: string;
+  estado?: string;
+}
+
+interface UnifiedModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (data: UnifiedEntityData) => void | Promise<void>;
+  type?: "Investidor" | "Assessor" | "Responsável" | "Leiloeiro";
+}
+
+const UFs = [
+  "AC",
+  "AL",
+  "AP",
+  "AM",
+  "BA",
+  "CE",
+  "DF",
+  "ES",
+  "GO",
+  "MA",
+  "MT",
+  "MS",
+  "MG",
+  "PA",
+  "PB",
+  "PR",
+  "PE",
+  "PI",
+  "RJ",
+  "RN",
+  "RS",
+  "RO",
+  "RR",
+  "SC",
+  "SP",
+  "SE",
+  "TO",
+];
+
+const currentYear = new Date().getFullYear();
+const birthYears = Array.from({ length: currentYear - 1899 }, (_, index) =>
+  String(currentYear - index),
+);
+const months = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
+
+export function InvestorRegistrationModal({
+  open,
+  onOpenChange,
+  onSave,
+  type = "Investidor",
+}: UnifiedModalProps) {
+  const [formData, setFormData] = useState<UnifiedEntityData>({
+    nome: "",
+    documento: "",
+    dataNascimento: "",
+    estadoCivil: "",
+    celulares: [""],
+    endereco: "",
+    numero: "",
+    complemento: "",
+    bairro: "",
+    cep: "",
+    email: "",
+    banco: "",
+    agencia: "",
+    conta: "",
+    website: "",
+    cidade: "",
+    estado: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [duplicateDocumentWarning, setDuplicateDocumentWarning] = useState(false);
+
+  const formatDocument = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    if (digits.length <= 11) {
+      // CPF
+      return digits
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    } else {
+      // CNPJ
+      return digits
+        .substring(0, 14)
+        .replace(/^(\d{2})(\d)/, "$1.$2")
+        .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+        .replace(/\.(\d{3})(\d)/, ".$1/$2")
+        .replace(/(\d{4})(\d)/, "$1-$2");
+    }
+  };
+
+  const formatPhone = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    if (digits.length <= 11) {
+      return digits.replace(/^(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
+    }
+    return value;
+  };
+
+  const addCelular = () => {
+    setFormData({
+      ...formData,
+      celulares: [...formData.celulares, ""],
+    });
+  };
+
+  const removeCelular = (index: number) => {
+    if (formData.celulares.length <= 1) return;
+    const newCelulares = [...formData.celulares];
+    newCelulares.splice(index, 1);
+    setFormData({ ...formData, celulares: newCelulares });
+  };
+
+  const updateCelular = (index: number, value: string) => {
+    const newCelulares = [...formData.celulares];
+    newCelulares[index] = formatPhone(value);
+    setFormData({ ...formData, celulares: newCelulares });
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setErrorMessage("");
+    setSaving(true);
+    try {
+      await onSave(formData);
+      onOpenChange(false);
+      setFormData({
+        nome: "",
+        documento: "",
+        dataNascimento: "",
+        estadoCivil: "",
+        celulares: [""],
+        endereco: "",
+        numero: "",
+        complemento: "",
+        bairro: "",
+        cep: "",
+        email: "",
+        banco: "",
+        agencia: "",
+        conta: "",
+        website: "",
+        cidade: "",
+        estado: "",
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : `Não foi possível cadastrar o ${type.toLowerCase()}.`;
+      setErrorMessage(message);
+      if (message === "CPF já Cadastrado.") {
+        setDuplicateDocumentWarning(true);
+      } else {
+        showValidationAlert(message, `Revise os dados do ${type.toLowerCase()}.`);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isLeiloeiro = type === "Leiloeiro";
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setErrorMessage("");
+      setDuplicateDocumentWarning(false);
+    }
+    onOpenChange(nextOpen);
+  };
+  const [birthYear = "", birthMonth = "", birthDay = ""] =
+    formData.dataNascimento?.split("-") || [];
+  const daysInBirthMonth =
+    birthYear && birthMonth ? new Date(Number(birthYear), Number(birthMonth), 0).getDate() : 31;
+  const updateBirthDate = (part: "year" | "month" | "day", value: string) => {
+    let year = birthYear,
+      month = birthMonth,
+      day = birthDay;
+    if (part === "year") year = value;
+    if (part === "month") month = value;
+    if (part === "day") day = value;
+    if (year && month && day) {
+      const maximumDay = new Date(Number(year), Number(month), 0).getDate();
+      day = String(Math.min(Number(day), maximumDay)).padStart(2, "0");
+    }
+    setFormData({ ...formData, dataNascimento: [year, month, day].join("-") });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Cadastro de {type}</DialogTitle>
+          <DialogDescription>
+            Informe os dados cadastrais para vincular ao projeto.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="nome">Nome {isLeiloeiro ? "" : "Completo"}</Label>
+              <Input
+                id="nome"
+                required
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                placeholder={isLeiloeiro ? "Nome do leiloeiro ou empresa" : "Ex: João da Silva"}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="documento">CPF ou CNPJ</Label>
+              <Input
+                id="documento"
+                required
+                value={formData.documento}
+                onChange={(e) =>
+                  setFormData({ ...formData, documento: formatDocument(e.target.value) })
+                }
+                placeholder="000.000.000-00 ou 00.000.000/0000-00"
+              />
+            </div>
+
+            {isLeiloeiro ? (
+              <div className="space-y-2">
+                <Label htmlFor="website">Website</Label>
+                <Input
+                  id="website"
+                  type="url"
+                  value={formData.website}
+                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  placeholder="https://exemplo.com.br"
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="nascimento">Data de Nascimento</Label>
+                <div
+                  className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,6rem),1fr))] gap-2"
+                  aria-label="Data de Nascimento"
+                >
+                  <Select
+                    value={birthYear}
+                    onValueChange={(value) => updateBirthDate("year", value)}
+                    required
+                  >
+                    <SelectTrigger id="nascimento" aria-label="Ano de nascimento">
+                      <SelectValue placeholder="Ano" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-64">
+                      {birthYears.map((year) => (
+                        <SelectItem key={year} value={year}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={birthMonth}
+                    onValueChange={(value) => updateBirthDate("month", value)}
+                    required
+                  >
+                    <SelectTrigger aria-label="Mês de nascimento">
+                      <SelectValue placeholder="Mês" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {months.map((month, index) => {
+                        const value = String(index + 1).padStart(2, "0");
+                        return (
+                          <SelectItem key={value} value={value}>
+                            {month}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={birthDay}
+                    onValueChange={(value) => updateBirthDate("day", value)}
+                    required
+                  >
+                    <SelectTrigger aria-label="Dia de nascimento">
+                      <SelectValue placeholder="Dia" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-64">
+                      {Array.from({ length: daysInBirthMonth }, (_, index) =>
+                        String(index + 1).padStart(2, "0"),
+                      ).map((day) => (
+                        <SelectItem key={day} value={day}>
+                          {day}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {!isLeiloeiro && (
+              <div className="space-y-2">
+                <Label htmlFor="estadoCivil">Estado Civil</Label>
+                <Select
+                  value={formData.estadoCivil || ""}
+                  onValueChange={(val) => setFormData({ ...formData, estadoCivil: val })}
+                >
+                  <SelectTrigger id="estadoCivil">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="solteiro">Solteiro(a)</SelectItem>
+                    <SelectItem value="casado">Casado(a)</SelectItem>
+                    <SelectItem value="divorciado">Divorciado(a)</SelectItem>
+                    <SelectItem value="viuvo">Viúvo(a)</SelectItem>
+                    <SelectItem value="uniao-estavel">União Estável</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>{isLeiloeiro ? "Telefone" : "Celular"}</Label>
+              <div className="space-y-2">
+                {formData.celulares.map((cel, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <Input
+                      value={cel}
+                      onChange={(e) => updateCelular(idx, e.target.value)}
+                      placeholder="(+55) 00 00000-0000"
+                    />
+                    {formData.celulares.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeCelular(idx)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {!isLeiloeiro && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={addCelular}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Adicionar celular
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {isLeiloeiro && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="cidade">Cidade</Label>
+                  <Input
+                    id="cidade"
+                    value={formData.cidade}
+                    onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
+                    placeholder="Ex: São Paulo"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="estado">Estado (UF)</Label>
+                  <Select
+                    value={formData.estado || ""}
+                    onValueChange={(val) => setFormData({ ...formData, estado: val })}
+                  >
+                    <SelectTrigger id="estado">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {UFs.map((uf) => (
+                        <SelectItem key={uf} value={uf}>
+                          {uf}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+          </div>
+
+          {!isLeiloeiro && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="endereco">Endereço</Label>
+                <Input
+                  id="endereco"
+                  required
+                  value={formData.endereco}
+                  onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
+                  placeholder="Rua, avenida, travessa..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="numero">Nro.</Label>
+                <Input
+                  id="numero"
+                  required
+                  value={formData.numero}
+                  onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
+                  placeholder="123"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="complemento">Complemento</Label>
+                <Input
+                  id="complemento"
+                  value={formData.complemento}
+                  onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
+                  placeholder="Apto., sala, bloco..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bairro">Bairro</Label>
+                <Input
+                  id="bairro"
+                  required
+                  value={formData.bairro}
+                  onChange={(e) => setFormData({ ...formData, bairro: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cidade">Cidade</Label>
+                <Input
+                  id="cidade"
+                  required
+                  value={formData.cidade}
+                  onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="estado">UF</Label>
+                <Select
+                  value={formData.estado || ""}
+                  onValueChange={(value) => setFormData({ ...formData, estado: value })}
+                  required
+                >
+                  <SelectTrigger id="estado">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UFs.map((uf) => (
+                      <SelectItem key={uf} value={uf}>
+                        {uf}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cep">CEP</Label>
+                <Input
+                  id="cep"
+                  required
+                  inputMode="numeric"
+                  maxLength={9}
+                  value={formData.cep}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
+                    setFormData({ ...formData, cep: digits.replace(/(\d{5})(\d)/, "$1-$2") });
+                  }}
+                  placeholder="00000-000"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              required
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              placeholder="exemplo@email.com"
+            />
+          </div>
+
+          {!isLeiloeiro && (
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium border-b pb-2">Dados Bancários</h4>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="banco">Banco</Label>
+                  <Input
+                    id="banco"
+                    value={formData.banco}
+                    onChange={(e) => setFormData({ ...formData, banco: e.target.value })}
+                    placeholder="Ex: Itaú"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="agencia">Agência</Label>
+                  <Input
+                    id="agencia"
+                    value={formData.agencia}
+                    onChange={(e) => setFormData({ ...formData, agencia: e.target.value })}
+                    placeholder="0000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="conta">Conta Corrente</Label>
+                  <Input
+                    id="conta"
+                    value={formData.conta}
+                    onChange={(e) => setFormData({ ...formData, conta: e.target.value })}
+                    placeholder="00000-0"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {errorMessage ? (
+            <p
+              role="alert"
+              className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
+              {errorMessage}
+            </p>
+          ) : null}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Cadastrando..." : "Cadastrar e Adicionar"}
+            </Button>
+          </DialogFooter>
+        </form>
+
+        <AlertDialog open={duplicateDocumentWarning} onOpenChange={setDuplicateDocumentWarning}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>CPF já Cadastrado.</AlertDialogTitle>
+              <AlertDialogDescription>
+                Já existe um cadastro com este CPF neste segmento. Verifique o documento informado
+                antes de continuar.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction onClick={() => setDuplicateDocumentWarning(false)}>
+                OK
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </DialogContent>
+    </Dialog>
+  );
+}

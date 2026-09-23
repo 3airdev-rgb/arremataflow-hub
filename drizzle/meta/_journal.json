@@ -1,0 +1,195 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789257600000,
+      "tag": "0000_auth_and_organizations",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789407000000,
+      "tag": "0001_organization_profile",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789408800000,
+      "tag": "0002_projects",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789495200000,
+      "tag": "0003_contacts_and_project_participants",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789502400000,
+      "tag": "0004_financial_movements",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789503300000,
+      "tag": "0005_immutable_audit_logs",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789504200000,
+      "tag": "0006_secure_documents",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789505100000,
+      "tag": "0007_tasks_and_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789591500000,
+      "tag": "0008_report_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789677900000,
+      "tag": "0009_domain_integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789682400000,
+      "tag": "0010_project_operations",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789686000000,
+      "tag": "0011_secure_project_images",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789689600000,
+      "tag": "0012_commercial_operations",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789776000000,
+      "tag": "0013_active_organization",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789862400000,
+      "tag": "0014_contact_roles_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790020800000,
+      "tag": "0015_property_inspections",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790121600000,
+      "tag": "0016_property_inspection_deadline",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790208000000,
+      "tag": "0017_judicial_action_movements",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790294400000,
+      "tag": "0018_task_meeting_invitations",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790380800000,
+      "tag": "0019_project_contracts",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790467200000,
+      "tag": "0020_scheduled_email_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790553600000,
+      "tag": "0021_default_advisory_fee",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790639999000,
+      "tag": "0022_developer_console",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790726399000,
+      "tag": "0023_unify_administrator_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790812799000,
+      "tag": "0024_support_dashboard",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790899199000,
+      "tag": "0025_annual_plan_price",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790985599000,
+      "tag": "0026_subscription_dates",
+      "breakpoints": true
+    }
+  ]
+}

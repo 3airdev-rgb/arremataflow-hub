@@ -1,0 +1,162 @@
+import { KpiCard } from "@/components/kpi-card";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { AppLayout } from "@/components/app-layout";
+import { AuthenticatedImage } from "@/components/authenticated-image";
+import { StatusBadge } from "@/components/status-badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { listParticipantProjects } from "@/lib/projects";
+import { formatBRL } from "@/lib/format-currency";
+
+export const Route = createFileRoute("/assessores")({
+  head: () => ({
+    meta: [
+      { title: "Painel do Assessor | ArremataFlow" },
+      { name: "description", content: "Acompanhe os projetos em que o assessor está alocado." },
+      { property: "og:title", content: "Painel do Assessor | ArremataFlow" },
+      {
+        property: "og:description",
+        content: "Projetos e resultados sob responsabilidade do assessor.",
+      },
+    ],
+  }),
+  component: PainelAssessor,
+});
+
+function PainelAssessor() {
+  const [statusFilter, setStatusFilter] = useState("todos");
+  const { data: projetosDoAssessor = [], isPending } = useQuery({
+    queryKey: ["participant-projects", "advisor"],
+    queryFn: () => listParticipantProjects({ data: { role: "advisor" } }),
+  });
+  const statusOrder: Record<string, number> = {
+    atrasado: 1,
+    pendente: 2,
+    aguardando: 3,
+    andamento: 4,
+    concluido: 5,
+    nao_iniciado: 6,
+  };
+  const projetosVisiveis = [...projetosDoAssessor]
+    .filter((project) => statusFilter === "todos" || project.status === statusFilter)
+    .sort((a, b) => (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99));
+
+  return (
+    <AppLayout
+      title="Painel do Assessor"
+      subtitle={`${projetosDoAssessor.length} projeto(s) disponível(is)`}
+    >
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold">Projetos vinculados</h3>
+          <p className="text-sm text-muted-foreground">Ordenados por prioridade de situação.</p>
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-56" aria-label="Filtrar projetos por status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os status</SelectItem>
+            <SelectItem value="atrasado">Atrasado</SelectItem>
+            <SelectItem value="pendente">Pendente</SelectItem>
+            <SelectItem value="aguardando">Aguardando terceiro</SelectItem>
+            <SelectItem value="andamento">Em andamento</SelectItem>
+            <SelectItem value="concluido">Concluído</SelectItem>
+            <SelectItem value="nao_iniciado">Não iniciado</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid gap-5 md:grid-cols-2">
+        {projetosVisiveis.map((project) => (
+          <Link
+            key={project.id}
+            to="/projetos/$id"
+            params={{ id: project.id }}
+            className="surface-card block overflow-hidden transition-shadow hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            aria-label={`Visualizar projeto ${project.nome}`}
+          >
+            <AuthenticatedImage
+              src={project.foto}
+              alt={`Foto do imóvel ${project.nome}`}
+              className="h-48 w-full object-cover"
+            />
+            <div className="p-5">
+              <h2 className="text-xl">{project.nome}</h2>
+              <p className="text-sm text-muted-foreground">
+                {project.endereco} — {project.cidade}
+              </p>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <StatusBadge status={project.status} />
+                <p className="text-xs text-muted-foreground">
+                  Etapa atual: <span className="font-medium text-foreground">{project.etapa}</span>
+                </p>
+              </div>
+              <div className="mt-4">
+                <div className="mb-1 flex justify-between text-xs text-muted-foreground">
+                  <span>Evolução do projeto</span>
+                  <span>{project.progresso}%</span>
+                </div>
+                <div
+                  className="relative h-2.5 overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  aria-valuenow={project.progresso}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <div
+                    className="absolute inset-0 rounded-full transition-[clip-path]"
+                    style={{
+                      background:
+                        "linear-gradient(90deg, #ef1b1b 0%, #ff6814 30%, #ffc400 58%, #08b85a 100%)",
+                      clipPath: `inset(0 ${100 - Math.min(Math.max(project.progresso, 0), 100)}% 0 0)`,
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="kpi-grid mt-5">
+                <KpiCard
+                  className="bg-muted"
+                  labelClassName="text-xs text-muted-foreground"
+                  label="Capital investido"
+                  value={formatBRL(project.capitalInvestido)}
+                />
+                <KpiCard
+                  className="bg-primary-soft"
+                  labelClassName="text-xs text-brand"
+                  label="Resultado projetado"
+                  valueClassName="text-brand"
+                  value={formatBRL(project.resultadoProjetado)}
+                />
+                <KpiCard
+                  className="bg-success-soft"
+                  labelClassName="text-xs text-success"
+                  label="Participação"
+                  valueClassName="text-success"
+                  value={
+                    project.participationPercentage == null
+                      ? "—"
+                      : `${project.participationPercentage}%`
+                  }
+                />
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {!isPending && projetosVisiveis.length === 0 ? (
+        <div className="surface-card mt-5 p-8 text-center text-sm text-muted-foreground">
+          Nenhum projeto encontrado para o status selecionado.
+        </div>
+      ) : null}
+    </AppLayout>
+  );
+}

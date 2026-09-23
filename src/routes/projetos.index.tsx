@@ -1,0 +1,394 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState, useMemo } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
+import { AppLayout } from "@/components/app-layout";
+import { AuthenticatedImage } from "@/components/authenticated-image";
+import { StatusBadge } from "@/components/status-badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { statusLabels, statusPriority, type StatusKey } from "@/lib/project-display";
+import { deleteProject, listDashboardProjectIds, listProjects } from "@/lib/projects";
+import { getCurrentOrganizationUser } from "@/lib/organization-users";
+
+const dashboardFilters = [
+  "projetos-finalizados",
+  "projetos-ativos",
+  "regularizacoes-finalizadas",
+  "regularizacoes-nao-finalizadas",
+  "obras-finalizadas",
+  "obras-em-andamento",
+] as const;
+type DashboardFilter = (typeof dashboardFilters)[number];
+
+export const Route = createFileRoute("/projetos/")({
+  validateSearch: (search: Record<string, unknown>): { visao?: DashboardFilter } => {
+    const visao = search["visao"];
+    return dashboardFilters.includes(visao as DashboardFilter)
+      ? { visao: visao as DashboardFilter }
+      : {};
+  },
+  head: () => ({
+    meta: [
+      { title: "Projetos | ArremataFlow" },
+      {
+        name: "description",
+        content:
+          "Liste, busque e acompanhe todos os projetos imobiliários da empresa por etapa, responsável e status.",
+      },
+      { property: "og:title", content: "Gestão de Projetos | ArremataFlow" },
+      {
+        property: "og:description",
+        content: "Todos os projetos pós-arrematação em uma tabela moderna com busca e filtros.",
+      },
+    ],
+  }),
+  component: ProjetosPage,
+});
+
+type UnifiedProject = {
+  id: string;
+  codigo: string;
+  nome: string;
+  endereco: string;
+  cidade: string;
+  etapa: string;
+  status: StatusKey;
+  responsavel: string;
+  investidores: string[];
+  assessores: string[];
+  foto: string | null;
+  updated_at: string;
+  currentUserRole: string | null;
+};
+
+const capitalizeWords = (value: string) =>
+  value.replace(
+    /(^|[\s-])([\p{L}])/gu,
+    (_, separator: string, letter: string) => `${separator}${letter.toLocaleUpperCase("pt-BR")}`,
+  );
+
+function ProjetosPage() {
+  const { visao } = Route.useSearch();
+  const [q, setQ] = useState("");
+  const [etapaFilter, setEtapaFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [projectToDelete, setProjectToDelete] = useState<UnifiedProject | null>(null);
+  const queryClient = useQueryClient();
+  const { data: savedProjects = [], isPending } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => listProjects(),
+  });
+  const { data: currentUser } = useQuery({
+    queryKey: ["current-organization-user"],
+    queryFn: () => getCurrentOrganizationUser(),
+  });
+  const relatedFilter = visao && !visao.startsWith("projetos-") ? visao : null;
+  const { data: dashboardProjectIds = [], isPending: isDashboardFilterPending } = useQuery({
+    queryKey: ["dashboard-project-filter", relatedFilter],
+    queryFn: () =>
+      listDashboardProjectIds({
+        data: {
+          filter: relatedFilter as Exclude<
+            DashboardFilter,
+            "projetos-finalizados" | "projetos-ativos"
+          >,
+        },
+      }),
+    enabled: Boolean(relatedFilter),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteProject({ data: { id } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      setProjectToDelete(null);
+      toast.success("Projeto excluído com sucesso.");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Não foi possível excluir o projeto.");
+    },
+  });
+
+  const unifiedProjects = useMemo(() => {
+    const realProjects: UnifiedProject[] = savedProjects.map((p) => ({
+      id: p.id,
+      codigo: p.codigo || "S/C",
+      nome: p.nome || "Sem nome",
+      endereco: p.endereco || "Sem endereço",
+      cidade: p.cidade || "",
+      etapa: p.etapa || "Não definida",
+      status: (p.status as StatusKey) || "nao_iniciado",
+      responsavel: p.responsavel || "Não atribuído",
+      investidores: p.investidores || [],
+      assessores: Array.isArray(p["assessores"])
+        ? (p["assessores"] as Array<string | { nome?: string }>).map((assessor) =>
+            typeof assessor === "string" ? assessor : assessor.nome || "",
+          )
+        : [],
+      foto: p.foto,
+      updated_at: p.updated_at,
+      currentUserRole: p.currentUserRole,
+    }));
+
+    return realProjects;
+  }, [savedProjects]);
+
+  const sortedAndFiltrada = useMemo(() => {
+    return unifiedProjects
+      .filter((p) => {
+        const matchesDashboard =
+          !visao ||
+          (visao === "projetos-finalizados" && p.status === "concluido") ||
+          (visao === "projetos-ativos" && p.status !== "concluido") ||
+          (Boolean(relatedFilter) && dashboardProjectIds.includes(p.id));
+        const matchesSearch = `${p.nome} ${p.endereco} ${p.codigo}`
+          .toLowerCase()
+          .includes(q.toLowerCase());
+        const matchesEtapa = etapaFilter === "all" || p.etapa === etapaFilter;
+        const matchesStatus = statusFilter === "all" || p.status === statusFilter;
+        return matchesDashboard && matchesSearch && matchesEtapa && matchesStatus;
+      })
+      .sort((a, b) => {
+        // Priority order: Atrasado, Pendente, Aguardando, Andamento, Não Iniciado, Concluído
+        const pA = statusPriority[a.status] || 99;
+        const pB = statusPriority[b.status] || 99;
+
+        if (pA !== pB) return pA - pB;
+
+        // Secondary: updated_at (newest first)
+        const dateA = new Date(a.updated_at).getTime();
+        const dateB = new Date(b.updated_at).getTime();
+        if (dateB !== dateA) return dateB - dateA;
+
+        // Tertiary: code ascending
+        return a.codigo.localeCompare(b.codigo);
+      });
+  }, [unifiedProjects, q, etapaFilter, statusFilter, visao, relatedFilter, dashboardProjectIds]);
+
+  const todasEtapas = useMemo(() => {
+    const etapas = new Set(unifiedProjects.map((p) => p.etapa));
+    return Array.from(etapas).sort();
+  }, [unifiedProjects]);
+
+  const clearFilters = () => {
+    setQ("");
+    setEtapaFilter("all");
+    setStatusFilter("all");
+  };
+
+  return (
+    <AppLayout
+      title="Gestão de Projetos"
+      subtitle={`${unifiedProjects.length} projetos no total`}
+      actions={
+        ["owner", "admin", "project_manager"].includes(currentUser?.role || "") ? (
+          <Button asChild>
+            <Link to="/projetos/novo">
+              <Plus className="size-4" /> Novo projeto
+            </Link>
+          </Button>
+        ) : null
+      }
+    >
+      <div className="surface-card overflow-hidden">
+        <div className="border-b border-border p-4 flex flex-col md:flex-row md:items-center gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label="Buscar projetos"
+              placeholder="Buscar por nome, código ou endereço"
+              className="pl-9"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={etapaFilter} onValueChange={setEtapaFilter}>
+              <SelectTrigger className="w-full sm:w-44">
+                <SelectValue placeholder="Filtrar por Modalidade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as Modalidades</SelectItem>
+                {todasEtapas.map((etapa) => (
+                  <SelectItem key={etapa} value={etapa}>
+                    {capitalizeWords(etapa)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-44">
+                <SelectValue placeholder="Filtrar por Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Status</SelectItem>
+                {(Object.entries(statusLabels) as [StatusKey, string][]).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {(q !== "" || etapaFilter !== "all" || statusFilter !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="text-muted-foreground hover:text-foreground h-9"
+              >
+                <X className="size-4 mr-2" />
+                Limpar
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div
+          tabIndex={0}
+          role="region"
+          aria-label="Tabela com rolagem horizontal"
+          className="table-scroll overflow-x-auto"
+        >
+          <table className="w-full min-w-[800px] text-sm">
+            <thead className="bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3 font-medium text-[11px]">Projeto</th>
+                <th className="px-4 py-3 font-medium text-[11px]">Modalidade</th>
+                <th className="px-4 py-3 font-medium text-[11px]">Responsável</th>
+                <th className="px-4 py-3 font-medium text-[11px]">Investidores</th>
+                <th className="px-4 py-3 font-medium text-[11px]">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedAndFiltrada.map((p) => (
+                <tr
+                  key={p.id}
+                  className="border-t border-border transition-colors hover:bg-muted/40"
+                >
+                  <td className="px-4 py-3">
+                    <Link
+                      to="/projetos/$id"
+                      params={{ id: p.id }}
+                      className="flex items-center gap-3"
+                    >
+                      {p.foto ? (
+                        <AuthenticatedImage
+                          src={p.foto}
+                          alt={`Fachada do imóvel ${p.nome}`}
+                          loading="lazy"
+                          className="size-10 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="size-10 rounded-lg bg-muted flex items-center justify-center">
+                          <Plus className="size-4 text-muted-foreground" />
+                        </div>
+                      )}
+                      <span className="block">
+                        <span className="block font-medium text-foreground hover:text-brand">
+                          {p.nome}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                          {p.codigo} · {p.endereco}
+                        </span>
+                      </span>
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{capitalizeWords(p.etapa)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{p.responsavel}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {p.investidores.map((inv, idx) => (
+                      <span key={idx} className="block">
+                        {inv}
+                      </span>
+                    ))}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge status={p.status} />
+                      {["owner", "admin", "project_manager"].includes(p.currentUserRole || "") ? (
+                        <>
+                          <Button asChild variant="outline" size="sm" className="h-8">
+                            <Link to="/projetos/$id/editar" params={{ id: p.id }}>
+                              <Pencil className="size-3.5" /> Editar projeto
+                            </Link>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => setProjectToDelete(p)}
+                          >
+                            <Trash2 className="size-3.5" /> Excluir projeto
+                          </Button>
+                        </>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!isPending &&
+              (!relatedFilter || !isDashboardFilterPending) &&
+              sortedAndFiltrada.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
+                    Nenhum projeto encontrado para os filtros selecionados.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <AlertDialog
+        open={projectToDelete !== null}
+        onOpenChange={(open) => !open && !deleteMutation.isPending && setProjectToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir projeto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação excluirá definitivamente o projeto “{projectToDelete?.nome}” e todos os
+              dados, documentos e imagens vinculados a ele. Esta operação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending || !projectToDelete}
+              onClick={(event) => {
+                event.preventDefault();
+                if (projectToDelete) deleteMutation.mutate(projectToDelete.id);
+              }}
+            >
+              {deleteMutation.isPending ? "Excluindo..." : "Excluir definitivamente"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </AppLayout>
+  );
+}

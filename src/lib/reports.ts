@@ -1,0 +1,481 @@
+import { createServerFn } from "@tanstack/react-start";
+import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { z } from "zod";
+import { formatBRL } from "@/lib/format-currency";
+
+export const reportKeys = [
+  "revenues",
+  "expenses",
+  "cash_flow",
+  "expenses_by_category",
+  "invested_capital",
+  "tasks",
+  "active_projects",
+  "completed_projects",
+  "projects_by_status",
+  "projects_by_modality",
+  "audit",
+  "financial_changes",
+  "contracts",
+  "documents",
+  "users",
+  "investors",
+  "advisors",
+  "projects",
+] as const;
+
+const input = z
+  .object({
+    reportKey: z.enum(reportKeys),
+    projectId: z.string().uuid().nullable().default(null),
+    status: z.enum(["active", "completed", "all"]).default("active"),
+    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    format: z.enum(["view", "pdf", "csv"]),
+  })
+  .refine((value) => value.startDate <= value.endDate, { message: "Período inválido." });
+
+async function reportContext() {
+  const [{ getRequestHeaders }, { auth }, { db }, schema] = await Promise.all([
+    import("@tanstack/react-start/server"),
+    import("@/lib/auth.server"),
+    import("@/db/index.server"),
+    import("@/db/schema"),
+  ]);
+  const session = await auth.api.getSession({ headers: getRequestHeaders() });
+  if (!session) throw new Error("Não autenticado.");
+  const { resolveActiveMembership } = await import("@/lib/active-organization.server");
+  const membership = await resolveActiveMembership(db, schema, session.user.id);
+  if (!membership) throw new Error("Empresa ativa não encontrada.");
+  const { enforcePlanFeature } = await import("@/lib/developer.server");
+  await enforcePlanFeature(membership.organizationId, "menuItems", "Relatórios");
+  let projectIds: string[] | null = null;
+  if (!["owner", "admin"].includes(membership.role)) {
+    const linked = await db
+      .select({ projectId: schema.projectParticipants.projectId })
+      .from(schema.projectParticipants)
+      .innerJoin(schema.contacts, eq(schema.contacts.id, schema.projectParticipants.contactId))
+      .innerJoin(schema.projects, eq(schema.projects.id, schema.projectParticipants.projectId))
+      .where(
+        and(
+          eq(schema.projects.organizationId, membership.organizationId),
+          inArray(schema.projectParticipants.role, ["responsible", "advisor", "investor"]),
+          eq(schema.contacts.status, "active"),
+          sql`lower(${schema.contacts.email}) = lower(${session.user.email})`,
+        ),
+      );
+    projectIds = [...new Set(linked.map((row) => row.projectId))];
+  }
+  return { db, schema, session, membership, projectIds };
+}
+
+const isCompleted = (status: string) => status === "concluido";
+const matchesSituation = (project: { status: string }, status: "active" | "completed" | "all") =>
+  status === "all" ||
+  (status === "completed" ? isCompleted(project.status) : !isCompleted(project.status));
+const money = (value: unknown) => formatBRL(Number(value || 0));
+const date = (value: Date | string | null) =>
+  value ? new Date(value).toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "—";
+const initialUppercase = (value: unknown) => {
+  const text = String(value ?? "").trim();
+  return text ? `${text.charAt(0).toLocaleUpperCase("pt-BR")}${text.slice(1)}` : "—";
+};
+const projectStatusLabels: Record<string, string> = {
+  atrasado: "Atrasado",
+  pendente: "Pendente",
+  aguardando: "Aguardando",
+  andamento: "Em andamento",
+  nao_iniciado: "Não iniciado",
+  concluido: "Concluído",
+};
+
+export const listReportProjects = createServerFn({ method: "GET" }).handler(async () => {
+  const ctx = await reportContext();
+  if (ctx.projectIds?.length === 0) return [];
+  return ctx.db
+    .select({
+      id: ctx.schema.projects.id,
+      code: ctx.schema.projects.code,
+      name: ctx.schema.projects.name,
+      status: ctx.schema.projects.status,
+    })
+    .from(ctx.schema.projects)
+    .where(
+      and(
+        eq(ctx.schema.projects.organizationId, ctx.membership.organizationId),
+        ctx.projectIds ? inArray(ctx.schema.projects.id, ctx.projectIds) : undefined,
+      ),
+    )
+    .orderBy(ctx.schema.projects.name);
+});
+
+export const generateReport = createServerFn({ method: "POST" })
+  .validator(input)
+  .handler(async ({ data }) => {
+    const ctx = await reportContext();
+    if (ctx.projectIds?.length === 0)
+      throw new Error("Nenhum projeto autorizado para este usuário.");
+    if (data.projectId && ctx.projectIds && !ctx.projectIds.includes(data.projectId))
+      throw new Error("Projeto não autorizado.");
+    const projects = await ctx.db
+      .select()
+      .from(ctx.schema.projects)
+      .where(
+        and(
+          eq(ctx.schema.projects.organizationId, ctx.membership.organizationId),
+          ctx.projectIds ? inArray(ctx.schema.projects.id, ctx.projectIds) : undefined,
+          data.projectId ? eq(ctx.schema.projects.id, data.projectId) : undefined,
+        ),
+      );
+    const selected = projects.filter((project) => matchesSituation(project, data.status));
+    const ids = selected.map((project) => project.id);
+    const projectMap = new Map(selected.map((project) => [project.id, project]));
+    const participants = ids.length
+      ? await ctx.db
+          .select({ name: ctx.schema.contacts.name, role: ctx.schema.projectParticipants.role })
+          .from(ctx.schema.projectParticipants)
+          .innerJoin(
+            ctx.schema.contacts,
+            eq(ctx.schema.contacts.id, ctx.schema.projectParticipants.contactId),
+          )
+          .where(
+            and(
+              inArray(ctx.schema.projectParticipants.projectId, ids),
+              eq(ctx.schema.contacts.status, "active"),
+            ),
+          )
+      : [];
+    const uniqueNamesByRole = (role: "investor" | "advisor") =>
+      [
+        ...new Set(
+          participants
+            .filter((participant) => participant.role === role)
+            .map((participant) => participant.name),
+        ),
+      ].sort((a, b) => a.localeCompare(b, "pt-BR"));
+    const reportHeader = {
+      projectNames: selected.map((project) => project.name),
+      investorNames: uniqueNamesByRole("investor"),
+      advisorNames: uniqueNamesByRole("advisor"),
+    };
+    const start = new Date(`${data.startDate}T00:00:00.000Z`),
+      end = new Date(`${data.endDate}T23:59:59.999Z`);
+    let columns: string[] = [],
+      rows: Record<string, string | number>[] = [];
+    let summary: { credits: number; debits: number } | null = null;
+    let chart: Array<{ name: string; value: number; percentage: number }> = [];
+    const financialKeys = ["revenues", "expenses", "cash_flow"];
+
+    if (financialKeys.includes(data.reportKey)) {
+      const movements = ids.length
+        ? await ctx.db
+            .select()
+            .from(ctx.schema.financialMovements)
+            .where(
+              and(
+                inArray(ctx.schema.financialMovements.projectId, ids),
+                gte(ctx.schema.financialMovements.movementDate, start),
+                lte(ctx.schema.financialMovements.movementDate, end),
+              ),
+            )
+        : [];
+      const filtered =
+        data.reportKey === "revenues"
+          ? movements.filter((item) => item.type === "receita")
+          : data.reportKey === "expenses"
+            ? movements.filter((item) => item.type === "despesa")
+            : movements;
+      columns =
+        data.reportKey === "cash_flow"
+          ? ["Data", "Projeto", "Tipo", "Categoria", "Descrição", "Status", "Valor"]
+          : ["Data", "Projeto", "Código", "Tipo", "Categoria", "Descrição", "Status", "Valor"];
+      rows = filtered.map((item) => ({
+        Data: date(item.movementDate),
+        Projeto: projectMap.get(item.projectId)?.name || "",
+        ...(data.reportKey === "cash_flow"
+          ? {}
+          : { Código: projectMap.get(item.projectId)?.code || "" }),
+        Tipo: item.type === "receita" ? "Crédito" : "Débito",
+        Categoria: item.category,
+        Descrição: item.description,
+        Status: item.status,
+        Valor: money(item.amount),
+      }));
+      if (data.reportKey === "cash_flow")
+        summary = {
+          credits: movements
+            .filter((item) => item.type === "receita")
+            .reduce((total, item) => total + Number(item.amount || 0), 0),
+          debits: movements
+            .filter((item) => item.type === "despesa")
+            .reduce((total, item) => total + Number(item.amount || 0), 0),
+        };
+    } else if (data.reportKey === "expenses_by_category") {
+      const movements = ids.length
+        ? await ctx.db
+            .select()
+            .from(ctx.schema.financialMovements)
+            .where(
+              and(
+                inArray(ctx.schema.financialMovements.projectId, ids),
+                eq(ctx.schema.financialMovements.type, "despesa"),
+                gte(ctx.schema.financialMovements.movementDate, start),
+                lte(ctx.schema.financialMovements.movementDate, end),
+              ),
+            )
+        : [];
+      const totals = new Map<string, number>();
+      movements.forEach((item) =>
+        totals.set(
+          item.category || "Sem categoria",
+          (totals.get(item.category || "Sem categoria") || 0) + Number(item.amount || 0),
+        ),
+      );
+      const totalExpenses = [...totals.values()].reduce((sum, value) => sum + value, 0);
+      chart = [...totals.entries()]
+        .map(([name, value]) => ({
+          name,
+          value,
+          percentage: totalExpenses ? (value / totalExpenses) * 100 : 0,
+        }))
+        .sort((a, b) => b.value - a.value);
+      columns = ["Categoria", "Valor", "Percentual"];
+      rows = chart.map((item) => ({
+        Categoria: item.name,
+        Valor: money(item.value),
+        Percentual: `${item.percentage.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`,
+      }));
+    } else if (data.reportKey === "tasks") {
+      const tasks = ids.length
+        ? await ctx.db
+            .select()
+            .from(ctx.schema.tasks)
+            .where(
+              and(
+                inArray(ctx.schema.tasks.projectId, ids),
+                gte(ctx.schema.tasks.createdAt, start),
+                lte(ctx.schema.tasks.createdAt, end),
+              ),
+            )
+        : [];
+      columns = ["Projeto", "Código", "Tarefa", "Categoria", "Prazo", "Status", "Reunião online"];
+      rows = tasks.map((item) => ({
+        Projeto: projectMap.get(item.projectId)?.name || "",
+        Código: projectMap.get(item.projectId)?.code || "",
+        Tarefa: item.title,
+        Categoria: item.category,
+        Prazo: item.dueDate ? item.dueDate.split("-").reverse().join("/") : "—",
+        Status: item.status,
+        "Reunião online": item.isOnlineMeeting ? "Sim" : "Não",
+      }));
+    } else if (["audit", "financial_changes"].includes(data.reportKey)) {
+      const logs = ids.length
+        ? await ctx.db
+            .select({ log: ctx.schema.auditLogs, userName: ctx.schema.users.name })
+            .from(ctx.schema.auditLogs)
+            .innerJoin(ctx.schema.users, eq(ctx.schema.users.id, ctx.schema.auditLogs.actorId))
+            .where(
+              and(
+                inArray(ctx.schema.auditLogs.projectId, ids),
+                gte(ctx.schema.auditLogs.createdAt, start),
+                lte(ctx.schema.auditLogs.createdAt, end),
+                data.reportKey === "financial_changes"
+                  ? eq(ctx.schema.auditLogs.entityType, "financial_movement")
+                  : undefined,
+              ),
+            )
+            .orderBy(desc(ctx.schema.auditLogs.createdAt))
+        : [];
+      columns = ["Data", "Projeto", "Código", "Usuário", "Ação", "Entidade"];
+      rows = logs.map(({ log, userName }) => ({
+        Data: new Date(log.createdAt).toLocaleString("pt-BR"),
+        Projeto: projectMap.get(log.projectId || "")?.name || "",
+        Código: projectMap.get(log.projectId || "")?.code || "",
+        Usuário: userName,
+        Ação: log.action,
+        Entidade: log.entityType,
+      }));
+    } else if (["documents", "contracts"].includes(data.reportKey)) {
+      const documents = ids.length
+        ? await ctx.db
+            .select()
+            .from(ctx.schema.documents)
+            .where(
+              and(
+                inArray(ctx.schema.documents.projectId, ids),
+                gte(ctx.schema.documents.createdAt, start),
+                lte(ctx.schema.documents.createdAt, end),
+              ),
+            )
+        : [];
+      const filtered =
+        data.reportKey === "contracts"
+          ? documents.filter((item) =>
+              /contrat|termo/i.test(`${item.category} ${item.displayName}`),
+            )
+          : documents;
+      columns = ["Data", "Projeto", "Código", "Documento", "Categoria", "Versão", "Tamanho"];
+      rows = filtered.map((item) => ({
+        Data: date(item.createdAt),
+        Projeto: projectMap.get(item.projectId)?.name || "",
+        Código: projectMap.get(item.projectId)?.code || "",
+        Documento: item.displayName,
+        Categoria: item.category,
+        Versão: item.version,
+        Tamanho: `${(item.sizeBytes / 1024).toFixed(1)} KB`,
+      }));
+    } else if (["users", "investors", "advisors"].includes(data.reportKey)) {
+      if (data.reportKey === "users") {
+        const users = await ctx.db
+          .select({
+            name: ctx.schema.users.name,
+            email: ctx.schema.users.email,
+            role: ctx.schema.organizationMembers.role,
+            status: ctx.schema.organizationMembers.status,
+          })
+          .from(ctx.schema.organizationMembers)
+          .innerJoin(
+            ctx.schema.users,
+            eq(ctx.schema.users.id, ctx.schema.organizationMembers.userId),
+          )
+          .where(eq(ctx.schema.organizationMembers.organizationId, ctx.membership.organizationId));
+        columns = ["Nome", "E-mail", "Perfil", "Status"];
+        rows = users.map((item) => ({
+          Nome: item.name,
+          "E-mail": item.email,
+          Perfil: item.role,
+          Status: item.status,
+        }));
+      } else {
+        const type = data.reportKey === "investors" ? "Investidor" : "Assessor";
+        const contacts = await ctx.db
+          .select()
+          .from(ctx.schema.contacts)
+          .where(
+            and(
+              eq(ctx.schema.contacts.organizationId, ctx.membership.organizationId),
+              eq(ctx.schema.contacts.type, type),
+            ),
+          );
+        const role = data.reportKey === "investors" ? "investor" : "advisor";
+        const contactIds = contacts.map((contact) => contact.id);
+        const links =
+          contactIds.length && ids.length
+            ? await ctx.db
+                .select({
+                  contactId: ctx.schema.projectParticipants.contactId,
+                  projectId: ctx.schema.projectParticipants.projectId,
+                })
+                .from(ctx.schema.projectParticipants)
+                .where(
+                  and(
+                    eq(ctx.schema.projectParticipants.role, role),
+                    inArray(ctx.schema.projectParticipants.contactId, contactIds),
+                    inArray(ctx.schema.projectParticipants.projectId, ids),
+                  ),
+                )
+            : [];
+        const linksByContact = new Map<string, string[]>();
+        links.forEach((link) =>
+          linksByContact.set(link.contactId, [
+            ...(linksByContact.get(link.contactId) || []),
+            link.projectId,
+          ]),
+        );
+        columns = ["Nome", "Documento", "E-mail", "Celulares", "Projeto", "Status"];
+        rows = contacts.flatMap((contact) => {
+          const linkedProjectIds = linksByContact.get(contact.id) || [];
+          const contactData = {
+            Nome: contact.name,
+            Documento: contact.document,
+            "E-mail": contact.email,
+            Celulares: contact.phones.join(", "),
+          };
+          if (!linkedProjectIds.length)
+            return [{ ...contactData, Projeto: "Sem projeto vinculado", Status: "—" }];
+          return linkedProjectIds.map((projectId) => {
+            const project = projectMap.get(projectId);
+            return {
+              ...contactData,
+              Projeto: project?.name || "Projeto não encontrado",
+              Status: projectStatusLabels[project?.status || ""] || project?.status || "—",
+            };
+          });
+        });
+      }
+    } else if (data.reportKey === "invested_capital") {
+      columns = ["Projeto", "Código", "Status", "Capital investido"];
+      rows = selected.map((project) => ({
+        Projeto: project.name,
+        Código: project.code,
+        Status: project.status,
+        "Capital investido": money(
+          (project.data as Record<string, unknown>)?.["capital_investido"] ??
+            (project.data as Record<string, unknown>)?.["valor_aquisicao"],
+        ),
+      }));
+    } else {
+      const projectRows =
+        data.reportKey === "active_projects"
+          ? selected.filter((p) => !isCompleted(p.status))
+          : data.reportKey === "completed_projects"
+            ? selected.filter((p) => isCompleted(p.status))
+            : selected;
+      columns = ["Código", "Projeto", "Endereço", "Cidade", "Status", "Modalidade"];
+      rows = projectRows.map((project) => ({
+        Código: project.code,
+        Projeto: initialUppercase(project.name),
+        Endereço: initialUppercase(project.address),
+        Cidade: initialUppercase(project.city),
+        Status:
+          projectStatusLabels[project.status] ||
+          initialUppercase(project.status.replaceAll("_", " ")),
+        Modalidade: initialUppercase(
+          (project.data as Record<string, unknown>)?.["modalidade"] || project.stage,
+        ),
+      }));
+    }
+
+    await ctx.db.transaction(async (tx) => {
+      await tx.insert(ctx.schema.reportRuns).values({
+        organizationId: ctx.membership.organizationId,
+        generatedBy: ctx.session.user.id,
+        reportKey: data.reportKey,
+        format: data.format,
+        filters: {
+          projectId: data.projectId,
+          status: data.status,
+          startDate: data.startDate,
+          endDate: data.endDate,
+        },
+        rowCount: rows.length,
+      });
+      await tx.insert(ctx.schema.auditLogs).values({
+        organizationId: ctx.membership.organizationId,
+        projectId: data.projectId,
+        actorId: ctx.session.user.id,
+        action: "report.generated",
+        entityType: "report",
+        metadata: { reportKey: data.reportKey, format: data.format, rowCount: rows.length },
+      });
+    });
+    return { columns, rows, generatedAt: new Date().toISOString(), reportHeader, summary, chart };
+  });
+
+export const listReportHistory = createServerFn({ method: "GET" }).handler(async () => {
+  const ctx = await reportContext();
+  return ctx.db
+    .select({
+      id: ctx.schema.reportRuns.id,
+      reportKey: ctx.schema.reportRuns.reportKey,
+      format: ctx.schema.reportRuns.format,
+      rowCount: ctx.schema.reportRuns.rowCount,
+      generatedAt: ctx.schema.reportRuns.generatedAt,
+      userName: ctx.schema.users.name,
+    })
+    .from(ctx.schema.reportRuns)
+    .innerJoin(ctx.schema.users, eq(ctx.schema.users.id, ctx.schema.reportRuns.generatedBy))
+    .where(eq(ctx.schema.reportRuns.organizationId, ctx.membership.organizationId))
+    .orderBy(desc(ctx.schema.reportRuns.generatedAt))
+    .limit(20);
+});

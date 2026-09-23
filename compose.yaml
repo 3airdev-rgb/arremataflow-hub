@@ -1,0 +1,99 @@
+name: arremataflow-local
+
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:?Configure POSTGRES_USER in .env.docker}:${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD in .env.docker}@postgres:5432/${POSTGRES_DB:?Configure POSTGRES_DB in .env.docker}
+      DATABASE_SSL: "false"
+      BETTER_AUTH_URL: http://127.0.0.1:${APP_PORT:-8081}
+      DOCUMENT_STORAGE_PATH: /data/documents
+    ports:
+      - "127.0.0.1:${APP_PORT:-8081}:3000"
+    volumes:
+      - arremataflow_document_data:/data/documents
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid,nodev
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Configure POSTGRES_DB in .env.docker}
+      POSTGRES_USER: ${POSTGRES_USER:?Configure POSTGRES_USER in .env.docker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD in .env.docker}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - arremataflow_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+
+  notification-worker:
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:?Configure POSTGRES_USER in .env.docker}:${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD in .env.docker}@postgres:5432/${POSTGRES_DB:?Configure POSTGRES_DB in .env.docker}
+      DATABASE_SSL: "false"
+      TZ: America/Sao_Paulo
+    command: ["sh", "-c", "node scripts/run-production-migrations.mjs && exec node scripts/run-notification-jobs.mjs"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(require('fs').readFileSync('/proc/1/cmdline', 'utf8').includes('run-notification-jobs.mjs') ? 0 : 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid,nodev
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_DATABASE: /data/mailpit.db
+    ports:
+      - "127.0.0.1:${MAILPIT_WEB_PORT:-8025}:8025"
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
+    volumes:
+      - arremataflow_mailpit_data:/data
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  arremataflow_postgres_data:
+  arremataflow_document_data:
+  arremataflow_mailpit_data:
