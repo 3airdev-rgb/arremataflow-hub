@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Mail, Pencil, UserPlus } from "lucide-react";
+import { Mail, Pencil, Trash2, UserPlus } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,10 +22,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   getOrganizationUsers,
   inviteOrganizationUser,
+  removeOrganizationUser,
   renewOrganizationInvitation,
   updateOrganizationUser,
 } from "@/lib/organization-users";
@@ -62,6 +73,7 @@ function UsuariosPage() {
     email: string;
     role: string;
   } | null>(null);
+  const [removing, setRemoving] = useState<{ id: string; name: string } | null>(null);
   const queryClient = useQueryClient();
   const { data, isPending, error } = useQuery({
     queryKey: ["organization-users"],
@@ -98,6 +110,16 @@ function UsuariosPage() {
     },
     onError: (cause) =>
       toast.error(cause instanceof Error ? cause.message : "Não foi possível enviar o convite."),
+  });
+  const removeUser = useMutation({
+    mutationFn: removeOrganizationUser,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["organization-users"] });
+      setRemoving(null);
+      toast.success("Usuário removido da empresa.");
+    },
+    onError: (cause) =>
+      toast.error(cause instanceof Error ? cause.message : "Não foi possível remover o usuário."),
   });
   const renewInvitation = useMutation({
     mutationFn: renewOrganizationInvitation,
@@ -218,7 +240,7 @@ function UsuariosPage() {
                   >
                     <Pencil className="size-4" /> Editar
                   </Button>
-                  {u.status === "invited" && (
+                  {!["owner", "admin"].includes(u.role) && u.status === "invited" && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -226,6 +248,16 @@ function UsuariosPage() {
                       onClick={() => renewInvitation.mutate({ data: { userId: u.id } })}
                     >
                       <Mail className="size-4" /> Renovar convite
+                    </Button>
+                  )}
+                  {!["owner", "admin"].includes(u.role) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setRemoving({ id: u.id, name: u.name })}
+                    >
+                      <Trash2 className="size-4" /> Remover
                     </Button>
                   )}
                 </td>
@@ -249,6 +281,35 @@ function UsuariosPage() {
         </table>
       </div>
 
+      <AlertDialog
+        open={Boolean(removing)}
+        onOpenChange={(open) => {
+          if (!open && !removeUser.isPending) setRemoving(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover usuário</AlertDialogTitle>
+            <AlertDialogDescription>
+              {removing?.name} perderá o acesso à empresa. Os cadastros de contato e os vínculos em
+              projetos são mantidos como registro histórico.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removeUser.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={removeUser.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                if (removing) removeUser.mutate({ data: { userId: removing.id } });
+              }}
+            >
+              {removeUser.isPending ? "Removendo..." : "Remover usuário"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog
         open={Boolean(editing)}
         onOpenChange={(open) => {
@@ -258,7 +319,11 @@ function UsuariosPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar perfil</DialogTitle>
-            <DialogDescription>Atualize os dados e o perfil do usuário.</DialogDescription>
+            <DialogDescription>
+              {editing && ["owner", "admin"].includes(editing.role)
+                ? "Administradores permitem editar somente nome e e-mail."
+                : "Atualize os dados e o perfil do usuário."}
+            </DialogDescription>
           </DialogHeader>
           {editing ? (
             <form

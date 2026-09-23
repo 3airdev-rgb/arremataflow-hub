@@ -442,6 +442,72 @@ export const inviteOrganizationUser = createServerFn({ method: "POST" })
     };
   });
 
+export const removeOrganizationUser = createServerFn({ method: "POST" })
+  .validator(z.object({ userId: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    const { db, schema, membership, session } = await administratorContext();
+    if (data.userId === session.user.id)
+      throw new Error("Você não pode remover o seu próprio acesso.");
+    const [target] = await db
+      .select({
+        id: schema.organizationMembers.id,
+        role: schema.organizationMembers.role,
+        status: schema.organizationMembers.status,
+      })
+      .from(schema.organizationMembers)
+      .where(
+        and(
+          eq(schema.organizationMembers.organizationId, membership.organizationId),
+          eq(schema.organizationMembers.userId, data.userId),
+        ),
+      )
+      .limit(1);
+    if (!target) throw new Error("Usuário não pertence a esta empresa.");
+    if (["owner", "admin"].includes(target.role))
+      throw new Error("Usuários administradores não podem ser removidos.");
+
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(schema.organizationMembers)
+        .where(eq(schema.organizationMembers.id, target.id));
+      const [otherMembership] = await tx
+        .select({ id: schema.organizationMembers.id })
+        .from(schema.organizationMembers)
+        .where(eq(schema.organizationMembers.userId, data.userId))
+        .limit(1);
+      if (!otherMembership)
+        await tx
+          .delete(schema.verifications)
+          .where(
+            and(
+              eq(schema.verifications.value, data.userId),
+              sql`${schema.verifications.identifier} like 'reset-password:%'`,
+            ),
+          );
+      await tx
+        .update(schema.users)
+        .set({ activeOrganizationId: null, updatedAt: new Date() })
+        .where(
+          and(
+            eq(schema.users.id, data.userId),
+            eq(schema.users.activeOrganizationId, membership.organizationId),
+          ),
+        );
+      await tx.insert(schema.auditLogs).values({
+        organizationId: membership.organizationId,
+        actorId: session.user.id,
+        action: "user.removed",
+        entityType: "user",
+        metadata: {
+          targetUserId: data.userId,
+          previousRole: target.role,
+          previousStatus: target.status,
+        },
+      });
+    });
+    return { ok: true };
+  });
+
 export const renewOrganizationInvitation = createServerFn({ method: "POST" })
   .validator(z.object({ userId: z.string().min(1) }))
   .handler(async ({ data }) => {
