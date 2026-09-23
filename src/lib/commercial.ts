@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Schema } from "@/db/types";
+import { computeDistribution } from "@/lib/distribution";
 import { validateDocument } from "@/lib/utils-validation";
 
 export const COMMERCIAL_DATA_UPDATED = "arremataflow:commercial-data-updated";
@@ -608,10 +609,6 @@ export const saveProviderAssignment = createServerFn({ method: "POST" })
     });
   });
 
-const participant = (item: unknown) => {
-  const entry = (item ?? {}) as { nome?: unknown; percentual?: unknown };
-  return { nome: String(entry.nome || ""), percentual: Number(entry.percentual) || 0 };
-};
 export const calculateDistribution = createServerFn({ method: "POST" })
   .validator(z.object({ projectId: z.string().uuid() }))
   .handler(async ({ data }) => {
@@ -653,41 +650,23 @@ export const calculateDistribution = createServerFn({ method: "POST" })
     const originCommission = Number(
       (origin?.data as PortfolioDetails | undefined)?.commissionValue || 0,
     );
-    const acquisition = Number(projectData["valor_aquisicao"]) || 0;
     const expenses = movements
       .filter((m) => m.type === "despesa")
       .reduce((sum, m) => sum + Number(m.amount), 0);
-    const investedCapital = acquisition + expenses;
-    const result =
-      Number(proposal.finalSaleValue) -
-      Number(proposal.taxValue || 0) -
-      originCommission -
-      investedCapital;
-    const advisoryShare = result * 0.5,
-      investorShare = result * 0.5;
-    const investors = (
-      Array.isArray(projectData["participantes"]) ? (projectData["participantes"] as unknown[]) : []
-    )
-      .map(participant)
-      .filter((p) => p.nome)
-      .map((p) => ({ ...p, valor: (investorShare * p.percentual) / 100 }));
-    const assessors = (
-      Array.isArray(projectData["assessores"]) ? (projectData["assessores"] as unknown[]) : []
-    )
-      .map(participant)
-      .filter((p) => p.nome)
-      .map((p) => ({ ...p, valor: (advisoryShare * p.percentual) / 100 }));
-    const snapshot = {
-      result,
-      advisoryShare,
-      investorShare,
-      investors,
-      assessors,
-      finalSaleValue: Number(proposal.finalSaleValue),
-      taxValue: Number(proposal.taxValue || 0),
-      commissionValue: originCommission,
-      investedCapital,
-    };
+    const snapshot = computeDistribution({
+      finalSaleValue: proposal.finalSaleValue,
+      taxValue: proposal.taxValue,
+      originCommission,
+      acquisition: Number(projectData["valor_aquisicao"]) || 0,
+      expenses,
+      participants: Array.isArray(projectData["participantes"])
+        ? (projectData["participantes"] as unknown[])
+        : [],
+      advisors: Array.isArray(projectData["assessores"])
+        ? (projectData["assessores"] as unknown[])
+        : [],
+    });
+    const { result } = snapshot;
     const [created] = await db.transaction(async (tx) => {
       const rows = await tx
         .insert(schema.distributionSnapshots)
