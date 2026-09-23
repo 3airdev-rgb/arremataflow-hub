@@ -60,6 +60,9 @@ jobs:
       - name: Preparar dados mínimos de teste
         run: node scripts/seed-ci-test-data.mjs
 
+      - name: Verificar lint e formatação
+        run: pnpm lint
+
       - name: Verificar tipos
         run: pnpm typecheck
 
