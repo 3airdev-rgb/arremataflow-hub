@@ -20,6 +20,7 @@
 ## Pendências antes da produção
 
 1. Substituir o rate limiting em memória por Redis se houver múltiplas instâncias do aplicativo.
+2. Definir `TRUSTED_PROXY_HOPS=1` quando o app estiver atrás de um proxy reverso (Caddy/Nginx) que sobrescreve ou acrescenta `X-Forwarded-For`. Sem isso, o limite de tentativas usa um único contador por rota, pois cabeçalhos de encaminhamento enviados pelo cliente são ignorados.
 
 Nenhuma dessas pendências deve ser ocultada por dados simulados. Uma tela ainda não migrada deve ser tratada como módulo em transição.
 

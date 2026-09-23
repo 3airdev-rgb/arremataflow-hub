@@ -14,8 +14,18 @@ const globalSecurity = globalThis as typeof globalThis & { arremataflowRateLimit
 const rateLimits = globalSecurity.arremataflowRateLimits ?? new Map<string, RateEntry>();
 globalSecurity.arremataflowRateLimits = rateLimits;
 
+function trustedProxyHops() {
+  const hops = Number.parseInt(process.env["TRUSTED_PROXY_HOPS"] ?? "0", 10);
+  return Number.isInteger(hops) && hops > 0 ? hops : 0;
+}
+
+// Forwarding headers are client-controlled, so they are ignored unless a known number of trusted
+// proxies sits in front. Each trusted proxy appends the peer it saw, so count entries from the right.
 function clientAddress(request: Request) {
-  return request.headers.get("cf-connecting-ip") || request.headers.get("x-real-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const hops = trustedProxyHops();
+  if (hops === 0) return "direct";
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",").map((part) => part.trim()).filter(Boolean) ?? [];
+  return forwarded[forwarded.length - hops] ?? "unknown";
 }
 
 function authRateLimit(request: Request) {
