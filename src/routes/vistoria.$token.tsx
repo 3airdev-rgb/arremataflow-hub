@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { getPublicInspection, submitPublicInspection } from "@/lib/property-inspections";
+import {
+  getPublicInspection,
+  submitPublicInspection,
+  type InspectionAnswers,
+} from "@/lib/property-inspections";
 
 const ratings = ["Ótimo", "Bom", "Regular", "Ruim", "Danificado"];
 const fixtures = [
@@ -17,6 +21,31 @@ const fixtures = [
   "Tomadas/Interruptores",
   "Iluminação",
 ];
+type KeyName = "chaves" | "controle" | "tags";
+type Photo = InspectionAnswers["photos"][number];
+type FormState = Omit<InspectionAnswers, "keys" | "utilities" | "installations"> & {
+  keys: Record<KeyName, InspectionAnswers["keys"][string]>;
+  utilities: {
+    energy: boolean;
+    energyMeter: string;
+    energyCompany: string;
+    water: boolean;
+    waterMeter: string;
+    waterCompany: string;
+    sewer: boolean;
+    sewerCompany: string;
+  };
+  installations: {
+    electricalPanel: boolean;
+    leaks: boolean;
+    leakLocation: string;
+    toilets: boolean;
+    drains: string;
+    waterTank: string;
+  };
+};
+type NestedGroup = "utilities" | "installations";
+
 const newRoom = () => ({
   name: "",
   conditions: Object.fromEntries(fixtures.map((item) => [item, ""])),
@@ -50,7 +79,7 @@ function InspectionPage() {
   const [done, setDone] = useState(initial.status === "completed");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [data, setData] = useState<any>({
+  const [data, setData] = useState<FormState>({
     inspectionType: "posse",
     dateTime: "",
     propertyType: initial.propertyType,
@@ -87,10 +116,13 @@ function InspectionPage() {
     generalNotes: "",
     photos: [],
   });
-  const set = (key: string, value: any) =>
-    setData((current: any) => ({ ...current, [key]: value }));
-  const nested = (group: string, key: string, value: any) =>
-    setData((current: any) => ({ ...current, [group]: { ...current[group], [key]: value } }));
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+    setData((current) => ({ ...current, [key]: value }));
+  const nested = <G extends NestedGroup, K extends keyof FormState[G]>(
+    group: G,
+    key: K,
+    value: FormState[G][K],
+  ) => setData((current) => ({ ...current, [group]: { ...current[group], [key]: value } }));
   if (done)
     return (
       <main className="grid min-h-screen place-items-center bg-slate-50 p-4 sm:p-6">
@@ -114,8 +146,8 @@ function InspectionPage() {
           try {
             await submitPublicInspection({ data: { token, answers: data } });
             setDone(true);
-          } catch (e: any) {
-            setError(e.message || "Não foi possível salvar a vistoria.");
+          } catch (e) {
+            setError((e instanceof Error && e.message) || "Não foi possível salvar a vistoria.");
           } finally {
             setSaving(false);
           }
@@ -135,7 +167,9 @@ function InspectionPage() {
               <select
                 className="h-10 w-full rounded-md border px-3"
                 value={data.inspectionType}
-                onChange={(e) => set("inspectionType", e.target.value)}
+                onChange={(e) =>
+                  set("inspectionType", e.target.value as FormState["inspectionType"])
+                }
               >
                 <option value="posse">Posse</option>
                 <option value="venda">Venda</option>
@@ -184,16 +218,18 @@ function InspectionPage() {
         </Section>
         <Section title="2. Chaves e Acessos">
           <Grid>
-            {Object.entries({
-              chaves: "Chaves",
-              controle: "Controle remoto do portão",
-              tags: "Tags/cartões de acesso",
-            }).map(([key, label]) => (
+            {(
+              Object.entries({
+                chaves: "Chaves",
+                controle: "Controle remoto do portão",
+                tags: "Tags/cartões de acesso",
+              }) as [KeyName, string][]
+            ).map(([key, label]) => (
               <Field key={key} label={label}>
                 <YesNo
                   value={data.keys[key].has}
                   onChange={(v) =>
-                    setData((c: any) => ({
+                    setData((c) => ({
                       ...c,
                       keys: {
                         ...c.keys,
@@ -211,7 +247,7 @@ function InspectionPage() {
                       max="99"
                       value={data.keys[key].quantity || ""}
                       onChange={(e) =>
-                        setData((c: any) => ({
+                        setData((c) => ({
                           ...c,
                           keys: {
                             ...c.keys,
@@ -288,7 +324,7 @@ function InspectionPage() {
           </div>
         </Section>
         <Section title="4. Condições por Cômodo">
-          {data.rooms.map((room: any, i: number) => (
+          {data.rooms.map((room, i) => (
             <div key={i} className="mb-5 rounded-lg border p-4">
               <div className="mb-4 flex items-end gap-2">
                 <Field label="Identificação do cômodo">
@@ -303,9 +339,9 @@ function InspectionPage() {
                   variant="ghost"
                   size="icon"
                   onClick={() =>
-                    setData((c: any) => ({
+                    setData((c) => ({
                       ...c,
-                      rooms: c.rooms.filter((_: any, n: number) => n !== i),
+                      rooms: c.rooms.filter((_, n) => n !== i),
                     }))
                   }
                 >
@@ -353,7 +389,7 @@ function InspectionPage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => setData((c: any) => ({ ...c, rooms: [...c.rooms, newRoom()] }))}
+            onClick={() => setData((c) => ({ ...c, rooms: [...c.rooms, newRoom()] }))}
           >
             <Plus className="size-4" />
             Cômodo
@@ -419,7 +455,7 @@ function InspectionPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.inventory.map((x: any, i: number) => (
+                  {data.inventory.map((x, i) => (
                     <tr key={i} className="border-b">
                       <td className="p-2">
                         <Input
@@ -445,9 +481,9 @@ function InspectionPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() =>
-                            setData((c: any) => ({
+                            setData((c) => ({
                               ...c,
-                              inventory: c.inventory.filter((_: any, n: number) => n !== i),
+                              inventory: c.inventory.filter((_, n) => n !== i),
                             }))
                           }
                         >
@@ -464,7 +500,7 @@ function InspectionPage() {
             type="button"
             variant="outline"
             onClick={() =>
-              setData((c: any) => ({
+              setData((c) => ({
                 ...c,
                 inventory: [...c.inventory, { item: "", model: "", condition: "" }],
               }))
@@ -495,16 +531,20 @@ function InspectionPage() {
               const photos = await Promise.all(
                 files.map(
                   (f) =>
-                    new Promise<any>((resolve, reject) => {
+                    new Promise<Photo>((resolve, reject) => {
                       const reader = new FileReader();
                       reader.onload = () =>
-                        resolve({ name: f.name, type: f.type, data: reader.result });
+                        resolve({
+                          name: f.name,
+                          type: f.type as Photo["type"],
+                          data: String(reader.result),
+                        });
                       reader.onerror = reject;
                       reader.readAsDataURL(f);
                     }),
                 ),
               );
-              setData((current: any) => ({
+              setData((current) => ({
                 ...current,
                 photos: [...current.photos, ...photos].slice(0, 10),
               }));
@@ -517,7 +557,7 @@ function InspectionPage() {
           </p>
           {data.photos.length > 0 && (
             <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-              {data.photos.map((photo: any, index: number) => (
+              {data.photos.map((photo, index) => (
                 <figure key={`${photo.name}-${index}`} className="relative rounded-lg border p-2">
                   <img
                     src={photo.data}
@@ -533,9 +573,9 @@ function InspectionPage() {
                     size="icon"
                     className="absolute right-3 top-3 size-8"
                     onClick={() =>
-                      setData((current: any) => ({
+                      setData((current) => ({
                         ...current,
-                        photos: current.photos.filter((_: any, n: number) => n !== index),
+                        photos: current.photos.filter((_, n) => n !== index),
                       }))
                     }
                   >
@@ -553,24 +593,24 @@ function InspectionPage() {
       </form>
     </main>
   );
-  function changeRoom(i: number, key: string, value: string) {
-    setData((c: any) => ({
+  function changeRoom(i: number, key: "name" | "furniture" | "notes", value: string) {
+    setData((c) => ({
       ...c,
-      rooms: c.rooms.map((x: any, n: number) => (n === i ? { ...x, [key]: value } : x)),
+      rooms: c.rooms.map((x, n) => (n === i ? { ...x, [key]: value } : x)),
     }));
   }
   function changeRoomCondition(i: number, key: string, value: string) {
-    setData((c: any) => ({
+    setData((c) => ({
       ...c,
-      rooms: c.rooms.map((x: any, n: number) =>
+      rooms: c.rooms.map((x, n) =>
         n === i ? { ...x, conditions: { ...x.conditions, [key]: value } } : x,
       ),
     }));
   }
-  function changeInventory(i: number, key: string, value: string) {
-    setData((c: any) => ({
+  function changeInventory(i: number, key: "item" | "model" | "condition", value: string) {
+    setData((c) => ({
       ...c,
-      inventory: c.inventory.map((x: any, n: number) => (n === i ? { ...x, [key]: value } : x)),
+      inventory: c.inventory.map((x, n) => (n === i ? { ...x, [key]: value } : x)),
     }));
   }
 }

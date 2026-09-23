@@ -724,7 +724,7 @@ function FinanceiroProjeto() {
                   <Select
                     name="tipo"
                     defaultValue="despesa"
-                    onValueChange={(v) => setTipoMov(v as any)}
+                    onValueChange={(v) => setTipoMov(v as "receita" | "despesa")}
                   >
                     <SelectTrigger id="tipo">
                       <SelectValue />

@@ -159,9 +159,11 @@ export function ImageManagementSection({
           }
 
           toast.success(`${file.name} enviado com sucesso.`);
-        } catch (error: any) {
+        } catch (error) {
           console.error("Upload error:", error);
-          toast.error(`Erro ao enviar ${file.name}: ${error.message}`);
+          toast.error(
+            `Erro ao enviar ${file.name}: ${error instanceof Error ? error.message : String(error)}`,
+          );
           setImages((prev) => prev.filter((img) => img.id !== tempId));
         }
       }
@@ -247,8 +249,10 @@ export function ImageManagementSection({
       setImages(updatedImages);
       setIsDeleting(null);
       toast.success("Imagem excluída.");
-    } catch (error: any) {
-      toast.error(`Erro ao excluir imagem: ${error.message}`);
+    } catch (error) {
+      toast.error(
+        `Erro ao excluir imagem: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   };
 

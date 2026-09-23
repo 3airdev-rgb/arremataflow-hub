@@ -87,7 +87,7 @@ export async function uploadDocument(request: Request) {
     throw new Response("Arquivo ou projeto inválido.", { status: 400 });
   if (displayName.length < 2 || displayName.length > 180)
     throw new Response("Nome do documento inválido.", { status: 400 });
-  if (!financialCategories.includes(category as any))
+  if (!(financialCategories as readonly string[]).includes(category))
     throw new Response("Categoria inválida.", { status: 400 });
   if (file.size < 1 || file.size > MAX_FILE_SIZE)
     throw new Response("O arquivo deve ter até 10 MB.", { status: 413 });

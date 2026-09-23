@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
+import type { DbExecutor, Schema } from "@/db/types";
 
-const money = z.number().finite().min(0).max(999_999_999_999_999.99);
+const money = z.number().finite().min(0).max(999_999_999_999_999);
 const shortText = z.string().trim().max(180);
 const dateValue = z
   .string()
@@ -156,8 +157,8 @@ export const getProjectOperations = createServerFn({ method: "GET" })
   });
 
 async function replaceActions(
-  tx: any,
-  schema: any,
+  tx: DbExecutor,
+  schema: Schema,
   values: {
     projectId: string;
     organizationId: string;

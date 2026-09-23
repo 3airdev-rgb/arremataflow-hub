@@ -1,6 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
+import type { DbExecutor, Schema } from "@/db/types";
 
-export async function resolveActiveMembership(db: any, schema: any, userId: string) {
+export async function resolveActiveMembership(db: DbExecutor, schema: Schema, userId: string) {
   const [user] = await db
     .select({ activeOrganizationId: schema.users.activeOrganizationId })
     .from(schema.users)

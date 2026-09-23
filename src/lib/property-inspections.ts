@@ -48,6 +48,8 @@ const answerSchema = z.object({
     .max(10),
 });
 
+export type InspectionAnswers = z.infer<typeof answerSchema>;
+
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");
 
 async function authenticatedContext(projectId: string) {
@@ -251,8 +253,8 @@ export const getPublicInspection = createServerFn({ method: "GET" })
       ...row,
       propertyType: String(row.projectData?.["tipo_imovel"] || ""),
       projectData: undefined,
-      formData: row.formData as any,
-    } as any;
+      formData: row.formData as Partial<InspectionAnswers>,
+    };
   });
 
 export const submitPublicInspection = createServerFn({ method: "POST" })
@@ -304,5 +306,5 @@ export const getPropertyInspection = createServerFn({ method: "GET" })
       )
       .limit(1);
     if (!row) throw new Error("Vistoria não encontrada.");
-    return { ...row, tokenHash: undefined, formData: row.formData as any } as any;
+    return { ...row, tokenHash: undefined, formData: row.formData as Partial<InspectionAnswers> };
   });

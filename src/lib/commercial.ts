@@ -1,11 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
+import type { Schema } from "@/db/types";
 import { validateDocument } from "@/lib/utils-validation";
 
 export const COMMERCIAL_DATA_UPDATED = "arremataflow:commercial-data-updated";
 
-const money = z.number().finite().min(0).max(999_999_999_999_999.99);
+const money = z.number().finite().min(0).max(999_999_999_999_999);
 const optionalText = (max = 300) => z.string().trim().max(max).default("");
 const dateText = z
   .string()
@@ -146,9 +147,17 @@ async function context(
   return { db, schema, session, membership, project };
 }
 
-const portfolioRow = (row: any) => ({ id: row.id, type: row.type, name: row.name, ...row.data });
-const proposalRow = (row: any) => {
-  const details = row.data || {};
+type PortfolioDetails = Partial<z.infer<typeof portfolioInput>>;
+type ProposalDetails = Partial<z.infer<typeof proposalInput>> & { originKey?: string };
+
+const portfolioRow = (row: Schema["salesPortfolio"]["$inferSelect"]) => ({
+  id: row.id,
+  type: row.type,
+  name: row.name,
+  ...(row.data as PortfolioDetails),
+});
+const proposalRow = (row: Schema["salesProposals"]["$inferSelect"]) => {
+  const details = (row.data || {}) as ProposalDetails;
   return {
     id: row.id,
     number: row.number,
@@ -599,10 +608,10 @@ export const saveProviderAssignment = createServerFn({ method: "POST" })
     });
   });
 
-const participant = (item: any) => ({
-  nome: String(item?.nome || ""),
-  percentual: Number(item?.percentual) || 0,
-});
+const participant = (item: unknown) => {
+  const entry = (item ?? {}) as { nome?: unknown; percentual?: unknown };
+  return { nome: String(entry.nome || ""), percentual: Number(entry.percentual) || 0 };
+};
 export const calculateDistribution = createServerFn({ method: "POST" })
   .validator(z.object({ projectId: z.string().uuid() }))
   .handler(async ({ data }) => {
@@ -623,7 +632,7 @@ export const calculateDistribution = createServerFn({ method: "POST" })
       )
       .limit(1);
     if (!accepted) throw new Error("É necessário possuir uma proposta aceita.");
-    const proposal: any = accepted.data;
+    const proposal = accepted.data as ProposalDetails;
     const [origin] = accepted.originId
       ? await db
           .select()
@@ -640,8 +649,11 @@ export const calculateDistribution = createServerFn({ method: "POST" })
           eq(schema.financialMovements.organizationId, membership.organizationId),
         ),
       );
-    const projectData: any = project.data || {};
-    const acquisition = Number(projectData.valor_aquisicao) || 0;
+    const projectData = project.data || {};
+    const originCommission = Number(
+      (origin?.data as PortfolioDetails | undefined)?.commissionValue || 0,
+    );
+    const acquisition = Number(projectData["valor_aquisicao"]) || 0;
     const expenses = movements
       .filter((m) => m.type === "despesa")
       .reduce((sum, m) => sum + Number(m.amount), 0);
@@ -649,18 +661,22 @@ export const calculateDistribution = createServerFn({ method: "POST" })
     const result =
       Number(proposal.finalSaleValue) -
       Number(proposal.taxValue || 0) -
-      Number((origin?.data as any)?.commissionValue || 0) -
+      originCommission -
       investedCapital;
     const advisoryShare = result * 0.5,
       investorShare = result * 0.5;
-    const investors = (Array.isArray(projectData.participantes) ? projectData.participantes : [])
+    const investors = (
+      Array.isArray(projectData["participantes"]) ? (projectData["participantes"] as unknown[]) : []
+    )
       .map(participant)
-      .filter((p: any) => p.nome)
-      .map((p: any) => ({ ...p, valor: (investorShare * p.percentual) / 100 }));
-    const assessors = (Array.isArray(projectData.assessores) ? projectData.assessores : [])
+      .filter((p) => p.nome)
+      .map((p) => ({ ...p, valor: (investorShare * p.percentual) / 100 }));
+    const assessors = (
+      Array.isArray(projectData["assessores"]) ? (projectData["assessores"] as unknown[]) : []
+    )
       .map(participant)
-      .filter((p: any) => p.nome)
-      .map((p: any) => ({ ...p, valor: (advisoryShare * p.percentual) / 100 }));
+      .filter((p) => p.nome)
+      .map((p) => ({ ...p, valor: (advisoryShare * p.percentual) / 100 }));
     const snapshot = {
       result,
       advisoryShare,
@@ -669,7 +685,7 @@ export const calculateDistribution = createServerFn({ method: "POST" })
       assessors,
       finalSaleValue: Number(proposal.finalSaleValue),
       taxValue: Number(proposal.taxValue || 0),
-      commissionValue: Number((origin?.data as any)?.commissionValue || 0),
+      commissionValue: originCommission,
       investedCapital,
     };
     const [created] = await db.transaction(async (tx) => {

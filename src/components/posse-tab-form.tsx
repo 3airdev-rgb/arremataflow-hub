@@ -32,6 +32,7 @@ import {
   getPropertyInspection,
   listPropertyInspections,
   sendPropertyInspection,
+  type InspectionAnswers,
 } from "@/lib/property-inspections";
 
 type JudicialAction = {
@@ -77,9 +78,13 @@ export function PosseTab({
   const [inspectorName, setInspectorName] = useState("");
   const [inspectorEmail, setInspectorEmail] = useState("");
   const [inspectionDueDate, setInspectionDueDate] = useState("");
-  const [inspections, setInspections] = useState<any[]>([]);
+  const [inspections, setInspections] = useState<
+    Awaited<ReturnType<typeof listPropertyInspections>>
+  >([]);
   const [sendingInspection, setSendingInspection] = useState(false);
-  const [viewedInspection, setViewedInspection] = useState<any | null>(null);
+  const [viewedInspection, setViewedInspection] = useState<Awaited<
+    ReturnType<typeof getPropertyInspection>
+  > | null>(null);
   const [imissaoAction, setImissaoAction] = useState<JudicialAction | null>(null);
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
   const [savingAction, setSavingAction] = useState(false);
@@ -107,8 +112,10 @@ export function PosseTab({
         setImissaoAction(operations.possessionAction);
         setFinancialMovements(movements);
         setInspections(inspectionRows);
-      } catch (err: any) {
-        toast.error("Erro ao carregar dados da posse: " + err.message);
+      } catch (err) {
+        toast.error(
+          "Erro ao carregar dados da posse: " + (err instanceof Error ? err.message : String(err)),
+        );
       } finally {
         setLoading(false);
       }
@@ -199,7 +206,7 @@ export function PosseTab({
         new CustomEvent("project-operations-updated", { detail: { projectId: projetoId } }),
       );
       toast.success("Alterações salvas com sucesso.");
-    } catch (err: any) {
+    } catch (err) {
       showValidationAlert(
         err,
         "Não foi possível salvar os dados da posse. Revise os campos informados.",
@@ -710,7 +717,10 @@ export function PosseTab({
   );
 }
 
-function InspectionSummary({ data }: { data: any }) {
+function InspectionSummary({ data }: { data: Partial<InspectionAnswers> }) {
+  const rooms = data.rooms ?? [];
+  const inventory = data.inventory ?? [];
+  const photos = data.photos ?? [];
   const Value = ({ label, value }: { label: string; value: unknown }) => (
     <div className="rounded-md bg-muted/40 px-3 py-2">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
@@ -753,32 +763,35 @@ function InspectionSummary({ data }: { data: any }) {
             chaves: "Chaves",
             controle: "Controle remoto",
             tags: "Tags/cartões",
-          }).map(([key, label]) => (
-            <Value
-              key={key}
-              label={label}
-              value={data.keys?.[key]?.has ? `Sim - Quantidade: ${data.keys[key].quantity}` : "Não"}
-            />
-          ))}
+          }).map(([key, label]) => {
+            const entry = data.keys?.[key];
+            return (
+              <Value
+                key={key}
+                label={label}
+                value={entry?.has ? `Sim - Quantidade: ${entry.quantity}` : "Não"}
+              />
+            );
+          })}
         </div>
         <Value label="Outros" value={data.otherAccess} />
       </Section>
       <Section title="3. Serviços Públicos">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <Value label="Possui energia" value={yn(data.utilities?.energy)} />
-          <Value label="Medidor de energia" value={data.utilities?.energyMeter} />
-          <Value label="Concessionária de luz" value={data.utilities?.energyCompany} />
-          <Value label="Possui água" value={yn(data.utilities?.water)} />
-          <Value label="Medidor de água" value={data.utilities?.waterMeter} />
-          <Value label="Concessionária de água" value={data.utilities?.waterCompany} />
-          <Value label="Esgoto tratado" value={yn(data.utilities?.sewer)} />
-          <Value label="Concessionária de esgoto" value={data.utilities?.sewerCompany} />
+          <Value label="Possui energia" value={yn(data.utilities?.["energy"])} />
+          <Value label="Medidor de energia" value={data.utilities?.["energyMeter"]} />
+          <Value label="Concessionária de luz" value={data.utilities?.["energyCompany"]} />
+          <Value label="Possui água" value={yn(data.utilities?.["water"])} />
+          <Value label="Medidor de água" value={data.utilities?.["waterMeter"]} />
+          <Value label="Concessionária de água" value={data.utilities?.["waterCompany"]} />
+          <Value label="Esgoto tratado" value={yn(data.utilities?.["sewer"])} />
+          <Value label="Concessionária de esgoto" value={data.utilities?.["sewerCompany"]} />
         </div>
       </Section>
       <Section title="4. Condições por Cômodo">
         <div className="space-y-4">
-          {(data.rooms || []).length ? (
-            data.rooms.map((room: any, index: number) => (
+          {rooms.length ? (
+            rooms.map((room, index) => (
               <article key={index} className="rounded-lg border bg-background p-4">
                 <h4 className="mb-3 font-semibold">{room.name || `Cômodo ${index + 1}`}</h4>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -801,23 +814,23 @@ function InspectionSummary({ data }: { data: any }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <Value
             label="Quadro de luz e disjuntores"
-            value={yn(data.installations?.electricalPanel)}
+            value={yn(data.installations?.["electricalPanel"])}
           />
           <Value
             label="Vazamentos"
             value={
-              data.installations?.leaks
-                ? `Sim - ${data.installations?.leakLocation || "Local não informado"}`
+              data.installations?.["leaks"]
+                ? `Sim - ${data.installations?.["leakLocation"] || "Local não informado"}`
                 : "Não"
             }
           />
-          <Value label="Vasos sanitários e descargas" value={yn(data.installations?.toilets)} />
-          <Value label="Ralos" value={data.installations?.drains} />
-          <Value label="Caixa d'água" value={data.installations?.waterTank} />
+          <Value label="Vasos sanitários e descargas" value={yn(data.installations?.["toilets"])} />
+          <Value label="Ralos" value={data.installations?.["drains"]} />
+          <Value label="Caixa d'água" value={data.installations?.["waterTank"]} />
         </div>
       </Section>
       <Section title="6. Inventário de Móveis e Eletrodomésticos">
-        {(data.inventory || []).length ? (
+        {inventory.length ? (
           <div
             tabIndex={0}
             role="region"
@@ -833,7 +846,7 @@ function InspectionSummary({ data }: { data: any }) {
                 </tr>
               </thead>
               <tbody>
-                {data.inventory.map((item: any, index: number) => (
+                {inventory.map((item, index) => (
                   <tr key={index} className="border-b">
                     <td className="p-2">{item.item || "-"}</td>
                     <td className="p-2">{item.model || "-"}</td>
@@ -853,9 +866,9 @@ function InspectionSummary({ data }: { data: any }) {
         </p>
       </Section>
       <Section title="8. Anexos Fotográficos">
-        {(data.photos || []).length ? (
+        {photos.length ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {data.photos.map((photo: any, index: number) => (
+            {photos.map((photo, index) => (
               <figure key={index} className="rounded-lg border p-2">
                 <img
                   src={photo.data}

@@ -3,6 +3,8 @@ import { mkdir, readFile, unlink } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { and, eq, sql } from "drizzle-orm";
+import type { DbExecutor, Schema } from "@/db/types";
+import type { InspectionAnswers } from "@/lib/property-inspections";
 
 function storageRoot() {
   const configured = process.env["DOCUMENT_STORAGE_PATH"];
@@ -28,11 +30,11 @@ function generatePdf(target: string, payload: unknown) {
 }
 
 export async function createInspectionDocument(
-  db: any,
-  schema: any,
-  inspection: any,
-  project: any,
-  answers: any,
+  db: DbExecutor,
+  schema: Schema,
+  inspection: Schema["propertyInspections"]["$inferSelect"],
+  project: Schema["projects"]["$inferSelect"],
+  answers: InspectionAnswers,
 ) {
   const storageKey = `${inspection.organizationId}/${inspection.projectId}/${randomUUID()}.pdf`;
   const root = storageRoot();
