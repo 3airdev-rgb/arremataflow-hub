@@ -78,6 +78,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       location.pathname === "/" ||
       location.pathname === "/redefinir-senha" ||
       location.pathname.startsWith("/vistoria/") ||
+      location.pathname.startsWith("/confirmar-participacao/") ||
       location.pathname.startsWith("/api/auth/");
     if (isPublicRoute) return;
 
