@@ -14,7 +14,8 @@ function plan(table, id, field, current, update) {
   if (typeof current !== "string" || !current.trim()) return;
   const normalized = normalizePhone(current);
   if (normalized === null) invalid.push({ table, id, field, value: current });
-  else if (normalized !== current) changes.push({ table, id, field, from: current, to: normalized, update });
+  else if (normalized !== current)
+    changes.push({ table, id, field, from: current, to: normalized, update });
 }
 
 await client.connect();
@@ -30,7 +31,8 @@ try {
     const phones = Array.isArray(row.phones) ? row.phones : [];
     const next = phones.map((phone) => {
       const normalized = typeof phone === "string" ? normalizePhone(phone) : null;
-      if (normalized === null) invalid.push({ table: "contacts", id: row.id, field: "phones", value: phone });
+      if (normalized === null)
+        invalid.push({ table: "contacts", id: row.id, field: "phones", value: phone });
       return normalized ?? phone;
     });
     if (JSON.stringify(next) !== JSON.stringify(phones))
@@ -41,7 +43,10 @@ try {
         from: phones.join(", "),
         to: next.join(", "),
         update: () =>
-          client.query("update contacts set phones = $1::jsonb where id = $2", [JSON.stringify(next), row.id]),
+          client.query("update contacts set phones = $1::jsonb where id = $2", [
+            JSON.stringify(next),
+            row.id,
+          ]),
       });
   }
 
