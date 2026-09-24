@@ -21,6 +21,7 @@ import { Route as InvestidorRouteImport } from './routes/investidor'
 import { Route as NotificacoesRouteImport } from './routes/notificacoes'
 import { Route as ObrasRouteImport } from './routes/obras'
 import { Route as PerfilRouteImport } from './routes/perfil'
+import { Route as PlanosRouteImport } from './routes/planos'
 import { Route as PosseRouteImport } from './routes/posse'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as RegularizacaoRouteImport } from './routes/regularizacao'
@@ -30,6 +31,9 @@ import { Route as SuporteRouteImport } from './routes/suporte'
 import { Route as TarefasRouteImport } from './routes/tarefas'
 import { Route as AdminConfiguracoesRouteImport } from './routes/admin.configuracoes'
 import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
+import { Route as ApiSignupRouteImport } from './routes/api/signup'
+import { Route as CadastroIndexRouteImport } from './routes/cadastro.index'
+import { Route as CadastroEmpresaRouteImport } from './routes/cadastro.empresa'
 import { Route as ConfirmarParticipacaoTokenRouteImport } from './routes/confirmar-participacao.$token'
 import { Route as ProjetosIndexRouteImport } from './routes/projetos.index'
 import { Route as VistoriaTokenRouteImport } from './routes/vistoria.$token'
@@ -109,6 +113,11 @@ const PerfilRoute = PerfilRouteImport.update({
   path: '/perfil',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlanosRoute = PlanosRouteImport.update({
+  id: '/planos',
+  path: '/planos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PosseRoute = PosseRouteImport.update({
   id: '/posse',
   path: '/posse',
@@ -152,6 +161,21 @@ const AdminConfiguracoesRoute = AdminConfiguracoesRouteImport.update({
 const AdminUsuariosRoute = AdminUsuariosRouteImport.update({
   id: '/admin/usuarios',
   path: '/admin/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSignupRoute = ApiSignupRouteImport.update({
+  id: '/api/signup',
+  path: '/api/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CadastroIndexRoute = CadastroIndexRouteImport.update({
+  id: '/cadastro/',
+  path: '/cadastro/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CadastroEmpresaRoute = CadastroEmpresaRouteImport.update({
+  id: '/cadastro/empresa',
+  path: '/cadastro/empresa',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfirmarParticipacaoTokenRoute =
@@ -267,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/notificacoes': typeof NotificacoesRoute
   '/obras': typeof ObrasRoute
   '/perfil': typeof PerfilRoute
+  '/planos': typeof PlanosRoute
   '/posse': typeof PosseRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/regularizacao': typeof RegularizacaoRoute
@@ -276,8 +301,11 @@ export interface FileRoutesByFullPath {
   '/tarefas': typeof TarefasRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/api/signup': typeof ApiSignupRoute
+  '/cadastro/empresa': typeof CadastroEmpresaRoute
   '/confirmar-participacao/$token': typeof ConfirmarParticipacaoTokenRoute
   '/vistoria/$token': typeof VistoriaTokenRoute
+  '/cadastro/': typeof CadastroIndexRoute
   '/projetos/': typeof ProjetosIndexRoute
   '/projetos/editar': typeof AuthenticatedProjetosEditarRoute
   '/projetos/novo': typeof AuthenticatedProjetosNovoRoute
@@ -308,6 +336,7 @@ export interface FileRoutesByTo {
   '/notificacoes': typeof NotificacoesRoute
   '/obras': typeof ObrasRoute
   '/perfil': typeof PerfilRoute
+  '/planos': typeof PlanosRoute
   '/posse': typeof PosseRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/regularizacao': typeof RegularizacaoRoute
@@ -317,8 +346,11 @@ export interface FileRoutesByTo {
   '/tarefas': typeof TarefasRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/api/signup': typeof ApiSignupRoute
+  '/cadastro/empresa': typeof CadastroEmpresaRoute
   '/confirmar-participacao/$token': typeof ConfirmarParticipacaoTokenRoute
   '/vistoria/$token': typeof VistoriaTokenRoute
+  '/cadastro': typeof CadastroIndexRoute
   '/projetos': typeof ProjetosIndexRoute
   '/projetos/editar': typeof AuthenticatedProjetosEditarRoute
   '/projetos/novo': typeof AuthenticatedProjetosNovoRoute
@@ -351,6 +383,7 @@ export interface FileRoutesById {
   '/notificacoes': typeof NotificacoesRoute
   '/obras': typeof ObrasRoute
   '/perfil': typeof PerfilRoute
+  '/planos': typeof PlanosRoute
   '/posse': typeof PosseRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/regularizacao': typeof RegularizacaoRoute
@@ -360,8 +393,11 @@ export interface FileRoutesById {
   '/tarefas': typeof TarefasRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/api/signup': typeof ApiSignupRoute
+  '/cadastro/empresa': typeof CadastroEmpresaRoute
   '/confirmar-participacao/$token': typeof ConfirmarParticipacaoTokenRoute
   '/vistoria/$token': typeof VistoriaTokenRoute
+  '/cadastro/': typeof CadastroIndexRoute
   '/projetos/': typeof ProjetosIndexRoute
   '/_authenticated/projetos/editar': typeof AuthenticatedProjetosEditarRoute
   '/_authenticated/projetos/novo': typeof AuthenticatedProjetosNovoRoute
@@ -394,6 +430,7 @@ export interface FileRouteTypes {
     | '/notificacoes'
     | '/obras'
     | '/perfil'
+    | '/planos'
     | '/posse'
     | '/redefinir-senha'
     | '/regularizacao'
@@ -403,8 +440,11 @@ export interface FileRouteTypes {
     | '/tarefas'
     | '/admin/configuracoes'
     | '/admin/usuarios'
+    | '/api/signup'
+    | '/cadastro/empresa'
     | '/confirmar-participacao/$token'
     | '/vistoria/$token'
+    | '/cadastro/'
     | '/projetos/'
     | '/projetos/editar'
     | '/projetos/novo'
@@ -435,6 +475,7 @@ export interface FileRouteTypes {
     | '/notificacoes'
     | '/obras'
     | '/perfil'
+    | '/planos'
     | '/posse'
     | '/redefinir-senha'
     | '/regularizacao'
@@ -444,8 +485,11 @@ export interface FileRouteTypes {
     | '/tarefas'
     | '/admin/configuracoes'
     | '/admin/usuarios'
+    | '/api/signup'
+    | '/cadastro/empresa'
     | '/confirmar-participacao/$token'
     | '/vistoria/$token'
+    | '/cadastro'
     | '/projetos'
     | '/projetos/editar'
     | '/projetos/novo'
@@ -477,6 +521,7 @@ export interface FileRouteTypes {
     | '/notificacoes'
     | '/obras'
     | '/perfil'
+    | '/planos'
     | '/posse'
     | '/redefinir-senha'
     | '/regularizacao'
@@ -486,8 +531,11 @@ export interface FileRouteTypes {
     | '/tarefas'
     | '/admin/configuracoes'
     | '/admin/usuarios'
+    | '/api/signup'
+    | '/cadastro/empresa'
     | '/confirmar-participacao/$token'
     | '/vistoria/$token'
+    | '/cadastro/'
     | '/projetos/'
     | '/_authenticated/projetos/editar'
     | '/_authenticated/projetos/novo'
@@ -520,6 +568,7 @@ export interface RootRouteChildren {
   NotificacoesRoute: typeof NotificacoesRoute
   ObrasRoute: typeof ObrasRoute
   PerfilRoute: typeof PerfilRoute
+  PlanosRoute: typeof PlanosRoute
   PosseRoute: typeof PosseRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   RegularizacaoRoute: typeof RegularizacaoRoute
@@ -529,8 +578,11 @@ export interface RootRouteChildren {
   TarefasRoute: typeof TarefasRoute
   AdminConfiguracoesRoute: typeof AdminConfiguracoesRoute
   AdminUsuariosRoute: typeof AdminUsuariosRoute
+  ApiSignupRoute: typeof ApiSignupRoute
+  CadastroEmpresaRoute: typeof CadastroEmpresaRoute
   ConfirmarParticipacaoTokenRoute: typeof ConfirmarParticipacaoTokenRoute
   VistoriaTokenRoute: typeof VistoriaTokenRoute
+  CadastroIndexRoute: typeof CadastroIndexRoute
   ProjetosIndexRoute: typeof ProjetosIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiDocumentsIdRoute: typeof ApiDocumentsIdRoute
@@ -633,6 +685,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PerfilRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/planos': {
+      id: '/planos'
+      path: '/planos'
+      fullPath: '/planos'
+      preLoaderRoute: typeof PlanosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/posse': {
       id: '/posse'
       path: '/posse'
@@ -694,6 +753,27 @@ declare module '@tanstack/react-router' {
       path: '/admin/usuarios'
       fullPath: '/admin/usuarios'
       preLoaderRoute: typeof AdminUsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/signup': {
+      id: '/api/signup'
+      path: '/api/signup'
+      fullPath: '/api/signup'
+      preLoaderRoute: typeof ApiSignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cadastro/': {
+      id: '/cadastro/'
+      path: '/cadastro'
+      fullPath: '/cadastro/'
+      preLoaderRoute: typeof CadastroIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cadastro/empresa': {
+      id: '/cadastro/empresa'
+      path: '/cadastro/empresa'
+      fullPath: '/cadastro/empresa'
+      preLoaderRoute: typeof CadastroEmpresaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/confirmar-participacao/$token': {
@@ -860,6 +940,7 @@ const rootRouteChildren: RootRouteChildren = {
   NotificacoesRoute: NotificacoesRoute,
   ObrasRoute: ObrasRoute,
   PerfilRoute: PerfilRoute,
+  PlanosRoute: PlanosRoute,
   PosseRoute: PosseRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   RegularizacaoRoute: RegularizacaoRoute,
@@ -869,8 +950,11 @@ const rootRouteChildren: RootRouteChildren = {
   TarefasRoute: TarefasRoute,
   AdminConfiguracoesRoute: AdminConfiguracoesRoute,
   AdminUsuariosRoute: AdminUsuariosRoute,
+  ApiSignupRoute: ApiSignupRoute,
+  CadastroEmpresaRoute: CadastroEmpresaRoute,
   ConfirmarParticipacaoTokenRoute: ConfirmarParticipacaoTokenRoute,
   VistoriaTokenRoute: VistoriaTokenRoute,
+  CadastroIndexRoute: CadastroIndexRoute,
   ProjetosIndexRoute: ProjetosIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiDocumentsIdRoute: ApiDocumentsIdRoute,

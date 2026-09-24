@@ -40,11 +40,13 @@ function authRateLimit(request: Request) {
   const path = new URL(request.url).pathname;
   const policy = path.includes("/api/auth/sign-in")
     ? { max: 10, window: 15 * 60_000 }
-    : path.includes("/api/auth/forget-password")
+    : path.includes("/api/signup")
       ? { max: 5, window: 60 * 60_000 }
-      : path.includes("/api/auth/reset-password")
-        ? { max: 10, window: 60 * 60_000 }
-        : null;
+      : path.includes("/api/auth/forget-password")
+        ? { max: 5, window: 60 * 60_000 }
+        : path.includes("/api/auth/reset-password")
+          ? { max: 10, window: 60 * 60_000 }
+          : null;
   if (!policy) return null;
   if (Number(request.headers.get("content-length") || 0) > 64 * 1024)
     return new Response("Requisição muito grande.", { status: 413 });

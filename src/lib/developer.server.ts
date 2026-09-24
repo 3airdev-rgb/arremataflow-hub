@@ -1,10 +1,10 @@
 import { getRequestHeaders } from "@tanstack/react-start/server";
-import { and, eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/index.server";
 import * as schema from "@/db/schema";
 import { auth } from "@/lib/auth.server";
 import { resolveActiveMembership } from "@/lib/active-organization.server";
-import { entitledSubscriptionStatuses } from "@/lib/billing";
+import { subscriptionAccess } from "@/lib/access";
 import { assertPlanFeature, assertPlanLimit } from "@/lib/plan-limits";
 
 async function currentUser() {
@@ -30,19 +30,28 @@ export async function getSystemRoleImpl() {
   return user.systemRole;
 }
 
-export async function activePlanForOrganization(organizationId: string) {
-  const [plan] = await db
-    .select({ plan: schema.plans })
+export async function organizationSubscription(organizationId: string) {
+  const [row] = await db
+    .select({ subscription: schema.organizationPlans, plan: schema.plans })
     .from(schema.organizationPlans)
     .innerJoin(schema.plans, eq(schema.plans.id, schema.organizationPlans.planId))
-    .where(
-      and(
-        eq(schema.organizationPlans.organizationId, organizationId),
-        inArray(schema.organizationPlans.status, entitledSubscriptionStatuses),
-      ),
-    )
+    .where(eq(schema.organizationPlans.organizationId, organizationId))
     .limit(1);
-  return plan?.plan ?? null;
+  return row ?? null;
+}
+
+/** Plano em vigor; nulo quando a empresa não tem assinatura ou o acesso está bloqueado. */
+export async function activePlanForOrganization(organizationId: string) {
+  const row = await organizationSubscription(organizationId);
+  if (!row || !subscriptionAccess(row.subscription).allowed) return null;
+  return row.plan;
+}
+
+/** Bloqueia operações de empresas com assinatura vencida além da carência, cancelada ou pausada. */
+export async function assertOrganizationAccess(organizationId: string) {
+  const row = await organizationSubscription(organizationId);
+  if (row && !subscriptionAccess(row.subscription).allowed)
+    throw new Error("A assinatura da empresa está inativa. Renove o plano para continuar.");
 }
 
 export async function getActivePlanImpl() {
@@ -57,6 +66,7 @@ export async function enforcePlanLimit(
   key: "maxActiveProjects" | "maxInvestors" | "maxAdvisors" | "maxProjectManagers",
   currentCount: number,
 ) {
+  await assertOrganizationAccess(organizationId);
   const plan = await activePlanForOrganization(organizationId);
   const limit = plan?.[key];
   assertPlanLimit(limit ?? null, currentCount);
@@ -67,6 +77,7 @@ export async function enforcePlanFeature(
   kind: "menuItems" | "projectTabs" | "advisoryModalities",
   feature: string,
 ) {
+  await assertOrganizationAccess(organizationId);
   const plan = await activePlanForOrganization(organizationId);
   assertPlanFeature(plan?.[kind] ?? null, feature);
 }

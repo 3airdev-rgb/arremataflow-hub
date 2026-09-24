@@ -15,6 +15,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ValidationAlertHost } from "@/components/validation-alert-host";
 import { getAuthState } from "@/lib/auth-session";
 import { getActivePlan, getSystemRole } from "@/lib/developer";
+import { getAccessGate } from "@/lib/onboarding";
 
 function NotFoundComponent() {
   return (
@@ -76,6 +77,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   beforeLoad: async ({ location }) => {
     const isPublicRoute =
       location.pathname === "/" ||
+      location.pathname === "/cadastro" ||
+      location.pathname === "/cadastro/" ||
       location.pathname === "/redefinir-senha" ||
       location.pathname.startsWith("/vistoria/") ||
       location.pathname.startsWith("/confirmar-participacao/") ||
@@ -91,6 +94,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       return;
     }
     if (location.pathname === "/desenvolvedor") throw redirect({ to: "/dashboard" });
+    const gate = await getAccessGate();
+    if (gate.kind === "no_organization") {
+      if (location.pathname !== "/cadastro/empresa") throw redirect({ to: "/cadastro/empresa" });
+      return;
+    }
+    if (gate.kind === "no_access" || gate.kind === "blocked") {
+      if (location.pathname !== "/planos") throw redirect({ to: "/planos" });
+      return;
+    }
+    if (location.pathname === "/cadastro/empresa") throw redirect({ to: "/projetos" });
     const plan = await getActivePlan();
     if (!plan) return;
     const path = location.pathname;

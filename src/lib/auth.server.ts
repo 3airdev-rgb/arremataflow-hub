@@ -62,6 +62,18 @@ const authOptions = {
       });
     },
   },
+  emailVerification: {
+    sendOnSignIn: true,
+    autoSignInAfterVerification: true,
+    expiresIn: 60 * 60,
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendTransactionalEmail({
+        to: user.email,
+        subject: "Confirme seu e-mail — ArremataFlow",
+        html: `<p>Olá, ${escapeHtml(user.name)}.</p><p>Confirme seu e-mail para começar a usar o ArremataFlow. O link expira em 1 hora.</p><p><a href="${escapeHtml(url)}">Confirmar e-mail</a></p><p>Se você não criou esta conta, ignore esta mensagem.</p>`,
+      });
+    },
+  },
   session: {
     expiresIn: 60 * 60 * 8,
     updateAge: 60 * 30,

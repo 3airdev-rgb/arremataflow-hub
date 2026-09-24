@@ -145,7 +145,9 @@ function LoginPage() {
                   setErro(
                     serviceUnavailable
                       ? "O serviço de autenticação está indisponível. Tente novamente em instantes."
-                      : "E-mail ou senha inválidos.",
+                      : error.code === "EMAIL_NOT_VERIFIED"
+                        ? "Confirme seu e-mail antes de entrar. Enviamos um novo link de confirmação."
+                        : "E-mail ou senha inválidos.",
                   );
                   return;
                 }
@@ -188,7 +190,12 @@ function LoginPage() {
                 Entrar
               </Button>
               <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                <span className="text-muted-foreground">Primeiro acesso somente por convite</span>
+                <span className="text-muted-foreground">
+                  Novo por aqui?{" "}
+                  <Link to="/cadastro" className="text-brand hover:underline">
+                    Criar conta
+                  </Link>
+                </span>
                 <button
                   type="button"
                   className="min-h-11 text-left text-brand hover:underline"

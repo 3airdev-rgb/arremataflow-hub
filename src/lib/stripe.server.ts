@@ -18,7 +18,7 @@ export const stripeEventsToEnable = [
   "invoice.payment_failed",
 ];
 
-const appBaseUrl = () =>
+export const appBaseUrl = () =>
   (process.env["APP_PUBLIC_URL"] || process.env["BETTER_AUTH_URL"] || "").replace(/\/$/, "");
 
 export function stripeSetup() {
@@ -58,32 +58,41 @@ async function stripeRequest(path: string, params: URLSearchParams) {
   return body ?? {};
 }
 
-export async function createCheckoutLinkImpl(data: {
+/** Cria a sessão de checkout da Stripe; se ainda há teste com mais de 2 dias, ele é mantido. */
+export async function createCheckoutSession(input: {
   organizationId: string;
+  planId?: string;
   cycle: "monthly" | "annual";
+  successUrl: string;
+  cancelUrl: string;
 }) {
-  await developer();
-  const base = appBaseUrl();
-  if (!base) throw new Error("Endereço público do aplicativo (APP_PUBLIC_URL) não configurado.");
   const [row] = await db
     .select({
+      planId: schema.organizationPlans.planId,
       trialEndsAt: schema.organizationPlans.trialEndsAt,
+      status: schema.organizationPlans.status,
       customerId: schema.organizationPlans.stripeCustomerId,
-      monthlyPriceId: schema.plans.stripeMonthlyPriceId,
-      annualPriceId: schema.plans.stripeAnnualPriceId,
       adminEmail: schema.users.email,
     })
     .from(schema.organizationPlans)
-    .innerJoin(schema.plans, eq(schema.plans.id, schema.organizationPlans.planId))
     .innerJoin(
       schema.organizations,
       eq(schema.organizations.id, schema.organizationPlans.organizationId),
     )
     .innerJoin(schema.users, eq(schema.users.id, schema.organizations.createdBy))
-    .where(eq(schema.organizationPlans.organizationId, data.organizationId))
+    .where(eq(schema.organizationPlans.organizationId, input.organizationId))
     .limit(1);
   if (!row) throw new Error("Atribua um plano à empresa antes de gerar o link de pagamento.");
-  const priceId = data.cycle === "annual" ? row.annualPriceId : row.monthlyPriceId;
+  const [plan] = await db
+    .select({
+      monthlyPriceId: schema.plans.stripeMonthlyPriceId,
+      annualPriceId: schema.plans.stripeAnnualPriceId,
+    })
+    .from(schema.plans)
+    .where(eq(schema.plans.id, input.planId ?? row.planId))
+    .limit(1);
+  if (!plan) throw new Error("Plano não encontrado.");
+  const priceId = input.cycle === "annual" ? plan.annualPriceId : plan.monthlyPriceId;
   if (!priceId)
     throw new Error(
       "O plano não tem o ID de preço da Stripe para este ciclo. Informe-o na aba Planos.",
@@ -92,17 +101,21 @@ export async function createCheckoutLinkImpl(data: {
     mode: "subscription",
     "line_items[0][price]": priceId,
     "line_items[0][quantity]": "1",
-    client_reference_id: data.organizationId,
-    "metadata[organization_id]": data.organizationId,
-    "subscription_data[metadata][organization_id]": data.organizationId,
-    success_url: `${base}/desenvolvedor?aba=financeiro&checkout=sucesso`,
-    cancel_url: `${base}/desenvolvedor?aba=financeiro&checkout=cancelado`,
+    client_reference_id: input.organizationId,
+    "metadata[organization_id]": input.organizationId,
+    "subscription_data[metadata][organization_id]": input.organizationId,
+    success_url: input.successUrl,
+    cancel_url: input.cancelUrl,
     locale: "pt-BR",
     allow_promotion_codes: "true",
   });
   if (row.customerId) params.set("customer", row.customerId);
   else params.set("customer_email", row.adminEmail);
-  if (row.trialEndsAt && row.trialEndsAt.getTime() - Date.now() > 2 * 86_400_000)
+  if (
+    row.status === "trialing" &&
+    row.trialEndsAt &&
+    row.trialEndsAt.getTime() - Date.now() > 2 * 86_400_000
+  )
     params.set(
       "subscription_data[trial_end]",
       String(Math.floor(row.trialEndsAt.getTime() / 1000)),
@@ -113,14 +126,26 @@ export async function createCheckoutLinkImpl(data: {
   return { url };
 }
 
-export async function createPortalLinkImpl(data: { organizationId: string }) {
+export async function createCheckoutLinkImpl(data: {
+  organizationId: string;
+  cycle: "monthly" | "annual";
+}) {
   await developer();
   const base = appBaseUrl();
   if (!base) throw new Error("Endereço público do aplicativo (APP_PUBLIC_URL) não configurado.");
+  return createCheckoutSession({
+    organizationId: data.organizationId,
+    cycle: data.cycle,
+    successUrl: `${base}/desenvolvedor?aba=financeiro&checkout=sucesso`,
+    cancelUrl: `${base}/desenvolvedor?aba=financeiro&checkout=cancelado`,
+  });
+}
+
+export async function createOrganizationPortalSession(organizationId: string, returnUrl: string) {
   const [row] = await db
     .select({ customerId: schema.organizationPlans.stripeCustomerId })
     .from(schema.organizationPlans)
-    .where(eq(schema.organizationPlans.organizationId, data.organizationId))
+    .where(eq(schema.organizationPlans.organizationId, organizationId))
     .limit(1);
   if (!row?.customerId)
     throw new Error(
@@ -128,14 +153,21 @@ export async function createPortalLinkImpl(data: { organizationId: string }) {
     );
   const session = await stripeRequest(
     "/billing_portal/sessions",
-    new URLSearchParams({
-      customer: row.customerId,
-      return_url: `${base}/desenvolvedor?aba=financeiro`,
-    }),
+    new URLSearchParams({ customer: row.customerId, return_url: returnUrl }),
   );
   const url = typeof session["url"] === "string" ? session["url"] : null;
   if (!url) throw new Error("A Stripe não retornou o link do portal.");
   return { url };
+}
+
+export async function createPortalLinkImpl(data: { organizationId: string }) {
+  await developer();
+  const base = appBaseUrl();
+  if (!base) throw new Error("Endereço público do aplicativo (APP_PUBLIC_URL) não configurado.");
+  return createOrganizationPortalSession(
+    data.organizationId,
+    `${base}/desenvolvedor?aba=financeiro`,
+  );
 }
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
