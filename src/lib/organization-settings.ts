@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { phoneSchema } from "@/lib/phone";
+import { validateDocument } from "@/lib/utils-validation";
 
 export const brazilianStates = [
   "AC",
@@ -35,8 +36,20 @@ export const brazilianStates = [
 
 const settingsSchema = z.object({
   name: z.string().trim().min(2).max(160),
-  legalDocument: z.string().trim().max(18),
-  institutionalEmail: z.union([z.literal(""), z.string().trim().email().max(254)]),
+  legalDocument: z
+    .string()
+    .trim()
+    .max(18)
+    .refine(
+      (value) => value === "" || validateDocument(value.replace(/\D/g, "")),
+      "Informe um CPF ou CNPJ válido.",
+    ),
+  institutionalEmail: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email("Informe o e-mail do administrador.")
+    .max(254),
   phone: phoneSchema,
   address: z.string().trim().max(200),
   addressNumber: z.string().trim().max(30),
@@ -125,6 +138,41 @@ export const updateOrganizationSettings = createServerFn({ method: "POST" })
       throw new Error("Sem permissão para alterar a empresa.");
     }
     await db.transaction(async (tx) => {
+      const { findTitularAdministrator, syncAdministratorContacts } =
+        await import("@/lib/administrator.server");
+      const titular = await findTitularAdministrator(tx, schema, membership.organizationId);
+      if (titular) {
+        const emailChanged = titular.email.toLowerCase() !== data.institutionalEmail;
+        if (emailChanged) {
+          const [duplicate] = await tx
+            .select({ id: schema.users.id })
+            .from(schema.users)
+            .where(
+              and(
+                sql`lower(${schema.users.email}) = ${data.institutionalEmail}`,
+                ne(schema.users.id, titular.userId),
+              ),
+            )
+            .limit(1);
+          if (duplicate) throw new Error("Este e-mail já está sendo usado por outro usuário.");
+        }
+        if (emailChanged || titular.name !== data.name) {
+          await tx
+            .update(schema.users)
+            .set({ name: data.name, email: data.institutionalEmail, updatedAt: new Date() })
+            .where(eq(schema.users.id, titular.userId));
+          if (emailChanged)
+            await tx
+              .update(schema.contacts)
+              .set({ email: data.institutionalEmail, updatedAt: new Date() })
+              .where(
+                and(
+                  eq(schema.contacts.organizationId, membership.organizationId),
+                  sql`lower(${schema.contacts.email}) = lower(${titular.email})`,
+                ),
+              );
+        }
+      }
       await tx
         .update(schema.organizations)
         .set({
@@ -141,6 +189,7 @@ export const updateOrganizationSettings = createServerFn({ method: "POST" })
         entityId: membership.organizationId,
         metadata: { fields: Object.keys(data) },
       });
+      await syncAdministratorContacts(tx, schema, membership.organizationId, userId);
     });
     return { ...data, id: membership.organizationId };
   });

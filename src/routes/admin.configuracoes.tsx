@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Percent, BellRing, Save, Users, CreditCard, ArrowUpRight } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { formatPhoneInput, PHONE_PLACEHOLDER } from "@/lib/phone";
+import { showValidationAlert } from "@/lib/validation-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -191,9 +192,14 @@ function ConfiguracoesPage() {
                 try {
                   const updated = await updateOrganizationSettings({ data: form });
                   queryClient.setQueryData(["active-organization"], updated);
+                  await Promise.all([
+                    queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+                    queryClient.invalidateQueries({ queryKey: ["organization-users"] }),
+                    queryClient.invalidateQueries({ queryKey: ["current-organization-user"] }),
+                  ]);
                   toast.success("Configurações salvas!");
-                } catch {
-                  toast.error("Não foi possível salvar as configurações.");
+                } catch (error) {
+                  showValidationAlert(error, "Não foi possível salvar as configurações.");
                 } finally {
                   setSaving(false);
                 }
@@ -238,15 +244,24 @@ function ConfiguracoesPage() {
                       change("legalDocument", formatarCpfCnpj(event.target.value))
                     }
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Com CPF ou CNPJ válido, o administrador passa a aparecer nas buscas de
+                    investidor, assessor e gestor de projetos.
+                  </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="emailc">E-mail institucional</Label>
+                  <Label htmlFor="emailc">E-mail do administrador</Label>
                   <Input
                     id="emailc"
                     type="email"
+                    required
                     value={form.institutionalEmail}
                     onChange={(event) => change("institutionalEmail", event.target.value)}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    É também o e-mail de acesso do administrador; se for alterado, use o novo e-mail
+                    no próximo login.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="tel">Telefone</Label>

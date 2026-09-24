@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Schema } from "@/db/types";
+import { countableManagerChange } from "@/lib/administrator-contact";
 import {
   buildProjectAssignmentEmail,
   newlyAddedParticipants,
@@ -983,12 +984,26 @@ export const saveProject = createServerFn({ method: "POST" })
               eq(schema.projectParticipants.role, "responsible"),
             ),
           );
-        const existingManagerIds = new Set(currentManagers.map((row) => row.contactId));
-        const additions = requestedManagerIds.filter((id) => !existingManagerIds.has(id));
-        if (
-          additions.length &&
-          existingManagerIds.size + additions.length > activePlan.maxProjectManagers
-        )
+        const existingManagerIds = currentManagers.map((row) => row.contactId);
+        const { isAdministratorContact } = await import("@/lib/administrator.server");
+        const administrators = await database
+          .select({ id: schema.contacts.id })
+          .from(schema.contacts)
+          .where(
+            and(
+              eq(schema.contacts.organizationId, membership.organizationId),
+              inArray(schema.contacts.id, [
+                ...new Set([...existingManagerIds, ...requestedManagerIds]),
+              ]),
+              isAdministratorContact(schema, membership.organizationId),
+            ),
+          );
+        const { existingCount, additions } = countableManagerChange(
+          existingManagerIds,
+          requestedManagerIds,
+          administrators.map((administrator) => administrator.id),
+        );
+        if (additions.length && existingCount + additions.length > activePlan.maxProjectManagers)
           throw new Error("Limite de gestores de projeto do plano atingido.");
       }
       await database

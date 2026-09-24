@@ -355,6 +355,18 @@ export const updateOrganizationUser = createServerFn({ method: "POST" })
           .update(schema.organizationMembers)
           .set({ role: data.role, updatedAt: new Date() })
           .where(eq(schema.organizationMembers.id, target.id));
+      if (["owner", "admin"].includes(target.role)) {
+        const { findTitularAdministrator, syncAdministratorContacts } =
+          await import("@/lib/administrator.server");
+        const titular = await findTitularAdministrator(tx, schema, membership.organizationId);
+        if (titular?.userId === data.userId) {
+          await tx
+            .update(schema.organizations)
+            .set({ name: data.name, institutionalEmail: data.email, updatedAt: new Date() })
+            .where(eq(schema.organizations.id, membership.organizationId));
+          await syncAdministratorContacts(tx, schema, membership.organizationId, session.user.id);
+        }
+      }
       await tx.insert(schema.auditLogs).values({
         organizationId: membership.organizationId,
         actorId: session.user.id,
@@ -482,6 +494,9 @@ export const inviteOrganizationUser = createServerFn({ method: "POST" })
       }
       let contact: { id: string; nome: string } | null = null;
       if (data.contactData) {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${membership.organizationId}))`);
+        const { enforceContactPlanLimit } = await import("@/lib/administrator.server");
+        const invitedIsAdministrator = ["owner", "admin"].includes(existing?.role ?? "");
         const normalizedDocument = data.contactData.documento.replace(/\D/g, "");
         if (!validateDocument(normalizedDocument))
           throw new Error("Informe um CPF ou CNPJ válido.");
@@ -503,6 +518,13 @@ export const inviteOrganizationUser = createServerFn({ method: "POST" })
           .limit(1);
         if (duplicate && duplicate.email.toLowerCase() !== data.email)
           throw new Error("Documento já cadastrado com outro e-mail nesta empresa.");
+        if (!duplicate && !invitedIsAdministrator)
+          await enforceContactPlanLimit(
+            tx,
+            schema,
+            membership.organizationId,
+            data.contactData.type,
+          );
         const {
           type,
           nome,
@@ -554,6 +576,8 @@ export const inviteOrganizationUser = createServerFn({ method: "POST" })
               throw new Error("Documento já cadastrado com outro e-mail nesta empresa.");
             continue;
           }
+          if (!invitedIsAdministrator)
+            await enforceContactPlanLimit(tx, schema, membership.organizationId, extraType);
           const [extra] = await tx
             .insert(schema.contacts)
             .values({
