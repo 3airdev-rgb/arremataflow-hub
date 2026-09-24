@@ -4,6 +4,7 @@ import {
   contactRowToProfile,
   joinProfileLabels,
   profileToContactColumns,
+  requiresUserAccount,
 } from "./contact-profile.ts";
 
 describe("contactRowToProfile", () => {
@@ -84,5 +85,18 @@ describe("joinProfileLabels", () => {
   it("ignora tipos desconhecidos e retorna vazio sem perfis", () => {
     assert.equal(joinProfileLabels(["Leiloeiro"]), "");
     assert.equal(joinProfileLabels([]), "");
+  });
+});
+
+describe("requiresUserAccount", () => {
+  it("exige conta de usuário para investidor, assessor e gestor de projetos", () => {
+    assert.equal(requiresUserAccount("Investidor"), true);
+    assert.equal(requiresUserAccount("Assessor"), true);
+    assert.equal(requiresUserAccount("Responsável"), true);
+  });
+
+  it("não exige conta para os demais tipos de contato", () => {
+    for (const type of ["Leiloeiro", "Corretor", "Imobiliária", "Fornecedor"])
+      assert.equal(requiresUserAccount(type), false);
   });
 });

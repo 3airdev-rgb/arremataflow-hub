@@ -2,6 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Schema } from "@/db/types";
+import {
+  buildProjectAssignmentEmail,
+  newlyAddedParticipants,
+  type AddedParticipant,
+} from "@/lib/project-assignment-notice";
 
 const projectStatuses = [
   "atrasado",
@@ -893,7 +898,75 @@ export const saveProject = createServerFn({ method: "POST" })
       if (allowedContacts.length !== uniqueContactIds.length)
         throw new Error("Há participantes inválidos para esta empresa.");
     }
+    let addedParticipants: AddedParticipant[] = [];
+    const notifyAddedParticipants = async (project: {
+      id: string;
+      codigo: string;
+      nome: string;
+    }) => {
+      if (!addedParticipants.length) return;
+      try {
+        const baseUrl = process.env["APP_PUBLIC_URL"] || process.env["BETTER_AUTH_URL"];
+        if (!baseUrl) return;
+        const [recipients, { sendTransactionalEmail }] = await Promise.all([
+          db
+            .select({
+              id: schema.contacts.id,
+              name: schema.contacts.name,
+              email: schema.contacts.email,
+            })
+            .from(schema.contacts)
+            .where(
+              and(
+                eq(schema.contacts.organizationId, membership.organizationId),
+                inArray(
+                  schema.contacts.id,
+                  addedParticipants.map((added) => added.contactId),
+                ),
+              ),
+            ),
+          import("@/lib/email.server"),
+        ]);
+        const projectUrl = `${baseUrl.replace(/\/$/, "")}/projetos/${project.id}`;
+        await Promise.all(
+          addedParticipants.map(async (added) => {
+            const recipient = recipients.find((contact) => contact.id === added.contactId);
+            if (!recipient?.email) return;
+            try {
+              await sendTransactionalEmail({
+                to: recipient.email,
+                ...buildProjectAssignmentEmail({
+                  recipientName: recipient.name,
+                  projectCode: project.codigo,
+                  projectName: project.nome,
+                  roles: added.roles,
+                  projectUrl,
+                }),
+              });
+            } catch (error) {
+              console.error(
+                "Não foi possível enviar o aviso de inclusão no projeto.",
+                error instanceof Error ? error.message : error,
+              );
+            }
+          }),
+        );
+      } catch (error) {
+        console.error(
+          "Não foi possível preparar os avisos de inclusão no projeto.",
+          error instanceof Error ? error.message : error,
+        );
+      }
+    };
     const syncLinks = async (database: ProjectTransaction, projectId: string) => {
+      const previousLinks = await database
+        .select({
+          contactId: schema.projectParticipants.contactId,
+          role: schema.projectParticipants.role,
+        })
+        .from(schema.projectParticipants)
+        .where(eq(schema.projectParticipants.projectId, projectId));
+      addedParticipants = newlyAddedParticipants(previousLinks, data.links);
       const requestedManagerIds = [
         ...new Set(
           data.links.filter((link) => link.role === "responsible").map((link) => link.contactId),
@@ -942,7 +1015,7 @@ export const saveProject = createServerFn({ method: "POST" })
         projectId,
         "project_manager",
       );
-      return db.transaction(async (tx) => {
+      const savedProject = await db.transaction(async (tx) => {
         await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${membership.organizationId}))`);
         const [previous] = await tx
           .select({ status: schema.projects.status })
@@ -1005,6 +1078,8 @@ export const saveProject = createServerFn({ method: "POST" })
         });
         return normalize(updated);
       });
+      await notifyAddedParticipants(savedProject);
+      return savedProject;
     }
     if (!["owner", "admin"].includes(membership.role)) {
       const { effectiveOrganizationRole } = await import("@/lib/organization-users");
@@ -1035,7 +1110,7 @@ export const saveProject = createServerFn({ method: "POST" })
       if (!ownManager)
         throw new Error("Vincule-se como gestor do novo projeto para manter o acesso.");
     }
-    return db.transaction(async (tx) => {
+    const createdProject = await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${membership.organizationId}))`);
       const [{ enforcePlanLimit }, activeCount] = await Promise.all([
         import("@/lib/developer.server"),
@@ -1091,6 +1166,8 @@ export const saveProject = createServerFn({ method: "POST" })
       });
       return normalize(created);
     });
+    await notifyAddedParticipants(createdProject);
+    return createdProject;
   });
 
 export const deleteProject = createServerFn({ method: "POST" })

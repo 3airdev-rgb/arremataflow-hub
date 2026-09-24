@@ -86,3 +86,8 @@ export function joinProfileLabels(types: string[]): string {
   if (labels.length <= 1) return labels[0] ?? "";
   return `${labels.slice(0, -1).join(", ")} e ${labels[labels.length - 1]}`;
 }
+
+export const userProfileTypes = ["Investidor", "Assessor", "Responsável"] as const;
+
+export const requiresUserAccount = (type: string) =>
+  (userProfileTypes as readonly string[]).includes(type);

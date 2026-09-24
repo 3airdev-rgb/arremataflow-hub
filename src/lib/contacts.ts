@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
+import { requiresUserAccount } from "@/lib/contact-profile";
 import { validateDocument } from "@/lib/utils-validation";
 
 export const contactTypes = [
@@ -107,6 +108,10 @@ export const listContacts = createServerFn({ method: "GET" }).handler(async () =
 export const createContact = createServerFn({ method: "POST" })
   .validator(contactInput)
   .handler(async ({ data }) => {
+    if (requiresUserAccount(data.type))
+      throw new Error(
+        "Investidores, assessores e gestores são cadastrados junto com o usuário de acesso.",
+      );
     const { db, schema, session, membership } = await contactContext(true);
     if (data.type === "Investidor" || data.type === "Assessor") {
       const { enforcePlanFeature } = await import("@/lib/developer.server");
