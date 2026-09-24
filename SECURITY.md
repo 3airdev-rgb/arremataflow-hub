@@ -14,6 +14,7 @@
 - Uploads aceitam apenas PDF, JPEG, PNG e WebP, com limite de 10 MB, verificação por assinatura, nome interno aleatório, hash SHA-256 e armazenamento privado.
 - Downloads exigem sessão e autorização do projeto, usam `no-store`, `nosniff` e nome de arquivo higienizado.
 - Cabeçalhos CSP, HSTS em produção, antiframe, política de referência, isolamento de origem e restrição de recursos do navegador são aplicados globalmente.
+- O webhook da Stripe (`/api/stripe/webhook`) só aceita eventos com assinatura HMAC válida e recente (tolerância de 5 minutos), grava cada evento uma única vez (idempotência) e processa tudo em transação; as chaves ficam apenas no ambiente do servidor.
 - Exportações CSV neutralizam fórmulas iniciadas por `=`, `+`, `-` e `@`; a saída de impressão escapa HTML.
 - `.env`, dados locais, documentos e artefatos de compilação são ignorados e não devem ser versionados.
 

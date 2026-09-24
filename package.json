@@ -20,6 +20,7 @@
     "test:project-images": "node --env-file-if-exists=.env scripts/verify-project-images.mjs",
     "test:commercial": "node --env-file-if-exists=.env scripts/verify-commercial-operations.mjs",
     "test:developer": "node --env-file-if-exists=.env scripts/verify-developer-console.mjs",
+    "test:developer-panel": "node --experimental-strip-types --env-file-if-exists=.env scripts/verify-developer-panel.mjs",
     "test:plan-limits": "node --experimental-strip-types scripts/verify-plan-limits.mjs",
     "test:subscription-upgrade": "node --experimental-strip-types scripts/verify-subscription-upgrade.mjs",
     "test:active-organization": "node --env-file-if-exists=.env scripts/verify-active-organization.mjs",
