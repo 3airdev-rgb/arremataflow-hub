@@ -1,15 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, asc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { contactInput } from "@/lib/contacts";
+import { contactRowToProfile, profileToContactColumns } from "@/lib/contact-profile";
 import { validateDocument } from "@/lib/utils-validation";
 import { resolveInvitedMembership } from "@/lib/organization-user-role";
 
+const personContactTypes = ["Investidor", "Assessor", "Responsável"];
 const updateUserSchema = z.object({
   userId: z.string().min(1),
   name: z.string().trim().min(2, "Informe um nome válido.").max(120),
   email: z.string().trim().toLowerCase().email("Informe um e-mail válido.").max(254),
   role: z.enum(["project_manager", "advisor", "investor"]).optional(),
+  profile: contactInput.omit({ type: true }).optional(),
 });
 const inviteUserSchema = z
   .object({
@@ -17,6 +20,10 @@ const inviteUserSchema = z
     email: z.string().trim().toLowerCase().email().max(254),
     role: z.enum(["advisor", "investor", "project_manager"]),
     contactData: contactInput.optional(),
+    alsoContactTypes: z
+      .array(z.enum(["Investidor", "Assessor"]))
+      .max(2)
+      .optional(),
   })
   .refine(
     (data) =>
@@ -27,6 +34,14 @@ const inviteUserSchema = z
         data.contactData.email.toLowerCase() === data.email &&
         data.contactData.nome === data.name),
     "Dados do responsável não correspondem ao convite.",
+  )
+  .refine(
+    (data) =>
+      !data.alsoContactTypes?.length ||
+      (Boolean(data.contactData) &&
+        data.role !== "project_manager" &&
+        data.alsoContactTypes.every((type) => type !== data.contactData?.type)),
+    "Perfis adicionais inválidos.",
   );
 
 async function administratorContext(allowProjectManager = false) {
@@ -151,11 +166,28 @@ export const getOrganizationUsers = createServerFn({ method: "GET" }).handler(as
     .where(eq(schema.organizationMembers.organizationId, membership.organizationId))
     .orderBy(asc(schema.users.name));
 
+  const contactRows = await db
+    .select({ email: schema.contacts.email, type: schema.contacts.type })
+    .from(schema.contacts)
+    .where(
+      and(
+        eq(schema.contacts.organizationId, membership.organizationId),
+        inArray(schema.contacts.type, personContactTypes),
+        eq(schema.contacts.status, "active"),
+      ),
+    );
+  const typesByEmail = new Map<string, string[]>();
+  for (const row of contactRows) {
+    const key = row.email.toLowerCase();
+    typesByEmail.set(key, [...(typesByEmail.get(key) ?? []), row.type]);
+  }
+
   return {
     currentUserId: session.user.id,
     members: await Promise.all(
       members.map(async (member) => ({
         ...member,
+        contactTypes: typesByEmail.get(member.email.toLowerCase()) ?? [],
         role: await effectiveOrganizationRole(
           db,
           schema,
@@ -167,6 +199,43 @@ export const getOrganizationUsers = createServerFn({ method: "GET" }).handler(as
     ),
   };
 });
+
+export const getOrganizationUserProfile = createServerFn({ method: "GET" })
+  .validator(z.object({ userId: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    const { db, schema, membership } = await administratorContext();
+    const [target] = await db
+      .select({ email: schema.users.email, role: schema.organizationMembers.role })
+      .from(schema.organizationMembers)
+      .innerJoin(schema.users, eq(schema.users.id, schema.organizationMembers.userId))
+      .where(
+        and(
+          eq(schema.organizationMembers.organizationId, membership.organizationId),
+          eq(schema.organizationMembers.userId, data.userId),
+        ),
+      )
+      .limit(1);
+    if (!target) throw new Error("Usuário não pertence a esta empresa.");
+    const contacts = ["owner", "admin"].includes(target.role)
+      ? []
+      : await db
+          .select()
+          .from(schema.contacts)
+          .where(
+            and(
+              eq(schema.contacts.organizationId, membership.organizationId),
+              inArray(schema.contacts.type, personContactTypes),
+              eq(schema.contacts.status, "active"),
+              sql`lower(${schema.contacts.email}) = lower(${target.email})`,
+            ),
+          )
+          .orderBy(asc(schema.contacts.createdAt));
+    const [first] = contacts;
+    return {
+      types: contacts.map((contact) => contact.type),
+      profile: first ? contactRowToProfile(first) : null,
+    };
+  });
 
 export const updateOrganizationUser = createServerFn({ method: "POST" })
   .validator(updateUserSchema)
@@ -186,6 +255,14 @@ export const updateOrganizationUser = createServerFn({ method: "POST" })
     if (!target) throw new Error("Usuário não pertence a esta empresa.");
     if (data.role && ["owner", "admin"].includes(target.role))
       throw new Error("O perfil de administrador não pode ser alterado neste formulário.");
+    if (data.profile) {
+      if (["owner", "admin"].includes(target.role))
+        throw new Error("Administradores permitem editar somente nome e e-mail.");
+      if (data.profile.nome !== data.name || data.profile.email !== data.email)
+        throw new Error("Os dados informados são inconsistentes.");
+      if (!validateDocument(data.profile.documento.replace(/\D/g, "")))
+        throw new Error("Informe um CPF ou CNPJ válido.");
+    }
     if (data.role) {
       const [person] = await db
         .select({ email: schema.users.email })
@@ -225,7 +302,45 @@ export const updateOrganizationUser = createServerFn({ method: "POST" })
         .where(eq(schema.users.id, data.userId))
         .returning({ id: schema.users.id, name: schema.users.name, email: schema.users.email });
       if (!updated) throw new Error("Usuário não encontrado.");
-      if (before.email.toLowerCase() !== data.email)
+      if (data.profile) {
+        const columns = profileToContactColumns(data.profile);
+        const personContacts = await tx
+          .select({ id: schema.contacts.id, type: schema.contacts.type })
+          .from(schema.contacts)
+          .where(
+            and(
+              eq(schema.contacts.organizationId, membership.organizationId),
+              inArray(schema.contacts.type, personContactTypes),
+              sql`lower(${schema.contacts.email}) = lower(${before.email})`,
+            ),
+          );
+        if (!personContacts.length)
+          throw new Error("Este usuário não possui cadastro completo para editar.");
+        for (const contact of personContacts) {
+          const [conflict] = await tx
+            .select({ id: schema.contacts.id })
+            .from(schema.contacts)
+            .where(
+              and(
+                eq(schema.contacts.organizationId, membership.organizationId),
+                eq(schema.contacts.document, columns.document),
+                eq(schema.contacts.type, contact.type),
+                ne(schema.contacts.id, contact.id),
+              ),
+            )
+            .limit(1);
+          if (conflict) throw new Error("CPF ou CNPJ já cadastrado para outro participante.");
+        }
+        await tx
+          .update(schema.contacts)
+          .set({ ...columns, updatedAt: new Date() })
+          .where(
+            inArray(
+              schema.contacts.id,
+              personContacts.map((contact) => contact.id),
+            ),
+          );
+      } else if (before.email.toLowerCase() !== data.email)
         await tx
           .update(schema.contacts)
           .set({ email: data.email, updatedAt: new Date() })
@@ -247,7 +362,11 @@ export const updateOrganizationUser = createServerFn({ method: "POST" })
         entityType: "user",
         metadata: {
           targetUserId: data.userId,
-          changed: data.role ? ["name", "email", "role"] : ["name", "email"],
+          changed: data.profile
+            ? ["name", "email", "profile"]
+            : data.role
+              ? ["name", "email", "role"]
+              : ["name", "email"],
           role: data.role,
         },
       });
@@ -299,9 +418,13 @@ export const inviteOrganizationUser = createServerFn({ method: "POST" })
           ),
         )
         .limit(1);
+      const requestedRole =
+        data.role === "investor" && data.alsoContactTypes?.includes("Assessor")
+          ? "advisor"
+          : data.role;
       const resolved = resolveInvitedMembership(
         existing,
-        data.role,
+        requestedRole,
         Boolean(data.contactData),
         isNewUser,
       );
@@ -417,6 +540,46 @@ export const inviteOrganizationUser = createServerFn({ method: "POST" })
             entityId: created.id,
             metadata: { type: data.contactData.type },
           });
+        for (const extraType of data.alsoContactTypes ?? []) {
+          const [extraDuplicate] = await tx
+            .select({ id: schema.contacts.id, email: schema.contacts.email })
+            .from(schema.contacts)
+            .where(
+              and(
+                eq(schema.contacts.organizationId, membership.organizationId),
+                eq(schema.contacts.document, normalizedDocument),
+                eq(schema.contacts.type, extraType),
+              ),
+            )
+            .limit(1);
+          if (extraDuplicate) {
+            if (extraDuplicate.email.toLowerCase() !== data.email)
+              throw new Error("Documento já cadastrado com outro e-mail nesta empresa.");
+            continue;
+          }
+          const [extra] = await tx
+            .insert(schema.contacts)
+            .values({
+              organizationId: membership.organizationId,
+              type: extraType,
+              name: nome,
+              document: normalizedDocument,
+              email,
+              phones: celulares.filter(Boolean),
+              details,
+              createdBy: session.user.id,
+            })
+            .returning({ id: schema.contacts.id });
+          if (!extra) throw new Error("Não foi possível cadastrar o perfil adicional.");
+          await tx.insert(schema.auditLogs).values({
+            organizationId: membership.organizationId,
+            actorId: session.user.id,
+            action: "contact.created",
+            entityType: "contact",
+            entityId: extra.id,
+            metadata: { type: extraType },
+          });
+        }
       }
       return { user, contact, invitationNeeded };
     });

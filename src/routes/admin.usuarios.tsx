@@ -34,6 +34,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
+  InvestorRegistrationModal,
+  type UnifiedEntityData,
+} from "@/components/investor-registration-modal";
+import {
+  getOrganizationUserProfile,
   getOrganizationUsers,
   inviteOrganizationUser,
   removeOrganizationUser,
@@ -74,7 +79,41 @@ function UsuariosPage() {
     role: string;
   } | null>(null);
   const [removing, setRemoving] = useState<{ id: string; name: string } | null>(null);
+  const [editingProfile, setEditingProfile] = useState<{
+    id: string;
+    type: "Investidor" | "Assessor" | "Responsável";
+    types: string[];
+    profile: UnifiedEntityData;
+  } | null>(null);
+  const [loadingEditId, setLoadingEditId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  async function startEdit(u: { id: string; name: string; email: string; role: string }) {
+    if (["owner", "admin"].includes(u.role)) {
+      setEditing({ id: u.id, name: u.name, email: u.email, role: u.role });
+      return;
+    }
+    setLoadingEditId(u.id);
+    try {
+      const result = await getOrganizationUserProfile({ data: { userId: u.id } });
+      if (!result.profile) {
+        setEditing({ id: u.id, name: u.name, email: u.email, role: u.role });
+        return;
+      }
+      const type = result.types.includes("Responsável")
+        ? "Responsável"
+        : result.types.includes("Assessor")
+          ? "Assessor"
+          : "Investidor";
+      setEditingProfile({ id: u.id, type, types: result.types, profile: result.profile });
+    } catch (cause) {
+      toast.error(
+        cause instanceof Error ? cause.message : "Não foi possível carregar o cadastro do usuário.",
+      );
+    } finally {
+      setLoadingEditId(null);
+    }
+  }
   const { data, isPending, error } = useQuery({
     queryKey: ["organization-users"],
     queryFn: () => getOrganizationUsers(),
@@ -222,9 +261,12 @@ function UsuariosPage() {
                       ? "Administrador"
                       : u.role === "project_manager"
                         ? "Gestor de Projetos"
-                        : u.role === "advisor"
-                          ? "Assessor"
-                          : "Investidor"}
+                        : u.contactTypes.includes("Assessor") &&
+                            u.contactTypes.includes("Investidor")
+                          ? "Assessor e Investidor"
+                          : u.role === "advisor"
+                            ? "Assessor"
+                            : "Investidor"}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
@@ -234,9 +276,8 @@ function UsuariosPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() =>
-                      setEditing({ id: u.id, name: u.name, email: u.email, role: u.role })
-                    }
+                    disabled={loadingEditId === u.id}
+                    onClick={() => void startEdit(u)}
                   >
                     <Pencil className="size-4" /> Editar
                   </Button>
@@ -280,6 +321,36 @@ function UsuariosPage() {
           </tbody>
         </table>
       </div>
+
+      {editingProfile ? (
+        <InvestorRegistrationModal
+          key={editingProfile.id}
+          open
+          onOpenChange={(open) => {
+            if (!open) setEditingProfile(null);
+          }}
+          mode="edit"
+          type={editingProfile.type}
+          initialData={editingProfile.profile}
+          registeredTypes={editingProfile.types}
+          onSave={async (data) => {
+            await updateOrganizationUser({
+              data: {
+                userId: editingProfile.id,
+                name: data.nome,
+                email: data.email,
+                profile: data,
+              },
+            });
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: ["organization-users"] }),
+              queryClient.invalidateQueries({ queryKey: ["current-organization-user"] }),
+              queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+            ]);
+            toast.success("Cadastro atualizado.");
+          }}
+        />
+      ) : null}
 
       <AlertDialog
         open={Boolean(removing)}

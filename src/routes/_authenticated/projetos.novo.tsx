@@ -48,6 +48,7 @@ import { cn } from "@/lib/utils";
 import { formatBRL } from "@/lib/format-currency";
 import {
   InvestorRegistrationModal,
+  type ExtraProfileType,
   type UnifiedEntityData,
 } from "@/components/investor-registration-modal";
 import { ImageManagementSection, type ProjetoFoto } from "@/components/image-management-section";
@@ -199,6 +200,7 @@ function NovoProjeto() {
   async function salvarPessoa(
     data: UnifiedEntityData,
     tipo: "Investidor" | "Assessor" | "Responsável" | "Leiloeiro",
+    extraTipos: ExtraProfileType[] = [],
   ) {
     if (tipo !== "Leiloeiro") {
       const invited = await inviteOrganizationUser({
@@ -212,6 +214,7 @@ function NovoProjeto() {
                 ? "advisor"
                 : "investor",
           contactData: { ...data, type: tipo },
+          alsoContactTypes: extraTipos,
         },
       });
       if (!invited.contact) throw new Error("Não foi possível cadastrar o participante.");
@@ -1254,8 +1257,8 @@ function NovoProjeto() {
         <InvestorRegistrationModal
           open={isInvestorModalOpen}
           onOpenChange={setIsInvestorModalOpen}
-          onSave={async (data) => {
-            const created = await salvarPessoa(data, "Investidor");
+          onSave={async (data, alsoTypes) => {
+            const created = await salvarPessoa(data, "Investidor", alsoTypes);
             setParticipantes((prev) => [
               ...prev,
               { id: created.id, nome: created.nome, papel: "Investidor", percentual: "" },
@@ -1268,8 +1271,8 @@ function NovoProjeto() {
         <InvestorRegistrationModal
           open={isAssessorModalOpen}
           onOpenChange={setIsAssessorModalOpen}
-          onSave={async (data) => {
-            const created = await salvarPessoa(data, "Assessor");
+          onSave={async (data, alsoTypes) => {
+            const created = await salvarPessoa(data, "Assessor", alsoTypes);
             setAssessoresVinculados((prev) => [
               ...prev,
               { id: created.id, nome: created.nome, papel: "Assessor", percentual: "" },

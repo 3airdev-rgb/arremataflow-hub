@@ -10,8 +10,11 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { PersonProfile } from "@/lib/contact-profile";
+import { formatDocument as maskDocument } from "@/lib/utils-validation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,32 +32,39 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export interface UnifiedEntityData {
-  nome: string;
-  documento: string; // CPF ou CNPJ
-  dataNascimento?: string;
-  estadoCivil?: string;
-  celulares: string[];
-  endereco?: string;
-  numero?: string;
-  complemento?: string;
-  bairro?: string;
-  cep?: string;
-  email: string;
-  banco?: string;
-  agencia?: string;
-  conta?: string;
-  website?: string;
-  cidade?: string;
-  estado?: string;
-}
+export type UnifiedEntityData = PersonProfile;
+
+export type ExtraProfileType = "Investidor" | "Assessor";
 
 interface UnifiedModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (data: UnifiedEntityData) => void | Promise<void>;
+  onSave: (data: UnifiedEntityData, alsoTypes: ExtraProfileType[]) => void | Promise<void>;
   type?: "Investidor" | "Assessor" | "Responsável" | "Leiloeiro";
+  mode?: "create" | "edit";
+  initialData?: UnifiedEntityData;
+  registeredTypes?: string[];
 }
+
+const emptyEntity: UnifiedEntityData = {
+  nome: "",
+  documento: "",
+  dataNascimento: "",
+  estadoCivil: "",
+  celulares: [""],
+  endereco: "",
+  numero: "",
+  complemento: "",
+  bairro: "",
+  cep: "",
+  email: "",
+  banco: "",
+  agencia: "",
+  conta: "",
+  website: "",
+  cidade: "",
+  estado: "",
+};
 
 const UFs = [
   "AC",
@@ -110,26 +120,24 @@ export function InvestorRegistrationModal({
   onOpenChange,
   onSave,
   type = "Investidor",
+  mode = "create",
+  initialData,
+  registeredTypes = [],
 }: UnifiedModalProps) {
-  const [formData, setFormData] = useState<UnifiedEntityData>({
-    nome: "",
-    documento: "",
-    dataNascimento: "",
-    estadoCivil: "",
-    celulares: [""],
-    endereco: "",
-    numero: "",
-    complemento: "",
-    bairro: "",
-    cep: "",
-    email: "",
-    banco: "",
-    agencia: "",
-    conta: "",
-    website: "",
-    cidade: "",
-    estado: "",
-  });
+  const isEdit = mode === "edit";
+  const [formData, setFormData] = useState<UnifiedEntityData>(
+    initialData
+      ? {
+          ...emptyEntity,
+          ...initialData,
+          documento: maskDocument(initialData.documento),
+          celulares: initialData.celulares.length ? initialData.celulares : [""],
+        }
+      : emptyEntity,
+  );
+  const [alsoTypes, setAlsoTypes] = useState<ExtraProfileType[]>([]);
+  const otherType: ExtraProfileType | null =
+    type === "Investidor" ? "Assessor" : type === "Assessor" ? "Investidor" : null;
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [duplicateDocumentWarning, setDuplicateDocumentWarning] = useState(false);
@@ -187,27 +195,12 @@ export function InvestorRegistrationModal({
     setErrorMessage("");
     setSaving(true);
     try {
-      await onSave(formData);
+      await onSave(formData, alsoTypes);
       onOpenChange(false);
-      setFormData({
-        nome: "",
-        documento: "",
-        dataNascimento: "",
-        estadoCivil: "",
-        celulares: [""],
-        endereco: "",
-        numero: "",
-        complemento: "",
-        bairro: "",
-        cep: "",
-        email: "",
-        banco: "",
-        agencia: "",
-        conta: "",
-        website: "",
-        cidade: "",
-        estado: "",
-      });
+      if (!isEdit) {
+        setFormData(emptyEntity);
+        setAlsoTypes([]);
+      }
     } catch (error) {
       const message =
         error instanceof Error
@@ -254,13 +247,43 @@ export function InvestorRegistrationModal({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Cadastro de {type}</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar cadastro" : `Cadastro de ${type}`}</DialogTitle>
           <DialogDescription>
-            Informe os dados cadastrais para vincular ao projeto.
+            {isEdit
+              ? "Atualize os dados cadastrais. As alterações valem para todos os perfis desta pessoa."
+              : "Informe os dados cadastrais para vincular ao projeto."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+          {isEdit && registeredTypes.length > 0 && (
+            <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+              Perfis cadastrados: <strong>{registeredTypes.join(" e ")}</strong>
+            </p>
+          )}
+          {!isEdit && otherType && (
+            <fieldset className="space-y-2 rounded-md border p-3">
+              <legend className="px-1 text-sm font-medium">Perfis do cadastro</legend>
+              <div className="flex flex-wrap gap-6">
+                <div className="flex items-center gap-2">
+                  <Checkbox id="perfil-principal" checked disabled />
+                  <Label htmlFor="perfil-principal">{type}</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="perfil-adicional"
+                    checked={alsoTypes.includes(otherType)}
+                    onCheckedChange={(checked) => setAlsoTypes(checked === true ? [otherType] : [])}
+                  />
+                  <Label htmlFor="perfil-adicional">{otherType}</Label>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                A pessoa será vinculada a este projeto como {type.toLowerCase()} e aparecerá na
+                busca de cada perfil selecionado.
+              </p>
+            </fieldset>
+          )}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="nome">Nome {isLeiloeiro ? "" : "Completo"}</Label>
@@ -599,7 +622,13 @@ export function InvestorRegistrationModal({
               Cancelar
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? "Cadastrando..." : "Cadastrar e Adicionar"}
+              {saving
+                ? isEdit
+                  ? "Salvando..."
+                  : "Cadastrando..."
+                : isEdit
+                  ? "Salvar alterações"
+                  : "Cadastrar e Adicionar"}
             </Button>
           </DialogFooter>
         </form>
