@@ -70,3 +70,19 @@ export function profileToContactColumns(profile: PersonProfile): ContactRow {
     details,
   };
 }
+
+export const profileTypeLabels: Record<string, string> = {
+  Responsável: "Gestor de Projetos",
+  Assessor: "Assessor",
+  Investidor: "Investidor",
+};
+
+const profileLabelOrder = ["Responsável", "Assessor", "Investidor"];
+
+export function joinProfileLabels(types: string[]): string {
+  const labels = profileLabelOrder
+    .filter((type) => types.includes(type))
+    .map((type) => profileTypeLabels[type]!);
+  if (labels.length <= 1) return labels[0] ?? "";
+  return `${labels.slice(0, -1).join(", ")} e ${labels[labels.length - 1]}`;
+}

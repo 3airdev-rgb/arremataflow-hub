@@ -21,7 +21,7 @@ const inviteUserSchema = z
     role: z.enum(["advisor", "investor", "project_manager"]),
     contactData: contactInput.optional(),
     alsoContactTypes: z
-      .array(z.enum(["Investidor", "Assessor"]))
+      .array(z.enum(["Investidor", "Assessor", "Responsável"]))
       .max(2)
       .optional(),
   })
@@ -39,7 +39,7 @@ const inviteUserSchema = z
     (data) =>
       !data.alsoContactTypes?.length ||
       (Boolean(data.contactData) &&
-        data.role !== "project_manager" &&
+        new Set(data.alsoContactTypes).size === data.alsoContactTypes.length &&
         data.alsoContactTypes.every((type) => type !== data.contactData?.type)),
     "Perfis adicionais inválidos.",
   );
@@ -419,7 +419,7 @@ export const inviteOrganizationUser = createServerFn({ method: "POST" })
         )
         .limit(1);
       const requestedRole =
-        data.role === "investor" && data.alsoContactTypes?.includes("Assessor")
+        data.role !== "advisor" && data.alsoContactTypes?.includes("Assessor")
           ? "advisor"
           : data.role;
       const resolved = resolveInvitedMembership(

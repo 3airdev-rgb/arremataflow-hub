@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { PersonProfile } from "@/lib/contact-profile";
+import { joinProfileLabels, profileTypeLabels, type PersonProfile } from "@/lib/contact-profile";
 import { formatDocument as maskDocument } from "@/lib/utils-validation";
 import {
   AlertDialog,
@@ -34,7 +34,8 @@ import {
 
 export type UnifiedEntityData = PersonProfile;
 
-export type ExtraProfileType = "Investidor" | "Assessor";
+export type ExtraProfileType = "Investidor" | "Assessor" | "Responsável";
+const multiProfileTypes: ExtraProfileType[] = ["Investidor", "Assessor", "Responsável"];
 
 interface UnifiedModalProps {
   open: boolean;
@@ -136,8 +137,8 @@ export function InvestorRegistrationModal({
       : emptyEntity,
   );
   const [alsoTypes, setAlsoTypes] = useState<ExtraProfileType[]>([]);
-  const otherType: ExtraProfileType | null =
-    type === "Investidor" ? "Assessor" : type === "Assessor" ? "Investidor" : null;
+  const otherTypes = multiProfileTypes.filter((profileType) => profileType !== type);
+  const supportsMultiProfile = multiProfileTypes.some((profileType) => profileType === type);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [duplicateDocumentWarning, setDuplicateDocumentWarning] = useState(false);
@@ -258,29 +259,40 @@ export function InvestorRegistrationModal({
         <form onSubmit={handleSubmit} className="space-y-6 pt-4">
           {isEdit && registeredTypes.length > 0 && (
             <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-              Perfis cadastrados: <strong>{registeredTypes.join(" e ")}</strong>
+              Perfis cadastrados: <strong>{joinProfileLabels(registeredTypes)}</strong>
             </p>
           )}
-          {!isEdit && otherType && (
+          {!isEdit && supportsMultiProfile && (
             <fieldset className="space-y-2 rounded-md border p-3">
               <legend className="px-1 text-sm font-medium">Perfis do cadastro</legend>
               <div className="flex flex-wrap gap-6">
                 <div className="flex items-center gap-2">
                   <Checkbox id="perfil-principal" checked disabled />
-                  <Label htmlFor="perfil-principal">{type}</Label>
+                  <Label htmlFor="perfil-principal">{profileTypeLabels[type] ?? type}</Label>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="perfil-adicional"
-                    checked={alsoTypes.includes(otherType)}
-                    onCheckedChange={(checked) => setAlsoTypes(checked === true ? [otherType] : [])}
-                  />
-                  <Label htmlFor="perfil-adicional">{otherType}</Label>
-                </div>
+                {otherTypes.map((otherType) => (
+                  <div key={otherType} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`perfil-adicional-${otherType}`}
+                      checked={alsoTypes.includes(otherType)}
+                      onCheckedChange={(checked) =>
+                        setAlsoTypes((current) =>
+                          checked === true
+                            ? [...current.filter((item) => item !== otherType), otherType]
+                            : current.filter((item) => item !== otherType),
+                        )
+                      }
+                    />
+                    <Label htmlFor={`perfil-adicional-${otherType}`}>
+                      {profileTypeLabels[otherType] ?? otherType}
+                    </Label>
+                  </div>
+                ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                A pessoa será vinculada a este projeto como {type.toLowerCase()} e aparecerá na
-                busca de cada perfil selecionado.
+                A pessoa será vinculada a este projeto como{" "}
+                {(profileTypeLabels[type] ?? type).toLowerCase()} e aparecerá na busca de cada
+                perfil selecionado.
               </p>
             </fieldset>
           )}

@@ -1285,8 +1285,8 @@ function NovoProjeto() {
         <InvestorRegistrationModal
           open={isResponsibleModalOpen}
           onOpenChange={setIsResponsibleModalOpen}
-          onSave={async (data) => {
-            const created = await salvarPessoa(data, "Responsável");
+          onSave={async (data, alsoTypes) => {
+            const created = await salvarPessoa(data, "Responsável", alsoTypes);
             setResponsaveisVinculados((prev) => [...prev, { id: created.id, nome: created.nome }]);
             toast.success(`Responsável ${data.nome} cadastrado e vinculado!`);
           }}

@@ -33,6 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { joinProfileLabels } from "@/lib/contact-profile";
 import {
   InvestorRegistrationModal,
   type UnifiedEntityData,
@@ -69,6 +70,13 @@ export const Route = createFileRoute("/admin/usuarios")({
   }),
   component: UsuariosPage,
 });
+
+function profileLabel(u: { role: string; contactTypes: string[] }) {
+  if (u.role === "owner" || u.role === "admin") return "Administrador";
+  const roleType =
+    u.role === "project_manager" ? "Responsável" : u.role === "advisor" ? "Assessor" : "Investidor";
+  return joinProfileLabels([...u.contactTypes, roleType]);
+}
 
 function UsuariosPage() {
   const [convite, setConvite] = useState(false);
@@ -257,16 +265,7 @@ function UsuariosPage() {
                 <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
                 <td className="px-4 py-3">
                   <span className="rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-medium text-brand">
-                    {u.role === "owner" || u.role === "admin"
-                      ? "Administrador"
-                      : u.role === "project_manager"
-                        ? "Gestor de Projetos"
-                        : u.contactTypes.includes("Assessor") &&
-                            u.contactTypes.includes("Investidor")
-                          ? "Assessor e Investidor"
-                          : u.role === "advisor"
-                            ? "Assessor"
-                            : "Investidor"}
+                    {profileLabel(u)}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">

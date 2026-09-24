@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { contactRowToProfile, profileToContactColumns } from "./contact-profile.ts";
+import {
+  contactRowToProfile,
+  joinProfileLabels,
+  profileToContactColumns,
+} from "./contact-profile.ts";
 
 describe("contactRowToProfile", () => {
   it("monta o perfil a partir da linha de contato e dos detalhes", () => {
@@ -61,5 +65,24 @@ describe("profileToContactColumns", () => {
       details: { dataNascimento: "1990-05-10", estadoCivil: "casado" },
     };
     assert.deepEqual(profileToContactColumns(contactRowToProfile(row)), row);
+  });
+});
+
+describe("joinProfileLabels", () => {
+  it("usa Gestor de Projetos para o tipo Responsável", () => {
+    assert.equal(joinProfileLabels(["Responsável"]), "Gestor de Projetos");
+  });
+
+  it("ordena os perfis e junta com vírgula e 'e'", () => {
+    assert.equal(joinProfileLabels(["Investidor", "Assessor"]), "Assessor e Investidor");
+    assert.equal(
+      joinProfileLabels(["Investidor", "Responsável", "Assessor"]),
+      "Gestor de Projetos, Assessor e Investidor",
+    );
+  });
+
+  it("ignora tipos desconhecidos e retorna vazio sem perfis", () => {
+    assert.equal(joinProfileLabels(["Leiloeiro"]), "");
+    assert.equal(joinProfileLabels([]), "");
   });
 });
