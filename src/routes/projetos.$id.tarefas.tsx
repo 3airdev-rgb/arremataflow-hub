@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, Edit2, ExternalLink, Plus, Video } from "lucide-react";
+import { Clock, Edit2, ExternalLink, FileText, Plus, Video } from "lucide-react";
 import { toast } from "sonner";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
@@ -28,9 +28,16 @@ import {
 import { StatusBadge } from "@/components/status-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { financialCategories } from "@/lib/financial-categories";
+import {
+  transcriptExtensions,
+  transcriptMimeFromFile,
+  transcriptMimeTypes,
+} from "@/lib/meeting-transcript";
 import { getCurrentProjectRole } from "@/lib/projects";
+import { canonicalTaskValue, type TaskPersonOption } from "@/lib/task-people";
 import { listProjectTaskContacts, listProjectTasks, saveTask } from "@/lib/tasks";
 import { showValidationAlert } from "@/lib/validation-feedback";
+const noPeople: TaskPersonOption[] = [];
 type StatusKey = "nao_iniciado" | "andamento" | "aguardando" | "pendente" | "concluido";
 
 export const Route = createFileRoute("/projetos/$id/tarefas")({ component: TarefasProjeto });
@@ -115,7 +122,7 @@ export function ProjectTasksPanel({ projectId }: { projectId: string }) {
               <TaskDialog
                 projectId={projectId}
                 task={editing}
-                contacts={contactsQuery.data || []}
+                contacts={contactsQuery.data ?? noPeople}
                 onClose={close}
                 onSaved={() => tasksQuery.refetch()}
               />
@@ -135,6 +142,15 @@ export function ProjectTasksPanel({ projectId }: { projectId: string }) {
                 <p className="text-xs text-muted-foreground">
                   {task.category} · {task.responsavel || "Sem responsável"} · vence {task.prazo}
                 </p>
+                {task.is_online_meeting && task.transcript ? (
+                  <a
+                    href={task.transcript.url}
+                    download
+                    className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline"
+                  >
+                    <FileText className="size-3.5" /> Transcrição: {task.transcript.name}
+                  </a>
+                ) : null}
                 {task.is_online_meeting ? (
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
                     <span className="flex items-center gap-1">
@@ -226,7 +242,7 @@ function TaskDialog({
 }: {
   projectId: string;
   task: Task | null;
-  contacts: Array<{ label: string; value: string; type: string }>;
+  contacts: TaskPersonOption[];
   onClose: () => void;
   onSaved: () => Promise<unknown>;
 }) {
@@ -234,14 +250,17 @@ function TaskDialog({
     [participants, setParticipants] = useState<string[]>([]);
   const [online, setOnline] = useState(false),
     [category, setCategory] = useState(""),
-    [status, setStatus] = useState<StatusKey>("nao_iniciado");
+    [status, setStatus] = useState<StatusKey>("nao_iniciado"),
+    [transcript, setTranscript] = useState<File | null>(null);
   useEffect(() => {
-    setAssignees(task?.assignees || []);
-    setParticipants(task?.participants || []);
+    setTranscript(null);
+    setAssignees((task?.assignees || []).map((v) => canonicalTaskValue(contacts, v)));
+    setParticipants((task?.participants || []).map((v) => canonicalTaskValue(contacts, v)));
     setOnline(Boolean(task?.is_online_meeting));
     setCategory(task?.category || "");
     setStatus((task?.status as StatusKey) || "nao_iniciado");
-  }, [task]);
+  }, [task, contacts]);
+  const assigneeOptions = contacts.filter((person) => !person.participantOnly);
   return (
     <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
       <DialogHeader>
@@ -256,6 +275,17 @@ function TaskDialog({
           if (!assignees.length) {
             showValidationAlert("Selecione ao menos um responsável.");
             return;
+          }
+          if (online && transcript) {
+            const mime = transcriptMimeFromFile(transcript);
+            if (!transcriptMimeTypes.includes(mime)) {
+              showValidationAlert("A transcrição deve ser um arquivo PDF, DOC ou DOCX.");
+              return;
+            }
+            if (transcript.size > 10 * 1024 * 1024) {
+              showValidationAlert("A transcrição deve ter até 10 MB.");
+              return;
+            }
           }
           try {
             const result = await saveTask({
@@ -274,9 +304,22 @@ function TaskDialog({
                 participants: online ? participants : [],
               },
             });
+            let transcriptFailed = false;
+            if (online && transcript) {
+              const body = new FormData();
+              body.set("file", transcript);
+              body.set("projectId", projectId);
+              body.set("taskId", result.id);
+              const response = await fetch("/api/documents/upload", { method: "POST", body });
+              transcriptFailed = !response.ok;
+            }
             await onSaved();
             onClose();
-            if (!task && result.emailDelivery.failed > 0)
+            if (transcriptFailed)
+              toast.warning(
+                "Tarefa salva, mas a transcrição não pôde ser enviada. Edite a tarefa e tente novamente.",
+              );
+            else if (!task && result.emailDelivery.failed > 0)
               toast.warning(
                 `Tarefa criada, mas ${result.emailDelivery.failed} e-mail(s) não puderam ser enviados.`,
               );
@@ -338,7 +381,7 @@ function TaskDialog({
           <div className="space-y-2">
             <Label>Responsáveis</Label>
             <MultiSelect
-              options={contacts}
+              options={assigneeOptions}
               selected={assignees}
               onChange={setAssignees}
               placeholder="Selecione"
@@ -365,7 +408,7 @@ function TaskDialog({
           </RadioGroup>
         </div>
         {online ? (
-          <div className="grid gap-4 rounded-lg border bg-muted/30 p-4 sm:grid-cols-2">
+          <div className="grid gap-4 rounded-lg border bg-muted/30 p-4 sm:grid-cols-[9rem_1fr]">
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="meeting-url">Link da reunião</Label>
               <Input
@@ -395,6 +438,33 @@ function TaskDialog({
                 onChange={setParticipants}
                 placeholder="Selecione"
               />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="meeting-transcript">Transcrição da reunião (opcional)</Label>
+              <Input
+                id="meeting-transcript"
+                type="file"
+                accept={transcriptExtensions}
+                onChange={(event) => setTranscript(event.target.files?.[0] ?? null)}
+              />
+              <p className="text-xs text-muted-foreground">
+                PDF, DOC ou DOCX até 10 MB. Anexe após a reunião; o arquivo também entra nos
+                documentos do projeto como “Reunião OnLine” com a data e o horário da tarefa, na
+                categoria da tarefa.
+              </p>
+              {task?.transcript ? (
+                <p className="text-xs">
+                  Já anexada:{" "}
+                  <a
+                    href={task.transcript.url}
+                    className="font-medium text-brand hover:underline"
+                    download
+                  >
+                    {task.transcript.fileName}
+                  </a>{" "}
+                  (v{task.transcript.version}). Enviar outro arquivo cria uma nova versão.
+                </p>
+              ) : null}
             </div>
           </div>
         ) : null}

@@ -487,6 +487,9 @@ export const tasks = pgTable(
     isOnlineMeeting: boolean("is_online_meeting").notNull().default(false),
     meetingUrl: text("meeting_url"),
     meetingTime: text("meeting_time"),
+    transcriptDocumentId: uuid("transcript_document_id").references(() => documents.id, {
+      onDelete: "set null",
+    }),
     createdBy: text("created_by")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
@@ -518,6 +521,8 @@ export const taskMeetingParticipants = pgTable(
       .references(() => tasks.id, { onDelete: "cascade" }),
     contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "cascade" }),
     userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+    providerId: uuid("provider_id").references(() => serviceProviders.id, { onDelete: "cascade" }),
+    portfolioId: uuid("portfolio_id").references(() => salesPortfolio.id, { onDelete: "cascade" }),
   },
   (table) => [index("task_meeting_participants_task_idx").on(table.taskId)],
 );

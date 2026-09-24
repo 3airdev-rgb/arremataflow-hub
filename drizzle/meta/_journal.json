@@ -197,6 +197,20 @@
       "when": 1791071999000,
       "tag": "0027_developer_billing",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1791158399000,
+      "tag": "0028_task_meeting_transcript",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791244799000,
+      "tag": "0029_task_meeting_external_participants",
+      "breakpoints": true
     }
   ]
 }

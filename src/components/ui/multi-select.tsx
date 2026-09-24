@@ -57,7 +57,7 @@ export function MultiSelect({
 
   return (
     <Command onKeyDown={handleKeyDown} className="overflow-visible bg-transparent">
-      <div className="group rounded-md border border-input px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+      <div className="group min-h-11 sm:min-h-9 rounded-md border border-input px-3 py-1 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
         <div className="flex flex-wrap gap-1">
           {selected.map((value) => {
             const option = options.find((o) => o.value === value);
@@ -98,7 +98,7 @@ export function MultiSelect({
             onBlur={() => setOpen(false)}
             onFocus={() => setOpen(true)}
             placeholder={selected.length === 0 ? placeholder : ""}
-            className="min-h-9 min-w-0 w-24 flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+            className="min-h-6 min-w-0 w-24 flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
           />
         </div>
       </div>

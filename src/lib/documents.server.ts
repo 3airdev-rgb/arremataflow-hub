@@ -8,6 +8,13 @@ import * as schema from "@/db/schema";
 import { financialCategories } from "@/lib/financial-categories";
 import { resolveActiveMembership } from "@/lib/active-organization.server";
 import { requireProjectRole } from "@/lib/project-access.server";
+import {
+  detectWordMime,
+  meetingTranscriptName,
+  transcriptExtension,
+  transcriptMimeFromFile,
+  transcriptMimeTypes,
+} from "@/lib/meeting-transcript";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const allowedMime = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
@@ -80,20 +87,48 @@ export async function uploadDocument(request: Request) {
   const form = await request.formData();
   const file = form.get("file");
   const projectId = String(form.get("projectId") || "");
-  const displayName = String(form.get("name") || "").trim();
-  const category = String(form.get("category") || "");
+  let displayName = String(form.get("name") || "").trim();
+  let category = String(form.get("category") || "");
+  const taskId = String(form.get("taskId") || "") || null;
   const financialMovementId = String(form.get("financialMovementId") || "") || null;
   if (!(file instanceof File) || !projectId.match(/^[0-9a-f-]{36}$/i))
     throw new Response("Arquivo ou projeto inválido.", { status: 400 });
+  if (taskId && !taskId.match(/^[0-9a-f-]{36}$/i))
+    throw new Response("Tarefa inválida.", { status: 400 });
+  if (file.size < 1 || file.size > MAX_FILE_SIZE)
+    throw new Response("O arquivo deve ter até 10 MB.", { status: 413 });
+  const declaredMime = taskId ? transcriptMimeFromFile(file) : file.type;
+  if (taskId ? !transcriptMimeTypes.includes(declaredMime) : !allowedMime.has(file.type))
+    throw new Response("Tipo de arquivo não permitido.", { status: 415 });
+  const { session, membership } = await requestContext(request, projectId, true);
+  if (taskId) {
+    const [task] = await db
+      .select({
+        category: schema.tasks.category,
+        dueDate: schema.tasks.dueDate,
+        meetingTime: schema.tasks.meetingTime,
+        isOnlineMeeting: schema.tasks.isOnlineMeeting,
+      })
+      .from(schema.tasks)
+      .where(
+        and(
+          eq(schema.tasks.id, taskId),
+          eq(schema.tasks.projectId, projectId),
+          eq(schema.tasks.organizationId, membership.organizationId),
+        ),
+      )
+      .limit(1);
+    if (!task?.isOnlineMeeting)
+      throw new Response("A transcrição só pode ser anexada a uma reunião online.", {
+        status: 400,
+      });
+    displayName = meetingTranscriptName(task.dueDate, task.meetingTime);
+    category = task.category;
+  }
   if (displayName.length < 2 || displayName.length > 180)
     throw new Response("Nome do documento inválido.", { status: 400 });
   if (!(financialCategories as readonly string[]).includes(category))
     throw new Response("Categoria inválida.", { status: 400 });
-  if (file.size < 1 || file.size > MAX_FILE_SIZE)
-    throw new Response("O arquivo deve ter até 10 MB.", { status: 413 });
-  if (!allowedMime.has(file.type))
-    throw new Response("Tipo de arquivo não permitido.", { status: 415 });
-  const { session, membership } = await requestContext(request, projectId, true);
   if (financialMovementId) {
     const [movement] = await db
       .select({ id: schema.financialMovements.id })
@@ -109,11 +144,12 @@ export async function uploadDocument(request: Request) {
     if (!movement) throw new Response("Movimentação financeira inválida.", { status: 400 });
   }
   const bytes = Buffer.from(await file.arrayBuffer());
-  const mime = detectedMime(bytes);
-  if (!mime || mime !== file.type)
+  const mime = taskId ? (detectedMime(bytes) ?? detectWordMime(bytes)) : detectedMime(bytes);
+  if (!mime || mime !== declaredMime)
     throw new Response("O conteúdo do arquivo não corresponde ao tipo informado.", { status: 415 });
-  const extension =
-    mime === "application/pdf"
+  const extension = taskId
+    ? transcriptExtension(mime)
+    : mime === "application/pdf"
       ? ".pdf"
       : mime === "image/jpeg"
         ? ".jpg"
@@ -159,6 +195,11 @@ export async function uploadDocument(request: Request) {
         .returning();
       const document = inserted[0];
       if (!document) throw new Error("Não foi possível registrar o documento.");
+      if (taskId)
+        await tx
+          .update(schema.tasks)
+          .set({ transcriptDocumentId: document.id, updatedAt: new Date() })
+          .where(eq(schema.tasks.id, taskId));
       await tx.insert(schema.auditLogs).values({
         organizationId: membership.organizationId,
         projectId,

@@ -3,9 +3,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, asc, desc, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { formatBRL } from "@/lib/format-currency";
+import { mergeTaskPeople } from "@/lib/task-people";
 
 const statuses = ["nao_iniciado", "andamento", "aguardando", "pendente", "concluido"] as const;
 const targetSchema = z.string().regex(/^(contact:[0-9a-f-]{36}|user:.+)$/i);
+const participantSchema = z
+  .string()
+  .regex(/^(contact:[0-9a-f-]{36}|user:.+|provider:[0-9a-f-]{36}|portfolio:[0-9a-f-]{36})$/i);
 const taskInput = z
   .object({
     id: z.string().uuid().optional(),
@@ -25,7 +29,7 @@ const taskInput = z
       .string()
       .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
       .nullable(),
-    participants: z.array(targetSchema).max(50).default([]),
+    participants: z.array(participantSchema).max(50).default([]),
   })
   .superRefine((data, ctx) => {
     if (
@@ -87,6 +91,25 @@ const splitTarget = (value: string) =>
   value.startsWith("contact:")
     ? { contactId: value.slice(8), userId: null }
     : { contactId: null, userId: value.slice(5) };
+const splitParticipant = (value: string) => ({
+  contactId: value.startsWith("contact:") ? value.slice(8) : null,
+  userId: value.startsWith("user:") ? value.slice(5) : null,
+  providerId: value.startsWith("provider:") ? value.slice(9) : null,
+  portfolioId: value.startsWith("portfolio:") ? value.slice(10) : null,
+});
+const participantValue = (row: {
+  contactId: string | null;
+  userId: string | null;
+  providerId: string | null;
+  portfolioId: string | null;
+}) =>
+  row.contactId
+    ? `contact:${row.contactId}`
+    : row.providerId
+      ? `provider:${row.providerId}`
+      : row.portfolioId
+        ? `portfolio:${row.portfolioId}`
+        : `user:${row.userId}`;
 const formatDate = (value: string | null) =>
   value ? value.split("-").reverse().join("/") : "Sem prazo";
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
@@ -195,62 +218,127 @@ const auditCategory = (entityType: string) =>
                 ? "Prestador"
                 : "Projeto";
 
+const responsibleRoleLabels: Record<string, string> = {
+  responsible: "Gestor de Projetos",
+  advisor: "Assessor",
+  investor: "Investidor",
+};
+
+const jsonText = (data: Record<string, unknown>, key: string) => {
+  const value = data[key];
+  return typeof value === "string" ? value.trim() : "";
+};
+
 export const listProjectTaskContacts = createServerFn({ method: "GET" })
   .validator(z.object({ projectId: z.string().uuid() }))
   .handler(async ({ data }) => {
     const { db, schema, membership } = await context(data.projectId, false, "Tarefas");
-    const linked = await db
-      .select({
-        id: schema.contacts.id,
-        name: schema.contacts.name,
-        email: schema.contacts.email,
-        type: schema.contacts.type,
-      })
-      .from(schema.projectParticipants)
-      .innerJoin(schema.contacts, eq(schema.contacts.id, schema.projectParticipants.contactId))
-      .where(
-        and(
-          eq(schema.projectParticipants.projectId, data.projectId),
-          eq(schema.contacts.status, "active"),
-        ),
-      )
-      .orderBy(asc(schema.contacts.name));
-    const members = await db
-      .select({
-        id: schema.users.id,
-        name: schema.users.name,
-        email: schema.users.email,
-        role: schema.organizationMembers.role,
-      })
-      .from(schema.organizationMembers)
-      .innerJoin(schema.users, eq(schema.users.id, schema.organizationMembers.userId))
-      .where(
-        and(
-          eq(schema.organizationMembers.organizationId, membership.organizationId),
-          eq(schema.organizationMembers.status, "active"),
-        ),
-      )
-      .orderBy(asc(schema.users.name));
-    return [
-      ...members.map((m) => ({
-        label: m.name,
-        value: `user:${m.id}`,
-        type: ["owner", "admin"].includes(m.role)
-          ? "Administrador"
-          : m.role === "project_manager"
-            ? "Gestor de Projetos"
-            : m.role === "advisor"
-              ? "Assessor"
-              : "Investidor",
-        email: m.email,
+    const [linked, admins, providers, portfolio] = await Promise.all([
+      db
+        .select({
+          id: schema.contacts.id,
+          name: schema.contacts.name,
+          email: schema.contacts.email,
+          role: schema.projectParticipants.role,
+        })
+        .from(schema.projectParticipants)
+        .innerJoin(schema.contacts, eq(schema.contacts.id, schema.projectParticipants.contactId))
+        .where(
+          and(
+            eq(schema.projectParticipants.projectId, data.projectId),
+            eq(schema.contacts.status, "active"),
+          ),
+        )
+        .orderBy(asc(schema.contacts.name)),
+      db
+        .select({ id: schema.users.id, name: schema.users.name, email: schema.users.email })
+        .from(schema.organizationMembers)
+        .innerJoin(schema.users, eq(schema.users.id, schema.organizationMembers.userId))
+        .where(
+          and(
+            eq(schema.organizationMembers.organizationId, membership.organizationId),
+            eq(schema.organizationMembers.status, "active"),
+            inArray(schema.organizationMembers.role, ["owner", "admin"]),
+          ),
+        )
+        .orderBy(asc(schema.users.name)),
+      db
+        .select({
+          id: schema.serviceProviders.id,
+          name: schema.serviceProviders.name,
+          specialty: sql<string>`${schema.serviceProviders.data}->>'specialty'`,
+          email: sql<string>`coalesce(${schema.serviceProviders.data}->>'email', '')`,
+        })
+        .from(schema.projectProviderAssignments)
+        .innerJoin(
+          schema.serviceProviders,
+          eq(schema.serviceProviders.id, schema.projectProviderAssignments.providerId),
+        )
+        .where(
+          and(
+            eq(schema.projectProviderAssignments.projectId, data.projectId),
+            eq(schema.projectProviderAssignments.organizationId, membership.organizationId),
+          ),
+        )
+        .orderBy(asc(schema.serviceProviders.name)),
+      db
+        .select({
+          id: schema.salesPortfolio.id,
+          name: schema.salesPortfolio.name,
+          type: schema.salesPortfolio.type,
+          data: schema.salesPortfolio.data,
+        })
+        .from(schema.salesPortfolio)
+        .where(
+          and(
+            eq(schema.salesPortfolio.projectId, data.projectId),
+            eq(schema.salesPortfolio.organizationId, membership.organizationId),
+          ),
+        )
+        .orderBy(asc(schema.salesPortfolio.name)),
+    ]);
+    // Ordem de prioridade: quem tem conta (admin) define o valor usado quando a pessoa aparece em mais de um cadastro.
+    return mergeTaskPeople([
+      ...admins.map((u) => ({
+        value: `user:${u.id}`,
+        label: u.name,
+        email: u.email,
+        type: "Administrador",
+        participantOnly: false,
       })),
-      ...linked.map((c) => ({
-        label: c.name,
-        value: `contact:${c.id}`,
-        type: c.type,
-        email: c.email,
+      ...linked
+        .filter((c) => c.role in responsibleRoleLabels)
+        .map((c) => ({
+          value: `contact:${c.id}`,
+          label: c.name,
+          email: c.email,
+          type: responsibleRoleLabels[c.role] ?? c.role,
+          participantOnly: false,
+        })),
+      ...linked
+        .filter((c) => !(c.role in responsibleRoleLabels))
+        .map((c) => ({
+          value: `contact:${c.id}`,
+          label: c.name,
+          email: c.email,
+          type: c.role === "auctioneer" ? "Leiloeiro" : c.role,
+          participantOnly: true,
+        })),
+      ...providers.map((p) => ({
+        value: `provider:${p.id}`,
+        label: p.name,
+        email: p.email,
+        type: p.specialty ? `Prestador de serviço · ${p.specialty}` : "Prestador de serviço",
+        participantOnly: true,
       })),
-    ].filter((item, index, all) => all.findIndex((other) => other.value === item.value) === index);
+      ...portfolio.map((p) => ({
+        value: `portfolio:${p.id}`,
+        label: p.name,
+        email: jsonText(p.data, "email"),
+        type: p.type,
+        participantOnly: true,
+      })),
+    ]);
   });
 
 export const listProjectTasks = createServerFn({ method: "GET" })
@@ -281,6 +369,8 @@ export const listProjectTasks = createServerFn({ method: "GET" })
         taskId: schema.taskMeetingParticipants.taskId,
         contactId: schema.taskMeetingParticipants.contactId,
         userId: schema.taskMeetingParticipants.userId,
+        providerId: schema.taskMeetingParticipants.providerId,
+        portfolioId: schema.taskMeetingParticipants.portfolioId,
         contactName: schema.contacts.name,
         userName: schema.users.name,
       })
@@ -298,8 +388,33 @@ export const listProjectTasks = createServerFn({ method: "GET" })
       })
       .from(schema.taskMeetingInvitations)
       .where(inArray(schema.taskMeetingInvitations.taskId, ids));
+    const transcriptIds = rows.flatMap((r) =>
+      r.transcriptDocumentId ? [r.transcriptDocumentId] : [],
+    );
+    const transcripts = transcriptIds.length
+      ? await db
+          .select({
+            id: schema.documents.id,
+            name: schema.documents.displayName,
+            version: schema.documents.version,
+            originalName: schema.documents.originalName,
+          })
+          .from(schema.documents)
+          .where(inArray(schema.documents.id, transcriptIds))
+      : [];
     return rows.map((task) => ({
       ...task,
+      transcript: (() => {
+        const found = transcripts.find((t) => t.id === task.transcriptDocumentId);
+        return found
+          ? {
+              name: found.name,
+              version: found.version,
+              fileName: found.originalName,
+              url: `/api/documents/${found.id}`,
+            }
+          : null;
+      })(),
       titulo: task.title,
       descricao: task.description,
       category: task.category,
@@ -312,9 +427,7 @@ export const listProjectTasks = createServerFn({ method: "GET" })
       assignees: assignees
         .filter((a) => a.taskId === task.id)
         .map((a) => (a.contactId ? `contact:${a.contactId}` : `user:${a.userId}`)),
-      participants: participants
-        .filter((a) => a.taskId === task.id)
-        .map((a) => (a.contactId ? `contact:${a.contactId}` : `user:${a.userId}`)),
+      participants: participants.filter((a) => a.taskId === task.id).map(participantValue),
       meetingResponses: meetingResponses.filter((response) => response.taskId === task.id),
       is_online_meeting: task.isOnlineMeeting,
       meeting_url: task.meetingUrl,
@@ -491,7 +604,16 @@ export const saveTask = createServerFn({ method: "POST" })
   .validator(taskInput)
   .handler(async ({ data }) => {
     const { db, schema, session, membership } = await context(data.projectId, true, "Tarefas");
-    const allTargets = [...new Set([...data.assignees, ...data.participants])].map(splitTarget);
+    const externalPrefix = /^(provider|portfolio):/;
+    const providerIds = data.participants
+      .filter((v) => v.startsWith("provider:"))
+      .map((v) => v.slice(9));
+    const portfolioIds = data.participants
+      .filter((v) => v.startsWith("portfolio:"))
+      .map((v) => v.slice(10));
+    const allTargets = [
+      ...new Set([...data.assignees, ...data.participants.filter((v) => !externalPrefix.test(v))]),
+    ].map(splitTarget);
     const contactIds = allTargets.flatMap((t) => (t.contactId ? [t.contactId] : [])),
       userIds = allTargets.flatMap((t) => (t.userId ? [t.userId] : []));
     if (contactIds.length) {
@@ -508,6 +630,34 @@ export const saveTask = createServerFn({ method: "POST" })
         );
       if (new Set(valid.map((v) => v.id)).size !== new Set(contactIds).size)
         throw new Error("Há contatos não vinculados ao projeto.");
+    }
+    if (providerIds.length) {
+      const valid = await db
+        .select({ id: schema.projectProviderAssignments.providerId })
+        .from(schema.projectProviderAssignments)
+        .where(
+          and(
+            eq(schema.projectProviderAssignments.projectId, data.projectId),
+            eq(schema.projectProviderAssignments.organizationId, membership.organizationId),
+            inArray(schema.projectProviderAssignments.providerId, providerIds),
+          ),
+        );
+      if (valid.length !== new Set(providerIds).size)
+        throw new Error("Há prestadores não vinculados ao projeto.");
+    }
+    if (portfolioIds.length) {
+      const valid = await db
+        .select({ id: schema.salesPortfolio.id })
+        .from(schema.salesPortfolio)
+        .where(
+          and(
+            eq(schema.salesPortfolio.projectId, data.projectId),
+            eq(schema.salesPortfolio.organizationId, membership.organizationId),
+            inArray(schema.salesPortfolio.id, portfolioIds),
+          ),
+        );
+      if (valid.length !== new Set(portfolioIds).size)
+        throw new Error("Há cadastros de comercialização não vinculados ao projeto.");
     }
     if (userIds.length) {
       const valid = await db
@@ -577,7 +727,7 @@ export const saveTask = createServerFn({ method: "POST" })
       if (data.isOnlineMeeting)
         await tx
           .insert(schema.taskMeetingParticipants)
-          .values(data.participants.map((v) => ({ taskId: task.id, ...splitTarget(v) })));
+          .values(data.participants.map((v) => ({ taskId: task.id, ...splitParticipant(v) })));
       const recipientIds = new Set(userIds);
       if (contactIds.length) {
         const users = await tx
@@ -626,14 +776,16 @@ export const saveTask = createServerFn({ method: "POST" })
 
     const emailTargets = [
       ...new Set(data.isOnlineMeeting ? data.participants : data.assignees),
-    ].map(splitTarget);
+    ].map(splitParticipant);
     const assigneeContactIds = emailTargets.flatMap((target) =>
       target.contactId ? [target.contactId] : [],
     );
     const assigneeUserIds = emailTargets.flatMap((target) =>
       target.userId ? [target.userId] : [],
     );
-    const [projectRows, contactRecipients, userRecipients] = await Promise.all([
+    const emailProviderIds = emailTargets.flatMap((t) => (t.providerId ? [t.providerId] : []));
+    const emailPortfolioIds = emailTargets.flatMap((t) => (t.portfolioId ? [t.portfolioId] : []));
+    const [projectRows, contactRecipients, userRecipients, externalRecipients] = await Promise.all([
       db
         .select({ code: schema.projects.code, name: schema.projects.name })
         .from(schema.projects)
@@ -669,9 +821,42 @@ export const saveTask = createServerFn({ method: "POST" })
             )
             .where(inArray(schema.users.id, assigneeUserIds))
         : Promise.resolve([]),
+      (async () => {
+        const [providerRows, portfolioRows] = await Promise.all([
+          emailProviderIds.length
+            ? db
+                .select({
+                  name: schema.serviceProviders.name,
+                  email: sql<string>`coalesce(${schema.serviceProviders.data}->>'email', '')`,
+                })
+                .from(schema.serviceProviders)
+                .where(
+                  and(
+                    eq(schema.serviceProviders.organizationId, membership.organizationId),
+                    inArray(schema.serviceProviders.id, emailProviderIds),
+                  ),
+                )
+            : Promise.resolve([]),
+          emailPortfolioIds.length
+            ? db
+                .select({
+                  name: schema.salesPortfolio.name,
+                  email: sql<string>`coalesce(${schema.salesPortfolio.data}->>'email', '')`,
+                })
+                .from(schema.salesPortfolio)
+                .where(
+                  and(
+                    eq(schema.salesPortfolio.organizationId, membership.organizationId),
+                    inArray(schema.salesPortfolio.id, emailPortfolioIds),
+                  ),
+                )
+            : Promise.resolve([]),
+        ]);
+        return [...providerRows, ...portfolioRows];
+      })(),
     ]);
     const project = projectRows[0];
-    const recipients = [...contactRecipients, ...userRecipients]
+    const recipients = [...contactRecipients, ...userRecipients, ...externalRecipients]
       .filter((recipient) => Boolean(recipient.email))
       .filter(
         (recipient, index, all) =>
