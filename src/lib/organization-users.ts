@@ -629,24 +629,56 @@ export const removeOrganizationUser = createServerFn({ method: "POST" })
     if (["owner", "admin"].includes(target.role))
       throw new Error("Usuários administradores não podem ser removidos.");
 
+    const [person] = await db
+      .select({ email: schema.users.email })
+      .from(schema.users)
+      .where(eq(schema.users.id, data.userId))
+      .limit(1);
+    const personContacts = person
+      ? await db
+          .select({ id: schema.contacts.id })
+          .from(schema.contacts)
+          .where(
+            and(
+              eq(schema.contacts.organizationId, membership.organizationId),
+              inArray(schema.contacts.type, personContactTypes),
+              sql`lower(${schema.contacts.email}) = lower(${person.email})`,
+            ),
+          )
+      : [];
+    if (personContacts.length) {
+      const linkedProjects = await db
+        .select({ code: schema.projects.code })
+        .from(schema.projectParticipants)
+        .innerJoin(schema.projects, eq(schema.projects.id, schema.projectParticipants.projectId))
+        .where(
+          inArray(
+            schema.projectParticipants.contactId,
+            personContacts.map((contact) => contact.id),
+          ),
+        );
+      if (linkedProjects.length)
+        throw new Error(
+          `Remova este usuário dos projetos antes de excluí-lo: ${[...new Set(linkedProjects.map((project) => project.code))].join(", ")}.`,
+        );
+    }
+
     await db.transaction(async (tx) => {
       await tx
         .delete(schema.organizationMembers)
         .where(eq(schema.organizationMembers.id, target.id));
+      if (personContacts.length)
+        await tx.delete(schema.contacts).where(
+          inArray(
+            schema.contacts.id,
+            personContacts.map((contact) => contact.id),
+          ),
+        );
       const [otherMembership] = await tx
         .select({ id: schema.organizationMembers.id })
         .from(schema.organizationMembers)
         .where(eq(schema.organizationMembers.userId, data.userId))
         .limit(1);
-      if (!otherMembership)
-        await tx
-          .delete(schema.verifications)
-          .where(
-            and(
-              eq(schema.verifications.value, data.userId),
-              sql`${schema.verifications.identifier} like 'reset-password:%'`,
-            ),
-          );
       await tx
         .update(schema.users)
         .set({ activeOrganizationId: null, updatedAt: new Date() })
@@ -656,6 +688,24 @@ export const removeOrganizationUser = createServerFn({ method: "POST" })
             eq(schema.users.activeOrganizationId, membership.organizationId),
           ),
         );
+      if (!otherMembership) {
+        await tx
+          .delete(schema.verifications)
+          .where(
+            and(
+              eq(schema.verifications.value, data.userId),
+              sql`${schema.verifications.identifier} like 'reset-password:%'`,
+            ),
+          );
+        try {
+          await tx.transaction(async (nested) => {
+            await nested.delete(schema.users).where(eq(schema.users.id, data.userId));
+          });
+        } catch {
+          // A conta tem registros históricos; sem vínculo com empresas, ela apenas perde as sessões ativas.
+          await tx.delete(schema.sessions).where(eq(schema.sessions.userId, data.userId));
+        }
+      }
       await tx.insert(schema.auditLogs).values({
         organizationId: membership.organizationId,
         actorId: session.user.id,

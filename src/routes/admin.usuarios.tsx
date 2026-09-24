@@ -361,8 +361,8 @@ function UsuariosPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Remover usuário</AlertDialogTitle>
             <AlertDialogDescription>
-              {removing?.name} perderá o acesso à empresa. Os cadastros de contato e os vínculos em
-              projetos são mantidos como registro histórico.
+              {removing?.name} perderá o acesso e terá o cadastro e a conta excluídos. Pessoas
+              vinculadas a projetos precisam ser removidas dos projetos antes.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
