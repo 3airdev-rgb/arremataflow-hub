@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 import { formatBRL } from "@/lib/format-currency";
 import { getCurrentProjectRole, getProject, saveProject } from "@/lib/projects";
 import { createContact, listContacts } from "@/lib/contacts";
+import { uniquePeople } from "@/lib/contact-profile";
 import { inviteOrganizationUser } from "@/lib/organization-users";
 import {
   InvestorRegistrationModal,
@@ -263,13 +264,14 @@ function EditarProjeto() {
   const assessoresDisponiveis = usuarios.filter(
     (u) => u.tipo === "Assessor" || u.perfil === "Administrador" || u.perfil === "Jurídico",
   );
-  const responsaveisDisponiveis = usuarios.filter(
+  const responsaveisCandidatos = usuarios.filter(
     (u) =>
       u.tipo === "Assessor" ||
       u.tipo === "Responsável" ||
       u.perfil === "Administrador" ||
       u.perfil === "Jurídico",
   );
+  const responsaveisDisponiveis = uniquePeople(responsaveisCandidatos, ["Responsável", "Assessor"]);
   const leiloeirosDisponiveis = usuarios.filter((u) => u.tipo === "Leiloeiro");
 
   async function salvarPessoa(
@@ -1251,7 +1253,7 @@ function EditarProjeto() {
                         {responsaveisDisponiveis.map((person) => (
                           <CommandItem
                             key={person.id}
-                            value={person.nome}
+                            value={`${person.nome} ${person.email}`}
                             onSelect={() => {
                               if (!responsaveisVinculados.some((item) => item.id === person.id)) {
                                 setResponsaveisVinculados((current) => [

@@ -5,6 +5,7 @@ import {
   joinProfileLabels,
   profileToContactColumns,
   requiresUserAccount,
+  uniquePeople,
 } from "./contact-profile.ts";
 
 describe("contactRowToProfile", () => {
@@ -98,5 +99,36 @@ describe("requiresUserAccount", () => {
   it("não exige conta para os demais tipos de contato", () => {
     for (const type of ["Leiloeiro", "Corretor", "Imobiliária", "Fornecedor"])
       assert.equal(requiresUserAccount(type), false);
+  });
+});
+
+describe("uniquePeople", () => {
+  const maria = { id: "1", email: "maria@example.com", tipo: "Assessor" };
+  const mariaGestor = { id: "2", email: "Maria@Example.com", tipo: "Responsável" };
+  const paulo = { id: "3", email: "paulo@example.com", tipo: "Assessor" };
+
+  it("mostra a pessoa uma única vez mesmo com vários cadastros", () => {
+    const result = uniquePeople([maria, mariaGestor, paulo], ["Responsável", "Assessor"]);
+    assert.equal(result.length, 2);
+  });
+
+  it("prefere o cadastro do tipo de maior prioridade", () => {
+    const result = uniquePeople([maria, mariaGestor], ["Responsável", "Assessor"]);
+    assert.deepEqual(result, [mariaGestor]);
+    const inverse = uniquePeople([mariaGestor, maria], ["Assessor", "Responsável"]);
+    assert.deepEqual(inverse, [maria]);
+  });
+
+  it("mantém a ordem original e as pessoas com e-mails diferentes", () => {
+    const result = uniquePeople([paulo, maria, mariaGestor], ["Responsável", "Assessor"]);
+    assert.deepEqual(
+      result.map((person) => person.id),
+      ["3", "2"],
+    );
+  });
+
+  it("não altera listas sem repetição", () => {
+    assert.deepEqual(uniquePeople([maria, paulo], ["Assessor"]), [maria, paulo]);
+    assert.deepEqual(uniquePeople([], ["Assessor"]), []);
   });
 });

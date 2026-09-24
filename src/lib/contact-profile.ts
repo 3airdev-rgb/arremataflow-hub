@@ -91,3 +91,20 @@ export const userProfileTypes = ["Investidor", "Assessor", "Responsável"] as co
 
 export const requiresUserAccount = (type: string) =>
   (userProfileTypes as readonly string[]).includes(type);
+
+export function uniquePeople<T extends { email: string; tipo?: string }>(
+  people: T[],
+  typePriority: string[],
+): T[] {
+  const rank = (person: T) => {
+    const index = typePriority.indexOf(person.tipo ?? "");
+    return index === -1 ? typePriority.length : index;
+  };
+  const best = new Map<string, T>();
+  for (const person of people) {
+    const key = person.email.trim().toLowerCase();
+    const current = best.get(key);
+    if (!current || rank(person) < rank(current)) best.set(key, person);
+  }
+  return [...best.values()];
+}

@@ -57,6 +57,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { AdvisoryModeInfo } from "@/components/advisory-mode-info";
 import { saveProject } from "@/lib/projects";
 import { createContact, listContacts } from "@/lib/contacts";
+import { uniquePeople } from "@/lib/contact-profile";
 import { getCurrentOrganizationUser, inviteOrganizationUser } from "@/lib/organization-users";
 import { showValidationAlert } from "@/lib/validation-feedback";
 import { getOrganizationSettings } from "@/lib/organization-settings";
@@ -188,13 +189,14 @@ function NovoProjeto() {
   const assessoresDisponiveis = usuarios.filter(
     (u) => u.perfil === "Assessor" || u.perfil === "Administrador" || u.perfil === "Jurídico",
   );
-  const responsaveisDisponiveis = usuarios.filter(
+  const responsaveisCandidatos = usuarios.filter(
     (u) =>
       u.perfil === "Assessor" ||
       u.perfil === "Responsável" ||
       u.perfil === "Administrador" ||
       u.perfil === "Jurídico",
   );
+  const responsaveisDisponiveis = uniquePeople(responsaveisCandidatos, ["Responsável", "Assessor"]);
   const leiloeirosDisponiveis = usuarios.filter((u) => u.perfil === "Leiloeiro");
 
   async function salvarPessoa(
@@ -1129,7 +1131,7 @@ function NovoProjeto() {
                         {responsaveisDisponiveis.map((assessor) => (
                           <CommandItem
                             key={assessor.id}
-                            value={assessor.nome}
+                            value={`${assessor.nome} ${assessor.email}`}
                             onSelect={() => {
                               if (!responsaveisVinculados.find((r) => r.id === assessor.id)) {
                                 setResponsaveisVinculados([
