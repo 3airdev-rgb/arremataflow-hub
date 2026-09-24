@@ -120,6 +120,15 @@ export const plans = pgTable("plans", {
   menuItems: jsonb("menu_items").$type<string[]>().notNull().default([]),
   advisoryModalities: jsonb("advisory_modalities").$type<string[]>().notNull().default([]),
   projectTabs: jsonb("project_tabs").$type<string[]>().notNull().default([]),
+  kind: text("kind").notNull().default("standard"),
+  description: text("description"),
+  ownerOrganizationId: uuid("owner_organization_id").references(() => organizations.id, {
+    onDelete: "set null",
+  }),
+  active: boolean("active").notNull().default(true),
+  stripeMonthlyPriceId: text("stripe_monthly_price_id"),
+  stripeAnnualPriceId: text("stripe_annual_price_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -136,6 +145,39 @@ export const organizationPlans = pgTable("organization_plans", {
   endsAt: timestamp("ends_at", { withTimezone: true }),
   billingCycle: text("billing_cycle"),
   subscriptionAmount: numeric("subscription_amount", { precision: 12, scale: 2 }),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+  statusUpdatedAt: timestamp("status_updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const billingPayments = pgTable("billing_payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  planId: text("plan_id").references(() => plans.id, { onDelete: "set null" }),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  currency: text("currency").notNull().default("brl"),
+  status: text("status").notNull(),
+  method: text("method"),
+  source: text("source").notNull().default("manual"),
+  description: text("description"),
+  stripeInvoiceId: text("stripe_invoice_id"),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  periodStart: timestamp("period_start", { withTimezone: true }),
+  periodEnd: timestamp("period_end", { withTimezone: true }),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const stripeEvents = pgTable("stripe_events", {
+  id: text("id").primaryKey(),
+  type: text("type").notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }).notNull().defaultNow(),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
 });
 
 export const developerAuditLogs = pgTable("developer_audit_logs", {
