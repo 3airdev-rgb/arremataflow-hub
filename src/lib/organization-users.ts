@@ -380,14 +380,11 @@ export const inviteOrganizationUser = createServerFn({ method: "POST" })
     const { db, schema, membership, session } = await administratorContext(true);
     if (membership.role === "project_manager" && !data.contactData)
       throw new Error("Gestores só podem cadastrar participantes de projetos.");
-    const [{ randomBytes, randomUUID }, { sendTransactionalEmail, escapeHtml }] = await Promise.all(
-      [import("node:crypto"), import("@/lib/email.server")],
-    );
+    const [{ randomBytes, randomUUID }, { sendTransactionalEmail, escapeHtml, isEmailConfigured }] =
+      await Promise.all([import("node:crypto"), import("@/lib/email.server")]);
     const baseUrl = process.env["BETTER_AUTH_URL"];
     if (!baseUrl) throw new Error("Endereço público do aplicativo não configurado.");
-    const emailConfigured = Boolean(
-      process.env["RESEND_API_KEY"] && process.env["AUTH_EMAIL_FROM"],
-    );
+    const emailConfigured = isEmailConfigured();
     if (process.env["NODE_ENV"] === "production" && !emailConfigured)
       throw new Error("O serviço de e-mail não está configurado.");
     const token = randomBytes(32).toString("base64url"),
@@ -592,7 +589,11 @@ export const inviteOrganizationUser = createServerFn({ method: "POST" })
           html: `<p>Olá, ${escapeHtml(invited.user.name)}.</p><p>Você foi convidado para acessar o ArremataFlow.</p><p><a href="${escapeHtml(inviteUrl.toString())}">Criar minha senha</a></p><p>O link expira em 30 minutos.</p>`,
         });
         deliveredByEmail = true;
-      } catch {
+      } catch (error) {
+        console.error(
+          "Falha ao enviar o e-mail de convite.",
+          error instanceof Error ? error.message : error,
+        );
         // A conta foi criada; o link local permite concluir o convite sem duplicá-la.
       }
     }
@@ -744,9 +745,8 @@ export const renewOrganizationInvitation = createServerFn({ method: "POST" })
       throw new Error("Não há convite pendente para este usuário.");
     const baseUrl = process.env["BETTER_AUTH_URL"];
     if (!baseUrl) throw new Error("Endereço público do aplicativo não configurado.");
-    const [{ randomBytes, randomUUID }, { sendTransactionalEmail, escapeHtml }] = await Promise.all(
-      [import("node:crypto"), import("@/lib/email.server")],
-    );
+    const [{ randomBytes, randomUUID }, { sendTransactionalEmail, escapeHtml, isEmailConfigured }] =
+      await Promise.all([import("node:crypto"), import("@/lib/email.server")]);
     const token = randomBytes(32).toString("base64url");
     const inviteUrl = new URL(`/api/auth/reset-password/${token}`, baseUrl);
     inviteUrl.searchParams.set("callbackURL", new URL("/redefinir-senha", baseUrl).toString());
@@ -774,7 +774,7 @@ export const renewOrganizationInvitation = createServerFn({ method: "POST" })
       });
     });
     let deliveredByEmail = false;
-    if (process.env["RESEND_API_KEY"] && process.env["AUTH_EMAIL_FROM"]) {
+    if (isEmailConfigured()) {
       try {
         await sendTransactionalEmail({
           to: target.email,
@@ -782,7 +782,11 @@ export const renewOrganizationInvitation = createServerFn({ method: "POST" })
           html: `<p>Olá, ${escapeHtml(target.name)}.</p><p>Seu convite para acessar o ArremataFlow foi renovado.</p><p><a href="${escapeHtml(inviteUrl.toString())}">Criar minha senha</a></p><p>O link expira em 30 minutos.</p>`,
         });
         deliveredByEmail = true;
-      } catch {
+      } catch (error) {
+        console.error(
+          "Falha ao enviar o e-mail de convite.",
+          error instanceof Error ? error.message : error,
+        );
         // O link local permanece disponível ao administrador.
       }
     }

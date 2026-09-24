@@ -18,6 +18,21 @@ export function escapeHtml(value: string) {
   );
 }
 
+export function isEmailConfigured() {
+  const provider = (process.env["EMAIL_PROVIDER"] || "resend").toLowerCase();
+  if (!process.env["AUTH_EMAIL_FROM"]) return false;
+  if (provider === "smtp") {
+    const port = Number(process.env["SMTP_PORT"] || 587);
+    return Boolean(
+      process.env["SMTP_HOST"] &&
+      Number.isInteger(port) &&
+      process.env["SMTP_USER"] &&
+      process.env["SMTP_PASSWORD"],
+    );
+  }
+  return Boolean(process.env["RESEND_API_KEY"]);
+}
+
 export async function sendTransactionalEmail(message: TransactionalEmail) {
   const provider = (process.env["EMAIL_PROVIDER"] || "resend").toLowerCase();
   const from = process.env["AUTH_EMAIL_FROM"];
