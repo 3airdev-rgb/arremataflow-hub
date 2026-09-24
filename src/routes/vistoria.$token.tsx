@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { formatPhoneInput, PHONE_PLACEHOLDER } from "@/lib/phone";
 import {
   getPublicInspection,
   submitPublicInspection,
@@ -192,7 +193,10 @@ function InspectionPage() {
             <Field label="Contato do vistoriador">
               <Input
                 value={data.inspectorPhone}
-                onChange={(e) => set("inspectorPhone", e.target.value)}
+                inputMode="tel"
+                maxLength={14}
+                placeholder={PHONE_PLACEHOLDER}
+                onChange={(e) => set("inspectorPhone", formatPhoneInput(e.target.value))}
               />
             </Field>
             <Field label="Oficial de Justiça presente?">
@@ -209,7 +213,10 @@ function InspectionPage() {
                 <Field label="Fone de Contato">
                   <Input
                     value={data.bailiffPhone}
-                    onChange={(e) => set("bailiffPhone", e.target.value)}
+                    inputMode="tel"
+                    maxLength={14}
+                    placeholder={PHONE_PLACEHOLDER}
+                    onChange={(e) => set("bailiffPhone", formatPhoneInput(e.target.value))}
                   />
                 </Field>
               </>

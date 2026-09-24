@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { phoneSchema } from "@/lib/phone";
 
 export const brazilianStates = [
   "AC",
@@ -36,7 +37,7 @@ const settingsSchema = z.object({
   name: z.string().trim().min(2).max(160),
   legalDocument: z.string().trim().max(18),
   institutionalEmail: z.union([z.literal(""), z.string().trim().email().max(254)]),
-  phone: z.string().trim().max(30),
+  phone: phoneSchema,
   address: z.string().trim().max(200),
   addressNumber: z.string().trim().max(30),
   addressComplement: z.string().trim().max(100),

@@ -3,6 +3,7 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Schema } from "@/db/types";
 import { computeDistribution } from "@/lib/distribution";
+import { phoneSchema } from "@/lib/phone";
 import { validateDocument } from "@/lib/utils-validation";
 
 export const COMMERCIAL_DATA_UPDATED = "arremataflow:commercial-data-updated";
@@ -35,7 +36,7 @@ const portfolioInput = z.object({
   city: optionalText(120),
   state: optionalText(2),
   email: z.string().trim().email().or(z.literal("")),
-  phone: optionalText(30),
+  phone: phoneSchema.default(""),
   website: z.string().url().max(500).or(z.literal("")),
   advertisedValue: money,
   commissionPercentage: z.number().finite().min(0).max(100),
@@ -52,7 +53,7 @@ const proposalInput = z
     originId: z.string().uuid().or(z.literal("outros")),
     originName: z.string().trim().min(2).max(180),
     otherName: optionalText(180),
-    otherPhone: optionalText(30),
+    otherPhone: phoneSchema.default(""),
     value: money,
     counterofferValue: money.nullable(),
     taxValue: money,
@@ -76,7 +77,7 @@ const providerInput = z.object({
   name: z.string().trim().min(2).max(180),
   tradeName: optionalText(180),
   document: z.string().trim().min(11).max(18),
-  phone: optionalText(30),
+  phone: phoneSchema.default(""),
   email: z.string().trim().email().or(z.literal("")),
   address: optionalText(300),
   specialty: z.string().trim().min(2).max(180),

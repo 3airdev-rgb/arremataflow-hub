@@ -30,6 +30,7 @@ import {
   savePortfolioEntry,
 } from "@/lib/commercial";
 import { formatDocument } from "@/lib/utils-validation";
+import { formatPhoneInput, PHONE_PLACEHOLDER } from "@/lib/phone";
 import { showValidationAlert } from "@/lib/validation-feedback";
 
 type PortfolioType = "Corretor" | "Imobiliária" | "Site";
@@ -430,8 +431,11 @@ export function SalesPortfolioCard({ projectId }: { projectId: string }) {
                   <Field label="Telefone">
                     <Input
                       type="tel"
+                      inputMode="tel"
+                      maxLength={14}
+                      placeholder={PHONE_PLACEHOLDER}
                       value={form.phone}
-                      onChange={(event) => update("phone", event.target.value)}
+                      onChange={(event) => update("phone", formatPhoneInput(event.target.value))}
                       required
                     />
                   </Field>

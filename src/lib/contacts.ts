@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { requiresUserAccount } from "@/lib/contact-profile";
+import { phoneSchema } from "@/lib/phone";
 import { validateDocument } from "@/lib/utils-validation";
 
 export const contactTypes = [
@@ -19,7 +20,7 @@ export const contactInput = z.object({
   nome: z.string().trim().min(2).max(180),
   documento: z.string().trim().min(11).max(18),
   email: z.string().trim().toLowerCase().email().max(254),
-  celulares: z.array(z.string().trim().max(30)).max(5),
+  celulares: z.array(phoneSchema).max(5),
   dataNascimento: z
     .union([
       z.literal(""),

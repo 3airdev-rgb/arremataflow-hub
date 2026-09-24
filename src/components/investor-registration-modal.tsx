@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { joinProfileLabels, profileTypeLabels, type PersonProfile } from "@/lib/contact-profile";
 import { formatDocument as maskDocument } from "@/lib/utils-validation";
+import { formatPhoneInput, PHONE_PLACEHOLDER } from "@/lib/phone";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -162,14 +163,6 @@ export function InvestorRegistrationModal({
     }
   };
 
-  const formatPhone = (value: string) => {
-    const digits = value.replace(/\D/g, "");
-    if (digits.length <= 11) {
-      return digits.replace(/^(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
-    }
-    return value;
-  };
-
   const addCelular = () => {
     setFormData({
       ...formData,
@@ -186,7 +179,7 @@ export function InvestorRegistrationModal({
 
   const updateCelular = (index: number, value: string) => {
     const newCelulares = [...formData.celulares];
-    newCelulares[index] = formatPhone(value);
+    newCelulares[index] = formatPhoneInput(value);
     setFormData({ ...formData, celulares: newCelulares });
   };
 
@@ -425,7 +418,9 @@ export function InvestorRegistrationModal({
                     <Input
                       value={cel}
                       onChange={(e) => updateCelular(idx, e.target.value)}
-                      placeholder="(+55) 00 00000-0000"
+                      inputMode="tel"
+                      maxLength={14}
+                      placeholder={PHONE_PLACEHOLDER}
                     />
                     {formData.celulares.length > 1 && (
                       <Button

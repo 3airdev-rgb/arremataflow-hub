@@ -28,6 +28,7 @@
     "test:unit": "node --experimental-strip-types --test \"src/**/*.test.ts\"",
     "test:ci": "pnpm test:unit && pnpm test:active-organization && pnpm test:organization-user-role && pnpm test:project-access && pnpm test:operations && pnpm test:project-images && pnpm test:commercial",
     "auth:invite-admin": "node scripts/invite-first-admin.mjs",
+    "phones:normalize": "node --experimental-strip-types --env-file-if-exists=.env scripts/normalize-phones.mjs",
     "jobs:run": "node --env-file-if-exists=.env scripts/run-notification-jobs.mjs",
     "preview": "vite preview",
     "lint": "eslint .",

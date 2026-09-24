@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
+import { phoneSchema } from "@/lib/phone";
 
 const email = z.string().trim().email("Informe um e-mail válido.").max(254);
 const tokenSchema = z.string().min(40).max(200);
@@ -9,10 +10,10 @@ const answerSchema = z.object({
   inspectionType: z.enum(["posse", "venda"]),
   dateTime: z.string().min(1),
   propertyType: z.string().min(1).max(80),
-  inspectorPhone: z.string().max(40),
+  inspectorPhone: phoneSchema,
   bailiffPresent: z.boolean(),
   bailiffName: z.string().max(180),
-  bailiffPhone: z.string().max(40),
+  bailiffPhone: phoneSchema,
   keys: z.record(z.object({ has: z.boolean(), quantity: z.number().int().min(0).max(100) })),
   otherAccess: z.string().max(1000),
   utilities: z.record(z.union([z.string().max(300), z.boolean()])),

@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatBRL } from "@/lib/format-currency";
+import { formatPhoneInput, PHONE_PLACEHOLDER } from "@/lib/phone";
 import { COMMERCIAL_DATA_UPDATED, getCommercialData, saveProposal } from "@/lib/commercial";
 
 type PortfolioOrigin = { id: string; name: string; type: string };
@@ -203,8 +204,11 @@ export function SalesProposalsCard({ projectId }: { projectId: string }) {
                   <Field label="Telefone">
                     <Input
                       type="tel"
+                      inputMode="tel"
+                      maxLength={14}
+                      placeholder={PHONE_PLACEHOLDER}
                       value={otherPhone}
-                      onChange={(event) => setOtherPhone(event.target.value)}
+                      onChange={(event) => setOtherPhone(formatPhoneInput(event.target.value))}
                       required
                     />
                   </Field>

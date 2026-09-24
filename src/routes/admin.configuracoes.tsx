@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Percent, BellRing, Save, Users, CreditCard, ArrowUpRight } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
+import { formatPhoneInput, PHONE_PLACEHOLDER } from "@/lib/phone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -251,7 +252,10 @@ function ConfiguracoesPage() {
                   <Input
                     id="tel"
                     value={form.phone}
-                    onChange={(event) => change("phone", event.target.value)}
+                    inputMode="tel"
+                    maxLength={14}
+                    placeholder={PHONE_PLACEHOLDER}
+                    onChange={(event) => change("phone", formatPhoneInput(event.target.value))}
                   />
                 </div>
                 <div className="space-y-2">

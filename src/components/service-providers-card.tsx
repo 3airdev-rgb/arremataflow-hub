@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { formatBRL } from "@/lib/format-currency";
+import { formatPhoneInput, PHONE_PLACEHOLDER } from "@/lib/phone";
 import {
   getCommercialData,
   saveProvider as saveProviderRecord,
@@ -506,9 +507,15 @@ export function ServiceProvidersCard({ projectId }: { projectId: string }) {
                     <Field label="Celular / WhatsApp">
                       <Input
                         type="tel"
+                        inputMode="tel"
+                        maxLength={14}
+                        placeholder={PHONE_PLACEHOLDER}
                         value={providerForm.phone}
                         onChange={(e) =>
-                          setProviderForm({ ...providerForm, phone: e.target.value })
+                          setProviderForm({
+                            ...providerForm,
+                            phone: formatPhoneInput(e.target.value),
+                          })
                         }
                       />
                     </Field>
