@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Building2, Loader2, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,34 +35,36 @@ function LoginPage() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="hidden flex-col justify-between bg-sidebar p-12 text-sidebar-foreground lg:flex">
-        <div className="flex items-center gap-2">
-          <span className="grid size-9 place-items-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-            <Building2 className="size-5" />
-          </span>
-          <span className="text-lg font-semibold text-white">ArremataFlow</span>
-        </div>
-        <div className="max-w-md space-y-4">
-          <h2 className="text-white">Todo o pós-arremate sob controle.</h2>
-          <p className="text-sm leading-relaxed text-sidebar-foreground/80">
-            Centralize regularização, imissão na posse, reformas, documentos, financeiro e
-            distribuição de resultados — com trilha de auditoria e portal do investidor.
-          </p>
-          <div className="flex items-center gap-2 text-sm text-sidebar-foreground/80">
-            <ShieldCheck className="size-4" /> Multiempresa, com permissões por perfil
+      <div className="relative hidden overflow-hidden bg-sidebar lg:block">
+        <img
+          src="/login-hero.jpg"
+          alt=""
+          className="absolute inset-0 size-full object-cover object-left"
+        />
+        <div className="relative flex h-full flex-col justify-center p-12">
+          <div className="max-w-md space-y-4 rounded-2xl bg-sidebar/85 p-8 text-white shadow-xl backdrop-blur-sm">
+            <h2 className="text-white">Todo o pós-arremate sob controle.</h2>
+            <p className="text-sm leading-relaxed text-white/85">
+              Centralize regularização, imissão na posse, reformas, documentos, financeiro e
+              distribuição de resultados — com trilha de auditoria e portal do investidor.
+            </p>
+            <div className="flex items-center gap-2 text-sm text-white/85">
+              <ShieldCheck className="size-4" /> Multiempresa, com permissões por perfil
+            </div>
           </div>
         </div>
-        <p className="text-xs text-sidebar-foreground/60">© 2026 ArremataFlow</p>
+        <p className="absolute bottom-6 left-12 text-xs text-white/80 [text-shadow:0_1px_2px_rgb(0_0_0/0.6)]">
+          © 2026 ArremataFlow
+        </p>
       </div>
 
       <div className="flex items-center justify-center px-4 py-8 sm:px-6 sm:py-16">
         <div className="w-full max-w-sm">
-          <div className="mb-8 flex items-center gap-2 lg:hidden">
-            <span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground">
-              <Building2 className="size-5" />
-            </span>
-            <span className="text-lg font-semibold">ArremataFlow</span>
-          </div>
+          <img
+            src="/login-logo.jpg"
+            alt="ArremataFlow — Gestão pós-arrematação e regularização de imóveis"
+            className="mx-auto mb-6 w-full max-w-sm mix-blend-multiply [mask-image:radial-gradient(ellipse_at_center,black_55%,transparent_100%)]"
+          />
 
           {recuperar ? (
             <form
@@ -203,11 +205,6 @@ function LoginPage() {
                 >
                   Esqueci minha senha
                 </button>
-              </div>
-              <div className="text-center text-sm">
-                <Link to="/investidor" className="text-muted-foreground hover:underline">
-                  Sou investidor
-                </Link>
               </div>
             </form>
           )}
