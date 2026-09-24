@@ -1,50 +1,68 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { paymentStatuses } from "@/lib/billing";
+import {
+  paymentSchema,
+  planFieldsSchema,
+  planUpdateSchema,
+  subscriptionSchema,
+} from "@/lib/developer-schemas";
+
+const panel = () => import("@/lib/developer-panel.server");
+const stripe = () => import("@/lib/stripe.server");
 
 export const getSystemRole = createServerFn({ method: "GET" }).handler(async () =>
   (await import("@/lib/developer.server")).getSystemRoleImpl(),
-);
-export const getDeveloperDashboard = createServerFn({ method: "GET" }).handler(async () =>
-  (await import("@/lib/developer.server")).getDeveloperDashboardImpl(),
 );
 export const getActivePlan = createServerFn({ method: "GET" }).handler(async () =>
   (await import("@/lib/developer.server")).getActivePlanImpl(),
 );
 
-const planInput = z.object({
-  id: z.enum(["starter", "professional", "custom"]),
-  monthlyPrice: z.number().finite().min(0).nullable(),
-  annualPrice: z.number().finite().min(0).nullable(),
-  maxActiveProjects: z.number().int().min(0).nullable(),
-  maxInvestors: z.number().int().min(0).nullable(),
-  maxAdvisors: z.number().int().min(0).nullable(),
-  maxProjectManagers: z.number().int().min(0).nullable(),
-  firstResponseHours: z.number().int().min(1).max(720),
-  resolutionHours: z.number().int().min(1).max(2160),
-  menuItems: z.array(z.string().min(1)).max(30),
-  advisoryModalities: z.array(z.string().min(1)).max(20),
-  projectTabs: z.array(z.string().min(1)).max(30),
-});
+export const getDeveloperOverview = createServerFn({ method: "GET" })
+  .validator(z.object({ rangeDays: z.union([z.literal(7), z.literal(30), z.literal(90)]) }))
+  .handler(async ({ data }) => (await panel()).getOverviewImpl(data));
+
+export const getPlansOverview = createServerFn({ method: "GET" }).handler(async () =>
+  (await panel()).getPlansOverviewImpl(),
+);
+export const createPlan = createServerFn({ method: "POST" })
+  .validator(planFieldsSchema)
+  .handler(async ({ data }) => (await panel()).createPlanImpl(data));
 export const updatePlan = createServerFn({ method: "POST" })
-  .validator(planInput)
-  .handler(async ({ data }) => (await import("@/lib/developer.server")).updatePlanImpl(data));
-export const assignOrganizationPlan = createServerFn({ method: "POST" })
+  .validator(planUpdateSchema)
+  .handler(async ({ data }) => (await panel()).updatePlanImpl(data));
+export const setPlanActive = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string().min(1), active: z.boolean() }))
+  .handler(async ({ data }) => (await panel()).setPlanActiveImpl(data));
+export const deletePlan = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string().min(1) }))
+  .handler(async ({ data }) => (await panel()).deletePlanImpl(data));
+
+export const getFinance = createServerFn({ method: "GET" }).handler(async () =>
+  (await panel()).getFinanceImpl(),
+);
+export const saveSubscription = createServerFn({ method: "POST" })
+  .validator(subscriptionSchema)
+  .handler(async ({ data }) => (await panel()).saveSubscriptionImpl(data));
+export const recordPayment = createServerFn({ method: "POST" })
+  .validator(paymentSchema)
+  .handler(async ({ data }) => (await panel()).recordPaymentImpl(data));
+export const setPaymentStatus = createServerFn({ method: "POST" })
   .validator(
     z.object({
-      organizationId: z.string().uuid(),
-      planId: z.enum(["starter", "professional", "custom"]),
-      billingCycle: z.enum(["monthly", "annual"]).nullable(),
-      subscriptionAmount: z.number().finite().min(0).nullable(),
-      startsAt: z
-        .string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/)
-        .nullable(),
-      endsAt: z
-        .string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/)
-        .nullable(),
+      id: z.string().uuid(),
+      status: z.enum(paymentStatuses).exclude(["pending"]),
     }),
   )
-  .handler(async ({ data }) =>
-    (await import("@/lib/developer.server")).assignOrganizationPlanImpl(data),
-  );
+  .handler(async ({ data }) => (await panel()).setPaymentStatusImpl(data));
+
+export const createCheckoutLink = createServerFn({ method: "POST" })
+  .validator(z.object({ organizationId: z.string().uuid(), cycle: z.enum(["monthly", "annual"]) }))
+  .handler(async ({ data }) => (await stripe()).createCheckoutLinkImpl(data));
+export const createPortalLink = createServerFn({ method: "POST" })
+  .validator(z.object({ organizationId: z.string().uuid() }))
+  .handler(async ({ data }) => (await stripe()).createPortalLinkImpl(data));
+
+export const getHelpDesk = createServerFn({ method: "GET" }).handler(async () =>
+  (await panel()).getHelpDeskImpl(),
+);

@@ -41,6 +41,7 @@ import { Route as ApiDocumentsUploadRouteImport } from './routes/api/documents.u
 import { Route as ApiProjectImagesIdRouteImport } from './routes/api/project-images.$id'
 import { Route as ApiProjectImagesOrderRouteImport } from './routes/api/project-images.order'
 import { Route as ApiProjectImagesUploadRouteImport } from './routes/api/project-images.upload'
+import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe.webhook'
 import { Route as ApiSupportAttachmentsIdRouteImport } from './routes/api/support-attachments.$id'
 import { Route as ApiSupportAttachmentsUploadRouteImport } from './routes/api/support-attachments.upload'
 import { Route as ProjetosIdIndexRouteImport } from './routes/projetos.$id.index'
@@ -211,6 +212,11 @@ const ApiProjectImagesUploadRoute = ApiProjectImagesUploadRouteImport.update({
   path: '/api/project-images/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
+  id: '/api/stripe/webhook',
+  path: '/api/stripe/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSupportAttachmentsIdRoute = ApiSupportAttachmentsIdRouteImport.update({
   id: '/api/support-attachments/$id',
   path: '/api/support-attachments/$id',
@@ -281,6 +287,7 @@ export interface FileRoutesByFullPath {
   '/api/project-images/$id': typeof ApiProjectImagesIdRoute
   '/api/project-images/order': typeof ApiProjectImagesOrderRoute
   '/api/project-images/upload': typeof ApiProjectImagesUploadRoute
+  '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/api/support-attachments/$id': typeof ApiSupportAttachmentsIdRoute
   '/api/support-attachments/upload': typeof ApiSupportAttachmentsUploadRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
@@ -321,6 +328,7 @@ export interface FileRoutesByTo {
   '/api/project-images/$id': typeof ApiProjectImagesIdRoute
   '/api/project-images/order': typeof ApiProjectImagesOrderRoute
   '/api/project-images/upload': typeof ApiProjectImagesUploadRoute
+  '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/api/support-attachments/$id': typeof ApiSupportAttachmentsIdRoute
   '/api/support-attachments/upload': typeof ApiSupportAttachmentsUploadRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
@@ -363,6 +371,7 @@ export interface FileRoutesById {
   '/api/project-images/$id': typeof ApiProjectImagesIdRoute
   '/api/project-images/order': typeof ApiProjectImagesOrderRoute
   '/api/project-images/upload': typeof ApiProjectImagesUploadRoute
+  '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/api/support-attachments/$id': typeof ApiSupportAttachmentsIdRoute
   '/api/support-attachments/upload': typeof ApiSupportAttachmentsUploadRoute
   '/projetos/$id/documentos': typeof ProjetosIdDocumentosRoute
@@ -405,6 +414,7 @@ export interface FileRouteTypes {
     | '/api/project-images/$id'
     | '/api/project-images/order'
     | '/api/project-images/upload'
+    | '/api/stripe/webhook'
     | '/api/support-attachments/$id'
     | '/api/support-attachments/upload'
     | '/projetos/$id/documentos'
@@ -445,6 +455,7 @@ export interface FileRouteTypes {
     | '/api/project-images/$id'
     | '/api/project-images/order'
     | '/api/project-images/upload'
+    | '/api/stripe/webhook'
     | '/api/support-attachments/$id'
     | '/api/support-attachments/upload'
     | '/projetos/$id/documentos'
@@ -486,6 +497,7 @@ export interface FileRouteTypes {
     | '/api/project-images/$id'
     | '/api/project-images/order'
     | '/api/project-images/upload'
+    | '/api/stripe/webhook'
     | '/api/support-attachments/$id'
     | '/api/support-attachments/upload'
     | '/projetos/$id/documentos'
@@ -526,6 +538,7 @@ export interface RootRouteChildren {
   ApiProjectImagesIdRoute: typeof ApiProjectImagesIdRoute
   ApiProjectImagesOrderRoute: typeof ApiProjectImagesOrderRoute
   ApiProjectImagesUploadRoute: typeof ApiProjectImagesUploadRoute
+  ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   ApiSupportAttachmentsIdRoute: typeof ApiSupportAttachmentsIdRoute
   ApiSupportAttachmentsUploadRoute: typeof ApiSupportAttachmentsUploadRoute
   ProjetosIdDocumentosRoute: typeof ProjetosIdDocumentosRoute
@@ -760,6 +773,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProjectImagesUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/stripe/webhook': {
+      id: '/api/stripe/webhook'
+      path: '/api/stripe/webhook'
+      fullPath: '/api/stripe/webhook'
+      preLoaderRoute: typeof ApiStripeWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/support-attachments/$id': {
       id: '/api/support-attachments/$id'
       path: '/api/support-attachments/$id'
@@ -858,6 +878,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiProjectImagesIdRoute: ApiProjectImagesIdRoute,
   ApiProjectImagesOrderRoute: ApiProjectImagesOrderRoute,
   ApiProjectImagesUploadRoute: ApiProjectImagesUploadRoute,
+  ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   ApiSupportAttachmentsIdRoute: ApiSupportAttachmentsIdRoute,
   ApiSupportAttachmentsUploadRoute: ApiSupportAttachmentsUploadRoute,
   ProjetosIdDocumentosRoute: ProjetosIdDocumentosRoute,
