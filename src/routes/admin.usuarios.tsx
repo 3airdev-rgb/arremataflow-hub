@@ -48,11 +48,12 @@ import {
 } from "@/lib/organization-users";
 import { getOrganizationSettings } from "@/lib/organization-settings";
 import { getCurrentOrganizationUser } from "@/lib/organization-users";
+import { homePathForRole } from "@/lib/role-home";
 
 export const Route = createFileRoute("/admin/usuarios")({
   beforeLoad: async () => {
     const user = await getCurrentOrganizationUser();
-    if (!["owner", "admin"].includes(user.role)) throw redirect({ to: "/dashboard" });
+    if (!["owner", "admin"].includes(user.role)) throw redirect({ to: homePathForRole(user.role) });
   },
   head: () => ({
     meta: [

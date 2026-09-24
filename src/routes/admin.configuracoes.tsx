@@ -30,6 +30,7 @@ import {
   updateOrganizationSettings,
 } from "@/lib/organization-settings";
 import { getCurrentOrganizationUser } from "@/lib/organization-users";
+import { homePathForRole } from "@/lib/role-home";
 import { getCompanySubscription, requestSubscriptionUpgrade } from "@/lib/subscription";
 import {
   higherSubscriptionPlans,
@@ -42,7 +43,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/admin/configuracoes")({
   beforeLoad: async () => {
     const user = await getCurrentOrganizationUser();
-    if (!["owner", "admin"].includes(user.role)) throw redirect({ to: "/dashboard" });
+    if (!["owner", "admin"].includes(user.role)) throw redirect({ to: homePathForRole(user.role) });
   },
   head: () => ({
     meta: [

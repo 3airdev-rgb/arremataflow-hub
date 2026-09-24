@@ -27,13 +27,12 @@ import {
 import { getDashboardDailySummary, listRecentProjectAudit, listUpcomingTasks } from "@/lib/tasks";
 import { formatBRL } from "@/lib/format-currency";
 import { getCurrentOrganizationUser } from "@/lib/organization-users";
+import { homePathForRole, isAdminRole } from "@/lib/role-home";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: async () => {
     const user = await getCurrentOrganizationUser();
-    if (user.role === "investor" || user.role === "advisor") {
-      throw redirect({ to: "/projetos" });
-    }
+    if (!isAdminRole(user.role)) throw redirect({ to: homePathForRole(user.role) });
   },
   head: () => ({
     meta: [

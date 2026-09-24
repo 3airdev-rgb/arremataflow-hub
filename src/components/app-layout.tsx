@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getOrganizationSettings } from "@/lib/organization-settings";
 import { getCurrentOrganizationUser } from "@/lib/organization-users";
+import { homePathForRole, isAdminRole } from "@/lib/role-home";
 import { getActivePlan } from "@/lib/developer";
 import { authClient } from "@/lib/auth-client";
 import { unreadNotificationCount } from "@/lib/tasks";
@@ -80,7 +81,8 @@ export function AppLayout({
     mutationFn: (organizationId: string) => selectActiveOrganization({ data: { organizationId } }),
     onSuccess: async () => {
       await queryClient.invalidateQueries();
-      await router.navigate({ to: "/dashboard" });
+      const user = await getCurrentOrganizationUser();
+      await router.navigate({ to: homePathForRole(user.role) });
     },
   });
   const { data: serverUser } = useQuery({
@@ -113,7 +115,7 @@ export function AppLayout({
     currentUser.perfil === "Administrador"
       ? nav
       : currentUser.perfil === "Gestor de Projetos"
-        ? nav.filter((item) => item.to !== "/admin/configuracoes")
+        ? nav.filter((item) => item.to !== "/admin/configuracoes" && item.to !== "/dashboard")
         : currentUser.perfil === "Investidor"
           ? nav
               .filter((item) => ["/investidor", "/notificacoes", "/suporte"].includes(item.to))
@@ -131,8 +133,7 @@ export function AppLayout({
   );
   const showCompanyContext =
     currentUser.perfil !== "Investidor" && currentUser.perfil !== "Assessor";
-  const logoLinksToDashboard =
-    serverUser && ["owner", "admin", "project_manager"].includes(serverUser.role);
+  const logoLinksToDashboard = serverUser ? isAdminRole(serverUser.role) : false;
   const initials = currentUser.nome
     .split(" ")
     .slice(0, 2)
