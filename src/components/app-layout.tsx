@@ -48,6 +48,11 @@ const nav = [
   { to: "/suporte", label: "Suporte", icon: LifeBuoy },
 ] as const;
 
+const menuDisplayLabels: Record<string, string> = {
+  "/investidor": "Painel de Investidor",
+  "/assessores": "Painel de Assessor",
+};
+
 export function AppLayout({
   title,
   subtitle,
@@ -117,13 +122,9 @@ export function AppLayout({
       : currentUser.perfil === "Gestor de Projetos"
         ? nav.filter((item) => item.to !== "/admin/configuracoes" && item.to !== "/dashboard")
         : currentUser.perfil === "Investidor"
-          ? nav
-              .filter((item) => ["/investidor", "/notificacoes", "/suporte"].includes(item.to))
-              .map((item) => (item.to === "/investidor" ? { ...item, label: "Investidor" } : item))
+          ? nav.filter((item) => ["/investidor", "/notificacoes", "/suporte"].includes(item.to))
           : currentUser.perfil === "Assessor"
-            ? nav
-                .filter((item) => ["/assessores", "/notificacoes", "/suporte"].includes(item.to))
-                .map((item) => (item.to === "/assessores" ? { ...item, label: "Assessor" } : item))
+            ? nav.filter((item) => ["/assessores", "/notificacoes", "/suporte"].includes(item.to))
             : [];
   const visibleNav = roleNav.filter(
     (item) =>
@@ -186,7 +187,7 @@ export function AppLayout({
               )}
             >
               <item.icon className="size-4.5 shrink-0" strokeWidth={1.75} />
-              <span className="min-w-0 flex-1">{item.label}</span>
+              <span className="min-w-0 flex-1">{menuDisplayLabels[item.to] ?? item.label}</span>
               {item.to === "/notificacoes" && unreadCount > 0 ? (
                 <span
                   className="grid min-h-5 min-w-5 shrink-0 place-items-center rounded-full bg-destructive px-1.5 text-[10px] font-bold leading-none text-destructive-foreground"
