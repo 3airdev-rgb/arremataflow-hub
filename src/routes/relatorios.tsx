@@ -183,6 +183,9 @@ function Relatorios() {
           "",
           `Total de créditos;${safeCsvCell(formatBRL(data.summary.credits))}`,
           `Total de débitos;${safeCsvCell(formatBRL(data.summary.debits))}`,
+          "",
+          `Aquisição;${safeCsvCell(formatBRL(data.summary.acquisition))}`,
+          `Capital Investido;${safeCsvCell(formatBRL(data.summary.capitalInvested))}`,
         ]
       : [];
     const csv = [
@@ -236,10 +239,10 @@ function Relatorios() {
       ? `<section class="chart-wrap"><div class="pie" style="background:conic-gradient(${gradient})"></div><div class="legend">${data.chart.map((item, index) => `<div><span style="background:${chartColors[index % chartColors.length]}"></span>${escapeHtml(item.name)} — ${item.percentage.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</div>`).join("")}</div></section>`
       : "";
     const summaryHtml = data.summary
-      ? `<div class="totals"><strong>Total de créditos: ${escapeHtml(formatBRL(data.summary.credits))}</strong><strong>Total de débitos: ${escapeHtml(formatBRL(data.summary.debits))}</strong></div>`
+      ? `<div class="totals"><strong>Total de créditos: ${escapeHtml(formatBRL(data.summary.credits))}</strong><strong>Total de débitos: ${escapeHtml(formatBRL(data.summary.debits))}</strong></div><div class="capital"><div class="acquisition"><span>Aquisição</span><span>${escapeHtml(formatBRL(data.summary.acquisition))}</span></div><div class="invested"><span>Capital Investido</span><span>${escapeHtml(formatBRL(data.summary.capitalInvested))}</span></div></div>`
       : "";
     popup.document.write(
-      `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(labels[key])}</title><style>@page{size:A4 landscape;margin:14mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;color:#10263b}.report-header{text-align:center;border-bottom:2px solid #1e6687;padding-bottom:16px;margin-bottom:20px}.logo{display:block;width:190px;max-height:70px;object-fit:contain;margin:0 auto 18px}.report-title{font-size:22px;line-height:1.2;margin:0;font-weight:700;color:#123e56}.period{display:inline-block;margin:9px 0 15px;padding:5px 14px;border-radius:999px;background:#eaf4f8;color:#174f68;font-size:12px;font-weight:700}.context{margin:3px 0;color:#475467;font-size:11px;line-height:1.45}.context strong{color:#10263b}.count{margin-top:8px;color:#667085;font-size:10px}table{width:100%;border-collapse:collapse;font-size:9px}thead{display:table-header-group}tr{break-inside:avoid}th,td{border:1px solid #d0d9df;padding:6px;text-align:left;vertical-align:top}th{background:#eaf1f5;color:#123e56;font-weight:700}tbody tr:nth-child(even){background:#eef3f6}.totals{display:flex;justify-content:flex-end;gap:32px;margin-top:14px;padding:12px;background:#eaf1f5}.chart-wrap{display:flex;align-items:center;justify-content:center;gap:30px;margin:18px 0 24px}.pie{width:220px;height:220px;border-radius:50%}.legend{font-size:10px;line-height:1.8}.legend span{display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:2px}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><header class="report-header"><img class="logo" src="${escapeHtml(logoUrl)}" alt="ArremataFlow"><h1 class="report-title">${escapeHtml(labels[key])}</h1><div class="period">Período: ${escapeHtml(formatDate(startDate))} a ${escapeHtml(formatDate(endDate))}</div><p class="context"><strong>Projeto(s):</strong> ${escapeHtml(projectsLabel)}</p><p class="context"><strong>Investidor(es):</strong> ${escapeHtml(investorsLabel)}</p><p class="context"><strong>Assessor(es):</strong> ${escapeHtml(advisorsLabel)}</p><p class="count">${data.rows.length} registro(s)</p></header>${chartHtml}<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>${summaryHtml}<script>window.onload=()=>window.print()</script></body></html>`,
+      `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(labels[key])}</title><style>@page{size:A4 landscape;margin:14mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;color:#10263b}.report-header{text-align:center;border-bottom:2px solid #1e6687;padding-bottom:16px;margin-bottom:20px}.logo{display:block;width:190px;max-height:70px;object-fit:contain;margin:0 auto 18px}.report-title{font-size:22px;line-height:1.2;margin:0;font-weight:700;color:#123e56}.period{display:inline-block;margin:9px 0 15px;padding:5px 14px;border-radius:999px;background:#eaf4f8;color:#174f68;font-size:12px;font-weight:700}.context{margin:3px 0;color:#475467;font-size:11px;line-height:1.45}.context strong{color:#10263b}.count{margin-top:8px;color:#667085;font-size:10px}table{width:100%;border-collapse:collapse;font-size:9px}thead{display:table-header-group}tr{break-inside:avoid}th,td{border:1px solid #d0d9df;padding:6px;text-align:left;vertical-align:top}th{background:#eaf1f5;color:#123e56;font-weight:700}tbody tr:nth-child(even){background:#eef3f6}.totals{display:flex;justify-content:flex-end;gap:32px;margin-top:14px;padding:12px;background:#eaf1f5}.chart-wrap{display:flex;align-items:center;justify-content:center;gap:30px;margin:18px 0 24px}.pie{width:220px;height:220px;border-radius:50%}.capital{width:40%;margin:22px 0 0 auto;break-inside:avoid}.capital div{display:flex;justify-content:space-between;gap:24px;padding:11px 14px;font-size:14px;font-weight:700;color:#10263b}.capital .acquisition{background:#dbe8f5}.capital .invested{background:#a9c9ea;margin-top:16px}.legend{font-size:10px;line-height:1.8}.legend span{display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:2px}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><header class="report-header"><img class="logo" src="${escapeHtml(logoUrl)}" alt="ArremataFlow"><h1 class="report-title">${escapeHtml(labels[key])}</h1><div class="period">Período: ${escapeHtml(formatDate(startDate))} a ${escapeHtml(formatDate(endDate))}</div><p class="context"><strong>Projeto(s):</strong> ${escapeHtml(projectsLabel)}</p><p class="context"><strong>Investidor(es):</strong> ${escapeHtml(investorsLabel)}</p><p class="context"><strong>Assessor(es):</strong> ${escapeHtml(advisorsLabel)}</p><p class="count">${data.rows.length} registro(s)</p></header>${chartHtml}<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>${summaryHtml}<script>window.onload=()=>window.print()</script></body></html>`,
     );
     popup.document.close();
   };
@@ -499,6 +502,20 @@ function Relatorios() {
                     Total de débitos:{" "}
                     <strong className="text-destructive">{formatBRL(result.summary.debits)}</strong>
                   </span>
+                </div>
+              ) : null}
+              {result.summary ? (
+                <div className="ml-auto w-full max-w-sm space-y-3 text-sm font-semibold">
+                  <div className="flex justify-between gap-6 rounded-md bg-primary-soft px-4 py-3">
+                    <span>Aquisição</span>
+                    <span className="tabular-nums">{formatBRL(result.summary.acquisition)}</span>
+                  </div>
+                  <div className="flex justify-between gap-6 rounded-md bg-primary/15 px-4 py-3">
+                    <span>Capital Investido</span>
+                    <span className="tabular-nums">
+                      {formatBRL(result.summary.capitalInvested)}
+                    </span>
+                  </div>
                 </div>
               ) : null}
             </div>

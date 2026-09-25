@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { cashFlowSummary } from "@/lib/report-summary";
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { formatBRL } from "@/lib/format-currency";
@@ -162,7 +163,12 @@ export const generateReport = createServerFn({ method: "POST" })
       end = new Date(`${data.endDate}T23:59:59.999Z`);
     let columns: string[] = [],
       rows: Record<string, string | number>[] = [];
-    let summary: { credits: number; debits: number } | null = null;
+    let summary: {
+      credits: number;
+      debits: number;
+      acquisition: number;
+      capitalInvested: number;
+    } | null = null;
     let chart: Array<{ name: string; value: number; percentage: number }> = [];
     const financialKeys = ["revenues", "expenses", "cash_flow"];
 
@@ -201,15 +207,7 @@ export const generateReport = createServerFn({ method: "POST" })
         Status: item.status,
         Valor: money(item.amount),
       }));
-      if (data.reportKey === "cash_flow")
-        summary = {
-          credits: movements
-            .filter((item) => item.type === "receita")
-            .reduce((total, item) => total + Number(item.amount || 0), 0),
-          debits: movements
-            .filter((item) => item.type === "despesa")
-            .reduce((total, item) => total + Number(item.amount || 0), 0),
-        };
+      if (data.reportKey === "cash_flow") summary = cashFlowSummary(movements, selected);
     } else if (data.reportKey === "expenses_by_category") {
       const movements = ids.length
         ? await ctx.db
