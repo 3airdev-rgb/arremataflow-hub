@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { BirthDateField } from "@/components/ui/birth-date-field";
 import { Label } from "@/components/ui/label";
 import { joinProfileLabels, profileTypeLabels, type PersonProfile } from "@/lib/contact-profile";
 import { formatDocument as maskDocument } from "@/lib/utils-validation";
@@ -96,25 +97,6 @@ const UFs = [
   "SP",
   "SE",
   "TO",
-];
-
-const currentYear = new Date().getFullYear();
-const birthYears = Array.from({ length: currentYear - 1899 }, (_, index) =>
-  String(currentYear - index),
-);
-const months = [
-  "Janeiro",
-  "Fevereiro",
-  "Março",
-  "Abril",
-  "Maio",
-  "Junho",
-  "Julho",
-  "Agosto",
-  "Setembro",
-  "Outubro",
-  "Novembro",
-  "Dezembro",
 ];
 
 export function InvestorRegistrationModal({
@@ -219,23 +201,6 @@ export function InvestorRegistrationModal({
     }
     onOpenChange(nextOpen);
   };
-  const [birthYear = "", birthMonth = "", birthDay = ""] =
-    formData.dataNascimento?.split("-") || [];
-  const daysInBirthMonth =
-    birthYear && birthMonth ? new Date(Number(birthYear), Number(birthMonth), 0).getDate() : 31;
-  const updateBirthDate = (part: "year" | "month" | "day", value: string) => {
-    let year = birthYear,
-      month = birthMonth,
-      day = birthDay;
-    if (part === "year") year = value;
-    if (part === "month") month = value;
-    if (part === "day") day = value;
-    if (year && month && day) {
-      const maximumDay = new Date(Number(year), Number(month), 0).getDate();
-      day = String(Math.min(Number(day), maximumDay)).padStart(2, "0");
-    }
-    setFormData({ ...formData, dataNascimento: [year, month, day].join("-") });
-  };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -328,64 +293,12 @@ export function InvestorRegistrationModal({
             ) : (
               <div className="space-y-2">
                 <Label htmlFor="nascimento">Data de Nascimento</Label>
-                <div
-                  className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,6rem),1fr))] gap-2"
-                  aria-label="Data de Nascimento"
-                >
-                  <Select
-                    value={birthYear}
-                    onValueChange={(value) => updateBirthDate("year", value)}
-                    required
-                  >
-                    <SelectTrigger id="nascimento" aria-label="Ano de nascimento">
-                      <SelectValue placeholder="Ano" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-64">
-                      {birthYears.map((year) => (
-                        <SelectItem key={year} value={year}>
-                          {year}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={birthMonth}
-                    onValueChange={(value) => updateBirthDate("month", value)}
-                    required
-                  >
-                    <SelectTrigger aria-label="Mês de nascimento">
-                      <SelectValue placeholder="Mês" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {months.map((month, index) => {
-                        const value = String(index + 1).padStart(2, "0");
-                        return (
-                          <SelectItem key={value} value={value}>
-                            {month}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={birthDay}
-                    onValueChange={(value) => updateBirthDate("day", value)}
-                    required
-                  >
-                    <SelectTrigger aria-label="Dia de nascimento">
-                      <SelectValue placeholder="Dia" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-64">
-                      {Array.from({ length: daysInBirthMonth }, (_, index) =>
-                        String(index + 1).padStart(2, "0"),
-                      ).map((day) => (
-                        <SelectItem key={day} value={day}>
-                          {day}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <BirthDateField
+                  id="nascimento"
+                  value={formData.dataNascimento ?? ""}
+                  onValueChange={(dataNascimento) => setFormData({ ...formData, dataNascimento })}
+                  required
+                />
               </div>
             )}
 
