@@ -93,6 +93,11 @@ export const organizations = pgTable("organizations", {
   city: text("city"),
   state: text("state"),
   postalCode: text("postal_code"),
+  birthDate: date("birth_date"),
+  maritalStatus: text("marital_status"),
+  bankName: text("bank_name"),
+  bankAgency: text("bank_agency"),
+  bankAccount: text("bank_account"),
   taskDeadlineEmails: boolean("task_deadline_emails").notNull().default(true),
   weeklyInvestorReports: boolean("weekly_investor_reports").notNull().default(true),
   defaultAdvisoryFeePercent: numeric("default_advisory_fee_percent", { precision: 5, scale: 2 })

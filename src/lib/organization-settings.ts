@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
+import { birthDateError, isoToBirthDate } from "@/lib/birth-date";
+import { maritalStatusValues } from "@/lib/marital-status";
 import { phoneSchema } from "@/lib/phone";
 import { validateDocument } from "@/lib/utils-validation";
 
@@ -58,6 +60,20 @@ const settingsSchema = z.object({
   city: z.string().trim().max(100),
   state: z.union([z.literal(""), z.enum(brazilianStates)]),
   postalCode: z.string().trim().max(9),
+  birthDate: z.union([
+    z.literal(""),
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Informe a data de nascimento completa.")
+      .refine(
+        (value) => birthDateError(isoToBirthDate(value)) === null,
+        "Informe uma data de nascimento válida.",
+      ),
+  ]),
+  maritalStatus: z.union([z.literal(""), z.enum(maritalStatusValues)]),
+  bankName: z.string().trim().max(80),
+  bankAgency: z.string().trim().max(20),
+  bankAccount: z.string().trim().max(30),
   taskDeadlineEmails: z.boolean(),
   weeklyInvestorReports: z.boolean(),
   defaultAdvisoryFeePercent: z.number().finite().min(0).max(100),
@@ -94,6 +110,11 @@ export const getOrganizationSettings = createServerFn({ method: "GET" }).handler
       city: schema.organizations.city,
       state: schema.organizations.state,
       postalCode: schema.organizations.postalCode,
+      birthDate: schema.organizations.birthDate,
+      maritalStatus: schema.organizations.maritalStatus,
+      bankName: schema.organizations.bankName,
+      bankAgency: schema.organizations.bankAgency,
+      bankAccount: schema.organizations.bankAccount,
       taskDeadlineEmails: schema.organizations.taskDeadlineEmails,
       weeklyInvestorReports: schema.organizations.weeklyInvestorReports,
       defaultAdvisoryFeePercent: schema.organizations.defaultAdvisoryFeePercent,
@@ -124,6 +145,11 @@ export const getOrganizationSettings = createServerFn({ method: "GET" }).handler
     city: organization.city ?? "",
     state: organization.state ?? "",
     postalCode: organization.postalCode ?? "",
+    birthDate: organization.birthDate ?? "",
+    maritalStatus: organization.maritalStatus ?? "",
+    bankName: organization.bankName ?? "",
+    bankAgency: organization.bankAgency ?? "",
+    bankAccount: organization.bankAccount ?? "",
     taskDeadlineEmails: organization.taskDeadlineEmails,
     weeklyInvestorReports: organization.weeklyInvestorReports,
     defaultAdvisoryFeePercent: Number(organization.defaultAdvisoryFeePercent),
@@ -137,6 +163,10 @@ export const updateOrganizationSettings = createServerFn({ method: "POST" })
     if (!membership || !["owner", "admin"].includes(membership.role)) {
       throw new Error("Sem permissão para alterar a empresa.");
     }
+    const isCpf = data.legalDocument.replace(/\D/g, "").length === 11;
+    const personFields = isCpf
+      ? { birthDate: data.birthDate || null, maritalStatus: data.maritalStatus || null }
+      : { birthDate: null, maritalStatus: null };
     await db.transaction(async (tx) => {
       const { findTitularAdministrator, syncAdministratorContacts } =
         await import("@/lib/administrator.server");
@@ -177,6 +207,7 @@ export const updateOrganizationSettings = createServerFn({ method: "POST" })
         .update(schema.organizations)
         .set({
           ...data,
+          ...personFields,
           defaultAdvisoryFeePercent: data.defaultAdvisoryFeePercent.toFixed(2),
           updatedAt: new Date(),
         })
@@ -191,5 +222,10 @@ export const updateOrganizationSettings = createServerFn({ method: "POST" })
       });
       await syncAdministratorContacts(tx, schema, membership.organizationId, userId);
     });
-    return { ...data, id: membership.organizationId };
+    return {
+      ...data,
+      birthDate: personFields.birthDate ?? "",
+      maritalStatus: personFields.maritalStatus ?? "",
+      id: membership.organizationId,
+    };
   });

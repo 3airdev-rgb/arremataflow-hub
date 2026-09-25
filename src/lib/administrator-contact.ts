@@ -23,6 +23,11 @@ export type AdministratorRegistration = {
   city: string;
   state: string;
   postalCode: string;
+  birthDate?: string;
+  maritalStatus?: string;
+  bankName?: string;
+  bankAgency?: string;
+  bankAccount?: string;
 };
 
 export function administratorContactColumns(registration: AdministratorRegistration) {
@@ -38,6 +43,11 @@ export function administratorContactColumns(registration: AdministratorRegistrat
   put("cidade", registration.city);
   put("estado", registration.state);
   put("cep", registration.postalCode);
+  put("dataNascimento", registration.birthDate ?? "");
+  put("estadoCivil", registration.maritalStatus ?? "");
+  put("banco", registration.bankName ?? "");
+  put("agencia", registration.bankAgency ?? "");
+  put("conta", registration.bankAccount ?? "");
   const phone = registration.phone.trim();
   return {
     name: registration.name.trim(),

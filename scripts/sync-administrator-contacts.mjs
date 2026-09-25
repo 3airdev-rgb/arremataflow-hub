@@ -11,6 +11,12 @@ const client = new pg.Client({
 
 const report = [];
 
+// O driver devolve colunas "date" como Date à meia-noite local.
+const dateOnly = (value) =>
+  value instanceof Date
+    ? `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`
+    : (value ?? "");
+
 await client.connect();
 try {
   if (apply) await client.query("begin");
@@ -43,6 +49,11 @@ try {
       city: organization.city ?? "",
       state: organization.state ?? "",
       postalCode: organization.postal_code ?? "",
+      birthDate: dateOnly(organization.birth_date),
+      maritalStatus: organization.marital_status ?? "",
+      bankName: organization.bank_name ?? "",
+      bankAgency: organization.bank_agency ?? "",
+      bankAccount: organization.bank_account ?? "",
     });
     if (!validateDocument(columns.document)) {
       report.push(`${organization.name}: sem CPF/CNPJ válido nas Configurações, ignorada.`);

@@ -8,6 +8,7 @@ import { showValidationAlert } from "@/lib/validation-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BirthDateField } from "@/components/ui/birth-date-field";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -30,6 +31,7 @@ import {
   getOrganizationSettings,
   updateOrganizationSettings,
 } from "@/lib/organization-settings";
+import { maritalStatusOptions } from "@/lib/marital-status";
 import { getCurrentOrganizationUser } from "@/lib/organization-users";
 import { homePathForRole } from "@/lib/role-home";
 import { getCompanySubscription, requestSubscriptionUpgrade } from "@/lib/subscription";
@@ -88,6 +90,25 @@ function Bloco({
   );
 }
 
+function Campo({
+  id,
+  label,
+  span,
+  children,
+}: {
+  id: string;
+  label: string;
+  span: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`space-y-1.5 ${span}`}>
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+    </div>
+  );
+}
+
 function ConfiguracoesPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("visao-geral");
@@ -126,6 +147,11 @@ function ConfiguracoesPage() {
     city: "",
     state: "" as "" | (typeof brazilianStates)[number],
     postalCode: "",
+    birthDate: "",
+    maritalStatus: "" as "" | (typeof maritalStatusOptions)[number]["value"],
+    bankName: "",
+    bankAgency: "",
+    bankAccount: "",
     taskDeadlineEmails: true,
     weeklyInvestorReports: true,
     defaultAdvisoryFeePercent: 10,
@@ -145,11 +171,19 @@ function ConfiguracoesPage() {
         city: organization.city,
         state: organization.state as "" | (typeof brazilianStates)[number],
         postalCode: organization.postalCode,
+        birthDate: organization.birthDate,
+        maritalStatus: organization.maritalStatus as
+          "" | (typeof maritalStatusOptions)[number]["value"],
+        bankName: organization.bankName,
+        bankAgency: organization.bankAgency,
+        bankAccount: organization.bankAccount,
         taskDeadlineEmails: organization.taskDeadlineEmails,
         weeklyInvestorReports: organization.weeklyInvestorReports,
         defaultAdvisoryFeePercent: organization.defaultAdvisoryFeePercent,
       });
   }, [organization]);
+
+  const isCpf = form.legalDocument.replace(/\D/g, "").length === 11;
 
   const change = (field: keyof typeof form, value: string | boolean | number) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -223,48 +257,27 @@ function ConfiguracoesPage() {
         <TabsContent value="visao-geral">
           <div className="grid gap-6">
             <Bloco icon={Building2} titulo="Dados cadastrais" descricao="Identificação e contato">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="razao">Nome ou Razão social</Label>
+              <div className="grid gap-x-4 gap-y-3 sm:grid-cols-6 lg:grid-cols-12">
+                <Campo id="razao" label="Nome ou Razão social" span="sm:col-span-6 lg:col-span-6">
                   <Input
                     id="razao"
                     value={form.name}
                     onChange={(event) => change("name", event.target.value)}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cnpj">CPF ou CNPJ</Label>
+                </Campo>
+                <Campo id="cnpj" label="CPF ou CNPJ" span="sm:col-span-3 lg:col-span-3">
                   <Input
                     id="cnpj"
                     inputMode="numeric"
                     maxLength={18}
-                    placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                    placeholder="CPF ou CNPJ"
                     value={form.legalDocument}
                     onChange={(event) =>
                       change("legalDocument", formatarCpfCnpj(event.target.value))
                     }
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Com CPF ou CNPJ válido, o administrador passa a aparecer nas buscas de
-                    investidor, assessor e gestor de projetos.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="emailc">E-mail do administrador</Label>
-                  <Input
-                    id="emailc"
-                    type="email"
-                    required
-                    value={form.institutionalEmail}
-                    onChange={(event) => change("institutionalEmail", event.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    É também o e-mail de acesso do administrador; se for alterado, use o novo e-mail
-                    no próximo login.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tel">Telefone</Label>
+                </Campo>
+                <Campo id="tel" label="Telefone" span="sm:col-span-3 lg:col-span-3">
                   <Input
                     id="tel"
                     value={form.phone}
@@ -273,53 +286,94 @@ function ConfiguracoesPage() {
                     placeholder={PHONE_PLACEHOLDER}
                     onChange={(event) => change("phone", formatPhoneInput(event.target.value))}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="endc">Endereço</Label>
+                </Campo>
+                <Campo
+                  id="emailc"
+                  label="E-mail do administrador"
+                  span="sm:col-span-6 lg:col-span-6"
+                >
+                  <Input
+                    id="emailc"
+                    type="email"
+                    required
+                    value={form.institutionalEmail}
+                    onChange={(event) => change("institutionalEmail", event.target.value)}
+                  />
+                </Campo>
+                {isCpf ? (
+                  <>
+                    <Campo id="nasc" label="Data de nascimento" span="sm:col-span-3 lg:col-span-3">
+                      <BirthDateField
+                        id="nasc"
+                        value={form.birthDate}
+                        onValueChange={(value) => change("birthDate", value)}
+                      />
+                    </Campo>
+                    <Campo id="civil" label="Estado civil" span="sm:col-span-3 lg:col-span-3">
+                      <Select
+                        value={form.maritalStatus}
+                        onValueChange={(value) => change("maritalStatus", value)}
+                      >
+                        <SelectTrigger id="civil" aria-label="Estado civil">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {maritalStatusOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Campo>
+                  </>
+                ) : null}
+                <p className="text-xs text-muted-foreground sm:col-span-6 lg:col-span-12">
+                  O e-mail também é o acesso do administrador; se for alterado, use o novo e-mail no
+                  próximo login. Com CPF ou CNPJ válido, o administrador passa a aparecer nas buscas
+                  de investidor, assessor e gestor de projetos.
+                </p>
+
+                <Campo id="endc" label="Endereço" span="sm:col-span-4 lg:col-span-6">
                   <Input
                     id="endc"
                     value={form.address}
                     onChange={(event) => change("address", event.target.value)}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="numero">Nro.</Label>
+                </Campo>
+                <Campo id="numero" label="Nro." span="sm:col-span-2 lg:col-span-2">
                   <Input
                     id="numero"
                     inputMode="numeric"
                     value={form.addressNumber}
                     onChange={(event) => change("addressNumber", event.target.value)}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="complemento">Complemento</Label>
+                </Campo>
+                <Campo id="complemento" label="Complemento" span="sm:col-span-6 lg:col-span-4">
                   <Input
                     id="complemento"
                     value={form.addressComplement}
                     onChange={(event) => change("addressComplement", event.target.value)}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bairro">Bairro</Label>
+                </Campo>
+                <Campo id="bairro" label="Bairro" span="sm:col-span-3 lg:col-span-4">
                   <Input
                     id="bairro"
                     value={form.district}
                     onChange={(event) => change("district", event.target.value)}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cidade">Cidade</Label>
+                </Campo>
+                <Campo id="cidade" label="Cidade" span="sm:col-span-3 lg:col-span-4">
                   <Input
                     id="cidade"
                     value={form.city}
                     onChange={(event) => change("city", event.target.value)}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="uf">UF</Label>
+                </Campo>
+                <Campo id="uf" label="UF" span="sm:col-span-3 lg:col-span-2">
                   <Select value={form.state} onValueChange={(value) => change("state", value)}>
                     <SelectTrigger id="uf" aria-label="UF">
-                      <SelectValue placeholder="Selecione a UF" />
+                      <SelectValue placeholder="UF" />
                     </SelectTrigger>
                     <SelectContent>
                       {brazilianStates.map((state) => (
@@ -329,9 +383,8 @@ function ConfiguracoesPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cep">CEP</Label>
+                </Campo>
+                <Campo id="cep" label="CEP" span="sm:col-span-3 lg:col-span-2">
                   <Input
                     id="cep"
                     inputMode="numeric"
@@ -340,6 +393,40 @@ function ConfiguracoesPage() {
                     value={form.postalCode}
                     onChange={(event) => change("postalCode", event.target.value)}
                   />
+                </Campo>
+              </div>
+
+              <div className="mt-6 border-t pt-4">
+                <h4 className="mb-3 text-sm font-medium">Dados bancários</h4>
+                <div className="grid gap-x-4 gap-y-3 sm:grid-cols-6 lg:grid-cols-12">
+                  <Campo id="banco" label="Banco" span="sm:col-span-6 lg:col-span-5">
+                    <Input
+                      id="banco"
+                      maxLength={80}
+                      placeholder="Ex: Itaú"
+                      value={form.bankName}
+                      onChange={(event) => change("bankName", event.target.value)}
+                    />
+                  </Campo>
+                  <Campo id="agencia" label="Agência" span="sm:col-span-3 lg:col-span-3">
+                    <Input
+                      id="agencia"
+                      maxLength={20}
+                      inputMode="numeric"
+                      placeholder="0000"
+                      value={form.bankAgency}
+                      onChange={(event) => change("bankAgency", event.target.value)}
+                    />
+                  </Campo>
+                  <Campo id="conta" label="Conta corrente" span="sm:col-span-3 lg:col-span-4">
+                    <Input
+                      id="conta"
+                      maxLength={30}
+                      placeholder="00000-0"
+                      value={form.bankAccount}
+                      onChange={(event) => change("bankAccount", event.target.value)}
+                    />
+                  </Campo>
                 </div>
               </div>
             </Bloco>

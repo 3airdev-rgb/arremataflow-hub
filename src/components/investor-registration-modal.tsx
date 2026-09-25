@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { BirthDateField } from "@/components/ui/birth-date-field";
+import { maritalStatusOptions } from "@/lib/marital-status";
 import { Label } from "@/components/ui/label";
 import { joinProfileLabels, profileTypeLabels, type PersonProfile } from "@/lib/contact-profile";
 import { formatDocument as maskDocument } from "@/lib/utils-validation";
@@ -313,11 +314,11 @@ export function InvestorRegistrationModal({
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="solteiro">Solteiro(a)</SelectItem>
-                    <SelectItem value="casado">Casado(a)</SelectItem>
-                    <SelectItem value="divorciado">Divorciado(a)</SelectItem>
-                    <SelectItem value="viuvo">Viúvo(a)</SelectItem>
-                    <SelectItem value="uniao-estavel">União Estável</SelectItem>
+                    {maritalStatusOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

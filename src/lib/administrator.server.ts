@@ -70,6 +70,11 @@ export async function syncAdministratorContacts(
     city: organization.city ?? "",
     state: organization.state ?? "",
     postalCode: organization.postalCode ?? "",
+    birthDate: organization.birthDate ?? "",
+    maritalStatus: organization.maritalStatus ?? "",
+    bankName: organization.bankName ?? "",
+    bankAgency: organization.bankAgency ?? "",
+    bankAccount: organization.bankAccount ?? "",
   });
   if (!validateDocument(columns.document)) return { synced: false as const };
 

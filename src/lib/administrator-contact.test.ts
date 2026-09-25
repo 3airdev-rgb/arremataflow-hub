@@ -35,6 +35,31 @@ describe("administratorContactColumns", () => {
     postalCode: "88066070",
   };
 
+  it("inclui nascimento, estado civil e dados bancários quando informados", () => {
+    const columns = administratorContactColumns({
+      ...registration,
+      birthDate: "1988-03-05",
+      maritalStatus: "casado",
+      bankName: " Itaú ",
+      bankAgency: "0001",
+      bankAccount: "12345-6",
+    });
+    assert.deepEqual(columns.details, {
+      endereco: "Rua Sagrado Coração de Jesus",
+      numero: "811",
+      complemento: "Casa 104",
+      bairro: "Morro das Pedras",
+      cidade: "Florianópolis",
+      estado: "SC",
+      cep: "88066070",
+      dataNascimento: "1988-03-05",
+      estadoCivil: "casado",
+      banco: "Itaú",
+      agencia: "0001",
+      conta: "12345-6",
+    });
+  });
+
   it("converte o cadastro da empresa nas colunas de um contato", () => {
     assert.deepEqual(administratorContactColumns(registration), {
       name: "Cleo Marcus Garcia",
